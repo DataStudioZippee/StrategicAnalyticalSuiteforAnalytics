@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>COD Reconciliation Dashboard</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+
+:root{
+    --primary-900:#003f8c;
+    --glass-bg:rgba(255,255,255,0.16);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.25);
+}
+
+/* ---------- BODY ---------- */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI",Arial,sans-serif;
+}
+
+html,body{
+    min-height:100%;
+}
+
+body{
+    background:
+        linear-gradient(
+            rgba(255,255,255,.18),
+            rgba(255,255,255,.18)
+        ),
+        url('Zippee.png') center/cover fixed no-repeat;
+
+    min-height:100vh;
+    padding:20px;
+    position:relative;
+}
+
+/* ---------- GLASS OVERLAY ---------- */
+
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,.18);
+    backdrop-filter:blur(7px);
+    z-index:-1;
+}
+
+/* ---------- CONTAINER ---------- */
+
+.container{
+    max-width:1900px;
+    margin:auto;
+}
+
+/* ---------- MAIN CARD ---------- */
+
+.main-card,
+.card{
+
+    background:var(--glass-bg);
+
+    backdrop-filter:blur(12px) saturate(120%);
+    -webkit-backdrop-filter:blur(12px) saturate(120%);
+
+    border-radius:22px;
+
+    border:1px solid rgba(255,255,255,0.25);
+
+    box-shadow:var(--card-shadow);
+}
+
+/* ---------- MAIN CARD ---------- */
+
+.main-card{
+    padding:30px;
+    margin-bottom:25px;
+}
+
+/* ---------- TITLE ---------- */
+
+h1{
+    font-size:34px;
+    font-weight:900;
+    color:#003f8c;
+    margin-bottom:10px;
+}
+
+/* ---------- SUBTITLE ---------- */
+
+.subtitle{
+    color:#1f2937;
+    margin-bottom:25px;
+    font-size:15px;
+    font-weight:600;
+}
+
+/* ---------- UPLOAD GRID ---------- */
+
+.upload-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:20px;
+}
+
+/* ---------- UPLOAD BOX ---------- */
+
+.upload-box{
+
+    background:rgba(255,255,255,0.35);
+
+    border:1px dashed rgba(0,63,140,.35);
+
+    border-radius:18px;
+
+    padding:22px;
+
+    transition:.25s ease;
+}
+
+.upload-box:hover{
+    transform:translateY(-3px);
+    box-shadow:0 10px 22px rgba(0,0,0,.08);
+}
+
+/* ---------- BOX TITLE ---------- */
+
+.upload-box h3{
+    color:#003f8c;
+    font-size:20px;
+    margin-bottom:12px;
+    font-weight:800;
+}
+
+/* ---------- BOX TEXT ---------- */
+
+.upload-box p{
+    color:#374151;
+    font-size:14px;
+    line-height:1.7;
+    margin-bottom:15px;
+    font-weight:600;
+}
+
+/* ---------- FILE INPUT ---------- */
+
+input[type="file"]{
+
+    width:100%;
+
+    background:white;
+
+    border:none;
+
+    padding:10px 12px;
+
+    border-radius:12px;
+
+    font-size:13px;
+
+    box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+
+/* ---------- BUTTON ---------- */
+
+button{
+
+    margin-top:25px;
+
+    background:linear-gradient(
+        135deg,
+        #0A66C2,
+        #0078FF
+    );
+
+    border:none;
+
+    color:white;
+
+    padding:14px 22px;
+
+    border-radius:14px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    font-weight:800;
+
+    transition:.25s ease;
+}
+
+button:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 6px 16px rgba(0,120,255,.35);
+}
+
+/* ---------- PIVOT GRID ---------- */
+
+.pivot-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:20px;
+    align-items:start;
+}
+
+/* ---------- CARD ---------- */
+
+.card{
+    padding:22px;
+}
+
+/* ---------- SECTION TITLE ---------- */
+
+.section-title{
+    font-size:24px;
+    font-weight:900;
+    margin-bottom:15px;
+    color:#003f8c;
+}
+
+/* ---------- SUMMARY ---------- */
+
+.summary{
+
+    background:rgba(255,255,255,.45);
+
+    border:1px solid rgba(255,255,255,.35);
+
+    padding:15px;
+
+    border-radius:14px;
+
+    margin-bottom:15px;
+
+    font-weight:800;
+
+    color:#111827;
+
+    line-height:1.8;
+
+    box-shadow:0 4px 12px rgba(0,0,0,.05);
+}
+
+/* ---------- TABLE WRAPPER ---------- */
+
+.table-wrapper{
+    overflow:auto;
+    max-height:800px;
+    border-radius:18px;
+}
+
+/* ---------- TABLE ---------- */
+
+table{
+    width:100%;
+    border-collapse:collapse;
+
+    background:white;
+
+    overflow:hidden;
+
+    border-radius:18px;
+
+    box-shadow:0 8px 22px rgba(0,0,0,.12);
+}
+
+/* ---------- TABLE HEAD ---------- */
+
+thead{
+    background:#003f8c;
+    color:white;
+    position:sticky;
+    top:0;
+    z-index:10;
+}
+
+/* ---------- TABLE HEAD CELL ---------- */
+
+th{
+    padding:12px;
+    font-size:13px;
+    font-weight:800;
+    border:1px solid rgba(255,255,255,.08);
+    text-align:left;
+}
+
+/* ---------- TABLE BODY CELL ---------- */
+
+td{
+    padding:10px 12px;
+    border:1px solid #e5e7eb;
+    font-size:13px;
+    white-space:nowrap;
+    color:#111827;
+    font-weight:600;
+}
+
+/* ---------- TABLE ROWS ---------- */
+
+tbody tr:nth-child(even){
+    background:#f8fafc;
+}
+
+tbody tr:hover{
+    background:#dbeafe;
+}
+
+/* ---------- GRAND TOTAL ---------- */
+
+.grand-total{
+    background:#bbf7d0 !important;
+    font-weight:900;
+}
+
+/* ---------- MISSING ROW ---------- */
+
+.mismatch{
+    background:#fee2e2 !important;
+    color:#991b1b;
+    font-weight:800;
+}
+
+/* ---------- SCROLLBAR ---------- */
+
+::-webkit-scrollbar{
+    height:10px;
+    width:10px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#0A66C2;
+    border-radius:20px;
+}
+
+::-webkit-scrollbar-track{
+    background:#dfe8f5;
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media(max-width:1400px){
+
+    .pivot-grid{
+        grid-template-columns:1fr;
+    }
+
+    .upload-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="main-card">
+
+        <h1>COD Reconciliation Dashboard</h1>
+
+        <div class="subtitle">
+            Upload all files and generate reconciliation automatically.
+        </div>
+
+        <div class="upload-grid">
+
+            <div class="upload-box">
+
+                <h3>1st Upload → Order Level Worker COD Report</h3>
+
+                <p>
+                    Order Number vs COD Amount
+                </p>
+
+                <input type="file" id="file1" accept=".csv,.xlsx,.xls"/>
+
+            </div>
+
+            <div class="upload-box">
+
+                <h3>2nd Upload → MasterData</h3>
+
+                <p>
+                    Delivered Orders Only
+                    <br>
+                    Cash Collected > 0
+                </p>
+
+                <input type="file" id="file2" accept=".csv,.xlsx,.xls"/>
+
+            </div>
+
+            <div class="upload-box">
+
+                <h3>3rd Upload → Reconciliation Sheet</h3>
+
+                <p>
+                    myntra Sheet
+                    <br>
+                    Cash + Loginext QR + Static QR + Third Party
+                </p>
+
+                <input type="file" id="file3" accept=".csv,.xlsx,.xls"/>
+
+            </div>
+
+        </div>
+
+        <button onclick="generateAllPivots()">
+            Generate All Pivots
+        </button>
+
+    </div>
+
+    <!-- TOP 3 PIVOTS -->
+
+    <div class="pivot-grid">
+
+        <!-- PIVOT 1 -->
+
+        <div class="card">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;gap:10px;">
+
+    <h2 class="section-title" style="margin-bottom:0;">
+        Pivot 1 → COD Amount
+    </h2>
+
+    <button onclick="copyTable('pivotTable1')" style="margin-top:0;">
+        Copy Table
+    </button>
+
+</div>
+
+            <div id="summary1"></div>
+
+            <div class="table-wrapper">
+
+                <table id="pivotTable1">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- PIVOT 2 -->
+
+        <div class="card">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;gap:10px;">
+
+    <h2 class="section-title" style="margin-bottom:0;">
+        Pivot 2 → Cash Collected
+    </h2>
+
+    <button onclick="copyTable('pivotTable2')" style="margin-top:0;">
+        Copy Table
+    </button>
+
+</div>
+            <div id="summary2"></div>
+
+            <div class="table-wrapper">
+
+                <table id="pivotTable2">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- PIVOT 3 -->
+
+        <div class="card">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;gap:10px;">
+
+    <h2 class="section-title" style="margin-bottom:0;">
+        Pivot 3 → Reconciliation
+    </h2>
+
+    <button onclick="copyTable('pivotTable3')" style="margin-top:0;">
+        Copy Table
+    </button>
+
+</div>
+
+            <div id="summary3"></div>
+
+            <div class="table-wrapper">
+
+                <table id="pivotTable3">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- TABLE 4 -->
+
+    <div class="card" style="margin-top:25px;">
+
+        <h2 class="section-title">
+            Reconciliation Exception Report
+        </h2>
+
+        <div id="summary4"></div>
+
+        <div class="table-wrapper">
+
+            <table id="pivotTable4">
+
+                <thead></thead>
+
+                <tbody></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let pivot1Data = {};
+let pivot2Data = {};
+let pivot3Data = {};
+
+async function generateAllPivots(){
+
+    await processFirstFile();
+
+    await processSecondFile();
+
+    await processThirdFile();
+
+    generateReconciliation();
+}
+
+function readExcel(file,sheetName=null){
+
+    return new Promise((resolve,reject)=>{
+
+        const reader = new FileReader();
+
+        reader.onload = function(e){
+
+            const data = new Uint8Array(e.target.result);
+
+            const workbook = XLSX.read(data,{type:'array'});
+
+            let worksheet;
+
+            if(sheetName){
+                worksheet = workbook.Sheets[sheetName];
+            }else{
+                worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            }
+
+            const jsonData = XLSX.utils.sheet_to_json(
+                worksheet,
+                {defval:""}
+            );
+
+            resolve(jsonData);
+        };
+
+        reader.onerror = reject;
+
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+async function processFirstFile(){
+
+    const file =
+        document.getElementById("file1").files[0];
+
+    if(!file) return;
+
+    const data = await readExcel(file);
+
+    const pivot = {};
+
+    data.forEach(row=>{
+
+        const order =
+            row["Order number"] ||
+            row["Order Number"] ||
+            "";
+
+        const amount =
+            parseFloat(row["COD Amount"] || 0);
+
+        const settlementMode =
+    row["Settlement Mode"] || "";
+
+{
+
+    if(!pivot[order]){
+        pivot[order] = 0;
+    }
+
+    pivot[order] += amount;
+}
+    });
+
+    pivot1Data = pivot;
+
+    renderPivot(
+        "pivotTable1",
+        "summary1",
+        pivot,
+        "Sum of COD Amount"
+    );
+}
+
+async function processSecondFile(){
+
+    const file =
+        document.getElementById("file2").files[0];
+
+    if(!file) return;
+
+    const data = await readExcel(file);
+
+    const pivot = {};
+
+    data.forEach(row=>{
+
+        const status =
+            String(
+                row["Order Status"] || ""
+            ).toLowerCase();
+
+        const order =
+            row["Order Number"] || "";
+
+        const amount =
+            parseFloat(
+                row["Cash Collected"] || 0
+            );
+
+        if(
+            status === "delivered"
+            &&
+            amount > 0
+        ){
+
+            if(!pivot[order]){
+                pivot[order] = 0;
+            }
+
+            pivot[order] += amount;
+        }
+
+    });
+
+    pivot2Data = pivot;
+
+    renderPivot(
+        "pivotTable2",
+        "summary2",
+        pivot,
+        "Sum of Cash Collected"
+    );
+}
+
+async function processThirdFile(){
+
+    const file =
+        document.getElementById("file3").files[0];
+
+    if(!file) return;
+
+    const data = await readExcel(file);
+
+    const pivot = {};
+
+    data.forEach(row=>{
+
+        // COLUMN C → ORDER ID
+
+        const order =
+            String(
+                Object.values(row)[2] || ""
+            ).trim();
+
+        // COLUMN F → CASH
+
+        const cash =
+            parseFloat(
+                Object.values(row)[5] || 0
+            ) || 0;
+
+        // COLUMN G → LOGINEXT QR
+
+        const loginext =
+            parseFloat(
+                Object.values(row)[6] || 0
+            ) || 0;
+
+        // COLUMN H → STATIC QR
+
+        const staticQR =
+            parseFloat(
+                Object.values(row)[7] || 0
+            ) || 0;
+
+        // COLUMN I → THIRD PARTY
+
+        const thirdParty =
+            parseFloat(
+                Object.values(row)[8] || 0
+            ) || 0;
+
+        // TOTAL OF F+G+H+I
+
+        const total =
+            cash +
+            loginext +
+            staticQR +
+            thirdParty;
+
+        if(order){
+
+            if(!pivot[order]){
+
+                pivot[order] = 0;
+            }
+
+            pivot[order] += total;
+        }
+
+    });
+
+    pivot3Data = pivot;
+
+    renderPivot(
+        "pivotTable3",
+        "summary3",
+        pivot,
+        "Sum of F+G+H+I"
+    );
+}
+function renderPivot(
+    tableId,
+    summaryId,
+    pivot,
+    valueTitle
+){
+
+    const thead =
+        document.querySelector(`#${tableId} thead`);
+
+    const tbody =
+        document.querySelector(`#${tableId} tbody`);
+
+    thead.innerHTML = `
+        <tr>
+            <th>Order Number</th>
+            <th>${valueTitle}</th>
+        </tr>
+    `;
+
+    tbody.innerHTML = "";
+
+    let grandTotal = 0;
+    let count = 0;
+
+    Object.entries(pivot).forEach(([order,amount])=>{
+
+        grandTotal += amount;
+
+        count++;
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${order}</td>
+            <td>${amount.toFixed(2)}</td>
+        `;
+
+        tbody.appendChild(tr);
+
+    });
+
+    const totalRow = document.createElement("tr");
+
+    totalRow.classList.add("grand-total");
+
+    totalRow.innerHTML = `
+        <td>Grand Total</td>
+        <td>${grandTotal.toFixed(2)}</td>
+    `;
+
+    tbody.appendChild(totalRow);
+
+    document.getElementById(summaryId).innerHTML = `
+        <div class="summary">
+            Total Orders:
+            ${count.toLocaleString()}
+            <br>
+            Grand Total:
+            ₹${grandTotal.toLocaleString()}
+        </div>
+    `;
+}
+async function copyTable(tableId){
+
+    const table = document.getElementById(tableId);
+
+    let text = "";
+
+    for(let row of table.rows){
+
+        let rowData = [];
+
+        for(let cell of row.cells){
+
+            rowData.push(cell.innerText);
+        }
+
+        text += rowData.join("\t") + "\n";
+    }
+
+    try{
+
+        await navigator.clipboard.writeText(text);
+
+        alert("Table copied successfully!");
+
+    }catch(err){
+
+        alert("Copy failed!");
+    }
+}
+function generateReconciliation(){
+
+    const thead =
+        document.querySelector("#pivotTable4 thead");
+
+    const tbody =
+        document.querySelector("#pivotTable4 tbody");
+
+    thead.innerHTML = "";
+
+    tbody.innerHTML = "";
+
+    // =========================================
+    // MERGE PIVOT1 + PIVOT3
+    // =========================================
+
+    const mergedOrders = {};
+
+    // ADD PIVOT1
+
+    Object.entries(pivot1Data).forEach(([order,amount])=>{
+
+        if(!mergedOrders[order]){
+
+            mergedOrders[order] = 0;
+        }
+
+        mergedOrders[order] += amount;
+
+    });
+
+    // ADD PIVOT3
+
+    Object.entries(pivot3Data).forEach(([order,amount])=>{
+
+        if(!mergedOrders[order]){
+
+            mergedOrders[order] = 0;
+        }
+
+        mergedOrders[order] += amount;
+
+    });
+
+    // =========================================
+    // CREATE HEADER
+    // =========================================
+
+    thead.innerHTML = `
+        <tr>
+            <th>Missing Order ID</th>
+            <th>Amount</th>
+        </tr>
+    `;
+
+    let missingCount = 0;
+
+    let missingAmount = 0;
+
+    // =========================================
+    // CHECK PIVOT2 IN MERGED TABLE
+    // =========================================
+
+    Object.entries(pivot2Data).forEach(([order,amount])=>{
+
+        // IF ORDER NOT FOUND IN MERGED TABLE
+
+        if(!mergedOrders[order]){
+
+            missingCount++;
+
+            missingAmount += amount;
+
+            const tr =
+                document.createElement("tr");
+
+            tr.classList.add("mismatch");
+
+            tr.innerHTML = `
+                <td>${order}</td>
+                <td>${amount.toFixed(2)}</td>
+            `;
+
+            tbody.appendChild(tr);
+        }
+
+    });
+
+    // =========================================
+    // GRAND TOTAL ROW
+    // =========================================
+
+    const totalRow =
+        document.createElement("tr");
+
+    totalRow.classList.add("grand-total");
+
+    totalRow.innerHTML = `
+        <td>Grand Total</td>
+        <td>${missingAmount.toFixed(2)}</td>
+    `;
+
+    tbody.appendChild(totalRow);
+
+    // =========================================
+    // SUMMARY
+    // =========================================
+
+    document.getElementById("summary4").innerHTML = `
+        <div class="summary">
+
+            Total Missing Orders:
+            ${missingCount.toLocaleString()}
+
+            <br>
+
+            Total Missing Amount:
+            ₹${missingAmount.toLocaleString()}
+
+        </div>
+    `;
+}
+</script>
+
+</body>
+</html>
