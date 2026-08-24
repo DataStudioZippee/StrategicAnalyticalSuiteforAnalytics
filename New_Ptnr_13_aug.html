@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8"/>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Zippee – Partnr Report</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+
+:root{
+    --primary-900:#003f8c;
+    --glass-bg:rgba(255,255,255,0.16);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.25);
+}
+
+html,body{
+    margin:0;
+    padding:0;
+    font-family:"Segoe UI",Arial,sans-serif;
+}
+
+body{
+    background:url('Zippee.png') center/cover fixed no-repeat;
+}
+
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,.24);
+    backdrop-filter:blur(6px);
+    z-index:-1;
+}
+
+.header{
+    background:linear-gradient(
+        90deg,
+        rgba(0,63,140,.85),
+        rgba(0,89,179,.85)
+    );
+
+    color:white;
+
+    padding:18px 36px;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+}
+
+.logo{
+    height:48px;
+}
+
+.card{
+    background:var(--glass-bg);
+
+    backdrop-filter:blur(10px) saturate(120%);
+
+    margin:30px auto;
+
+    max-width:1300px;
+
+    padding:30px;
+
+    border-radius:18px;
+
+    box-shadow:var(--card-shadow);
+}
+
+.title{
+    font-size:22px;
+
+    font-weight:700;
+
+    color:var(--primary-900);
+}
+
+.controls{
+    display:flex;
+
+    gap:8px;
+
+    flex-wrap:wrap;
+
+    margin-top:10px;
+}
+
+.button{
+    background:linear-gradient(
+        135deg,
+        #0A66C2,
+        #0078FF
+    );
+
+    border:none;
+
+    border-radius:10px;
+
+    padding:10px 16px;
+
+    color:white;
+
+    cursor:pointer;
+
+    font-weight:700;
+}
+
+#reportContainer{
+    display:none;
+
+    margin-top:20px;
+}
+
+table{
+    border-collapse:collapse;
+
+    background:white;
+
+    border-radius:12px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+
+    margin:0 auto;
+
+    table-layout:auto;
+
+    width:auto;
+}
+
+th{
+    background:#f4f6f8;
+
+    font-weight:700;
+}
+
+th,td{
+    border:1px solid #ddd;
+
+    padding:6px;
+
+    font-size:13px;
+
+    text-align:center;
+
+    vertical-align:middle;
+
+    white-space:nowrap;
+}
+
+td:nth-child(2),
+th:nth-child(2){
+    text-align:left;
+
+    font-weight:700;
+}
+
+.green-row td{
+    background:#00b050;
+
+    font-weight:700;
+}
+
+.footer-watermark{
+    width:100%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    margin-top:10px;
+
+    font-size:11px;
+
+    font-weight:700;
+
+    color:#000;
+
+    letter-spacing:1px;
+
+    text-transform:uppercase;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+    <h1>Zippee – Partner Report</h1>
+
+    <img
+        class="logo"
+        src="SASA.png"
+    >
+
+</div>
+
+
+<div class="card">
+
+    <div class="title">
+        Upload Dataset
+    </div>
+
+
+    <input
+        type="file"
+        id="fileInput"
+        multiple
+        accept=".csv,.xlsx,.xls"
+    >
+
+
+    <div class="controls">
+
+        <button
+            class="button"
+            onclick="generateReport()"
+        >
+            Generate Report
+        </button>
+
+
+        <button
+            class="button"
+            onclick="downloadImage()"
+        >
+            Download Image
+        </button>
+
+    </div>
+
+
+    <div
+        id="reportContainer"
+        style="display:none;margin-top:20px"
+    >
+
+        <div
+            id="captureBox"
+            style="
+                position:relative;
+                display:inline-block;
+                width:fit-content;
+                margin:auto;
+            "
+        >
+
+            <div
+                style="
+                    text-align:center;
+                    margin-bottom:15px;
+                    width:100%;
+                "
+            >
+
+                <div
+                    style="
+                        font-size:18px;
+                        font-weight:800;
+                    "
+                >
+                    ZIPPEE &lt;&gt; Partnr Report
+                </div>
+
+
+                <div style="font-size:13px">
+
+                    Date:
+                    <span id="autoDate"></span>
+
+                    &nbsp;&nbsp;
+
+                    Time:
+                    <span id="autoTime"></span>
+
+                </div>
+
+            </div>
+
+
+            <table id="finalReportTable"></table>
+
+
+            <div class="footer-watermark">
+
+                Powered by SASA Automation | Zippee
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+
+/* =========================================================
+   GLOBAL DATA
+========================================================= */
+
+let dataset = [];
+
+
+/* =========================================================
+   REPORT TIME WINDOW
+========================================================= */
+
+let todayStart;
+
+let today10;
+
+let today19;
+
+let yesterday19;
+
+
+/* =========================================================
+   CREATE REPORT WINDOW
+========================================================= */
+
+function createReportWindow(){
+
+    const now = new Date();
+
+
+    /*
+    TODAY 00:00:00
+    */
+
+    todayStart =
+        new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            0,
+            0,
+            0,
+            0
+        );
+
+
+    /*
+    TODAY 10:00:00
+    */
+
+    today10 =
+        new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            10,
+            0,
+            0,
+            0
+        );
+
+
+    /*
+    TODAY 19:00:00
+
+    IMPORTANT:
+
+    19:00:00 belongs to NEXT DAY.
+    */
+
+    today19 =
+        new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            19,
+            0,
+            0,
+            0
+        );
+
+
+    /*
+    YESTERDAY 19:00:00
+    */
+
+    yesterday19 =
+        new Date(today19);
+
+    yesterday19.setDate(
+        yesterday19.getDate() - 1
+    );
+
+
+    console.log(
+        "=============================="
+    );
+
+    console.log(
+        "REPORT WINDOW"
+    );
+
+    console.log(
+        "FROM:",
+        yesterday19
+    );
+
+    console.log(
+        "TO:",
+        today19
+    );
+
+    console.log(
+        "CARRY FORWARD TIME:",
+        today10
+    );
+
+    console.log(
+        "=============================="
+    );
+}
+
+
+/* =========================================================
+   CSV / EXCEL DATE PARSER
+
+   IMPORTANT:
+   Raw file contains values like:
+
+   11/08/2026 19:22 54
+
+   Which means:
+
+   11 Aug 2026
+   19:22:54
+
+========================================================= */
+
+function parseIndianDate(value){
+
+    if(
+        value === null ||
+        value === undefined ||
+        value === ""
+    ){
+        return null;
+    }
+
+
+    /*
+    ---------------------------------------------------------
+    EXCEL SERIAL DATE
+    ---------------------------------------------------------
+    */
+
+    if(
+        typeof value === "number"
+    ){
+
+        const p =
+            XLSX.SSF.parse_date_code(
+                value
+            );
+
+
+        if(!p){
+            return null;
+        }
+
+
+        return new Date(
+            p.y,
+            p.m - 1,
+            p.d,
+            p.H || 0,
+            p.M || 0,
+            Math.floor(p.S || 0)
+        );
+    }
+
+
+    /*
+    ---------------------------------------------------------
+    JS DATE
+    ---------------------------------------------------------
+    */
+
+    if(
+        value instanceof Date
+    ){
+
+        return new Date(
+            value.getTime()
+        );
+
+    }
+
+
+    let str =
+        String(value)
+        .trim();
+
+
+    /*
+    ---------------------------------------------------------
+    REMOVE EXTRA SPACES
+    ---------------------------------------------------------
+    */
+
+    str =
+        str.replace(
+            /\s+/g,
+            " "
+        );
+
+
+    /*
+    ---------------------------------------------------------
+    ISO FORMAT
+
+    2026-08-13T19:22:54
+    ---------------------------------------------------------
+    */
+
+    if(
+        str.includes("T")
+    ){
+
+        let parts =
+            str.split("T");
+
+
+        let datePart =
+            parts[0];
+
+
+        let timePart =
+            parts[1]
+            .replace("Z","");
+
+
+        let d =
+            datePart
+            .split("-")
+            .map(Number);
+
+
+        let t =
+            timePart
+            .split(":")
+            .map(Number);
+
+
+        return new Date(
+            d[0],
+            d[1] - 1,
+            d[2],
+            t[0] || 0,
+            t[1] || 0,
+            t[2] || 0
+        );
+    }
+
+
+    /*
+    ---------------------------------------------------------
+    NORMAL INDIAN FORMAT
+
+    DD/MM/YYYY HH:MM SS
+
+    Example:
+
+    11/08/2026 19:22 54
+
+    IMPORTANT:
+    Seconds are separated by SPACE in your raw file.
+    ---------------------------------------------------------
+    */
+
+    let match =
+        str.match(
+            /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\s+(\d{1,2}):(\d{2})(?:[:\s](\d{1,2}))?(?:\s+(AM|PM))?$/i
+        );
+
+
+    if(match){
+
+        let day =
+            Number(match[1]);
+
+
+        let month =
+            Number(match[2]);
+
+
+        let year =
+            Number(match[3]);
+
+
+        let hour =
+            Number(match[4]);
+
+
+        let minute =
+            Number(match[5]);
+
+
+        let second =
+            Number(
+                match[6] || 0
+            );
+
+
+        let ampm =
+            match[7]
+            ?
+                match[7].toUpperCase()
+            :
+                "";
+
+
+        /*
+        AM / PM
+        */
+
+        if(
+            ampm === "PM" &&
+            hour !== 12
+        ){
+
+            hour += 12;
+
+        }
+
+
+        if(
+            ampm === "AM" &&
+            hour === 12
+        ){
+
+            hour = 0;
+
+        }
+
+
+        return new Date(
+            year,
+            month - 1,
+            day,
+            hour,
+            minute,
+            second
+        );
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   CHECK REPORT WINDOW
+
+   REPORT WINDOW:
+
+   YESTERDAY 19:00:00
+             ↓
+   TODAY 19:00:00
+
+   19:00:00 TODAY IS EXCLUDED.
+========================================================= */
+
+function isInReportWindow(orderDate){
+
+    if(
+        !orderDate ||
+        isNaN(orderDate.getTime())
+    ){
+
+        return false;
+
+    }
+
+
+    return (
+        orderDate >= yesterday19 &&
+        orderDate < today19
+    );
+}
+
+
+/* =========================================================
+   ADJUST ORDER TIME FOR BREACH
+
+   CASE 1:
+
+   Yesterday 19:00 → Today 09:59:59
+
+   becomes:
+
+   Today 10:00:00
+
+
+   CASE 2:
+
+   Today 00:00 → Today 09:59:59
+
+   becomes:
+
+   Today 10:00:00
+
+
+   CASE 3:
+
+   Today 10:00 onwards
+
+   actual order time is used.
+========================================================= */
+
+function getBreachOrderDate(orderDate){
+
+    if(
+        !orderDate ||
+        isNaN(orderDate.getTime())
+    ){
+
+        return null;
+
+    }
+
+
+    /*
+    YESTERDAY 19:00
+    THROUGH
+    TODAY 09:59:59
+    */
+
+    if(
+        orderDate >= yesterday19 &&
+        orderDate < today10
+    ){
+
+        return new Date(
+            today10
+        );
+
+    }
+
+
+    /*
+    TODAY 00:00
+    THROUGH
+    TODAY 09:59:59
+    */
+
+    if(
+        orderDate >= todayStart &&
+        orderDate < today10
+    ){
+
+        return new Date(
+            today10
+        );
+
+    }
+
+
+    /*
+    TODAY 10:00+
+    */
+
+    return new Date(
+        orderDate
+    );
+}
+
+
+/* =========================================================
+   FILE UPLOAD
+========================================================= */
+
+document
+.getElementById("fileInput")
+.addEventListener(
+    "change",
+    async function(event){
+
+        dataset = [];
+
+
+        createReportWindow();
+
+
+        const files =
+            Array.from(
+                event.target.files
+            );
+
+
+        if(
+            !files.length
+        ){
+
+            return;
+
+        }
+
+
+        /*
+        PROCESS ALL FILES
+        */
+
+        for(
+            const file of files
+        ){
+
+            try{
+
+                const data =
+                    await file.arrayBuffer();
+
+
+                /*
+                -------------------------------------------------
+                USE XLSX LIBRARY FOR BOTH CSV AND XLSX
+
+                THIS FIXES THE OLD:
+
+                row.split(",")
+
+                PROBLEM.
+
+                Some CSV fields contain commas inside quotes.
+                -------------------------------------------------
+                */
+
+                const workbook =
+                    XLSX.read(
+                        data,
+                        {
+                            type:"array",
+                            cellDates:true,
+                            raw:true
+                        }
+                    );
+
+
+                const sheetName =
+                    workbook.SheetNames[0];
+
+
+                const sheet =
+                    workbook.Sheets[
+                        sheetName
+                    ];
+
+
+                const rows =
+                    XLSX.utils.sheet_to_json(
+                        sheet,
+                        {
+                            header:1,
+                            defval:"",
+                            raw:true
+                        }
+                    );
+
+
+                if(
+                    rows.length < 2
+                ){
+
+                    continue;
+
+                }
+
+
+                /*
+                HEADER
+                */
+
+                const header =
+                    rows[0];
+
+
+                /*
+                FIND ORDER DATE COLUMN
+
+                Expected:
+                Column G
+                index 6
+                */
+
+                let orderDateIndex =
+                    header.findIndex(
+                        h =>
+                            String(h)
+                            .trim()
+                            .toLowerCase() ===
+                            "order date"
+                    );
+
+
+                if(
+                    orderDateIndex === -1
+                ){
+
+                    orderDateIndex = 6;
+
+                }
+
+
+                let includedCount = 0;
+
+                let removedCount = 0;
+
+
+                /*
+                -------------------------------------------------
+                FILTER DATA
+                -------------------------------------------------
+                */
+
+                for(
+                    const row of rows.slice(1)
+                ){
+
+                    const orderDate =
+                        parseIndianDate(
+                            row[orderDateIndex]
+                        );
+
+
+                    /*
+                    INVALID DATE
+                    */
+
+                    if(
+                        !orderDate ||
+                        isNaN(
+                            orderDate.getTime()
+                        )
+                    ){
+
+                        removedCount++;
+
+                        continue;
+
+                    }
+
+
+                    /*
+                    ONLY REPORT WINDOW
+
+                    Yesterday 19:00
+                    TO
+                    Today 19:00
+
+                    TODAY 19:00 AND AFTER
+                    WILL NOT COME IN TODAY'S REPORT.
+                    */
+
+                    if(
+                        isInReportWindow(
+                            orderDate
+                        )
+                    ){
+
+                        dataset.push(
+                            row
+                        );
+
+                        includedCount++;
+
+                    }
+                    else{
+
+                        removedCount++;
+
+                    }
+
+                }
+
+
+                console.log(
+                    "================================"
+                );
+
+                console.log(
+                    "FILE:",
+                    file.name
+                );
+
+                console.log(
+                    "RAW ROWS:",
+                    rows.length - 1
+                );
+
+                console.log(
+                    "INCLUDED:",
+                    includedCount
+                );
+
+                console.log(
+                    "REMOVED:",
+                    removedCount
+                );
+
+                console.log(
+                    "================================"
+                );
+
+            }
+            catch(error){
+
+                console.error(
+                    "Error reading:",
+                    file.name,
+                    error
+                );
+
+            }
+
+        }
+
+
+        console.log(
+            "FINAL DATASET:",
+            dataset.length
+        );
+
+
+        alert(
+            dataset.length +
+            " orders included in the report."
+        );
+
+    }
+);
+
+
+/* =========================================================
+   GENERATE REPORT
+========================================================= */
+
+function generateReport(){
+
+    if(
+        !dataset.length
+    ){
+
+        alert(
+            "Please upload the file first."
+        );
+
+        return;
+
+    }
+
+
+    let cities = {};
+
+
+    /*
+    STATUS COUNTER
+    */
+
+    window.statusCounter = {};
+
+
+    /*
+    ---------------------------------------------------------
+    PROCESS EVERY ORDER
+    ---------------------------------------------------------
+    */
+
+    dataset.forEach(
+        row => {
+
+
+            /*
+            COLUMN E
+            TRACKING NO
+            */
+
+            const trackingNo =
+                String(
+                    row[4] || ""
+                )
+                .trim();
+
+
+            /*
+            COLUMN F
+            STATUS
+            */
+
+            let status =
+                String(
+                    row[5] || ""
+                )
+                .replace(
+                    /\r|\n/g,
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+
+            /*
+            COLUMN G
+            ORDER DATE
+            */
+
+            const rawOrderDate =
+                parseIndianDate(
+                    row[6]
+                );
+
+
+            /*
+            CITY
+            COLUMN V = INDEX 21
+            */
+
+            let city =
+                String(
+                    row[21] || ""
+                )
+                .split(" ")
+                .slice(2)
+                .join(" ")
+                .trim();
+
+
+            if(
+                city ===
+                "Badshahpur New"
+            ){
+
+                city =
+                    "Badshahpur";
+
+            }
+
+
+            if(
+                !city
+            ){
+
+                return;
+
+            }
+
+
+            /*
+            CREATE CITY
+            */
+
+            if(
+                !cities[city]
+            ){
+
+                cities[city] = {
+
+                    total:0,
+
+                    delivered:0,
+
+                    breach:0,
+
+                    nonbreach:0,
+
+                    breach15:0,
+
+                    breach30:0,
+
+                    breach60:0,
+
+                    breachAbove:0,
+
+                    deliverySum:0,
+
+                    deliveryCount:0,
+
+                    shipped:0,
+
+                    cancelled:0,
+
+                    open:0,
+
+                    rto:0,
+
+                    picked:0,
+
+                    packed:0
+
+                };
+
+            }
+
+
+            /*
+            TOTAL ORDER
+            */
+
+            cities[city].total++;
+
+
+            /*
+            STATUS COUNTER
+            */
+
+            window.statusCounter[status] =
+                (
+                    window.statusCounter[status] ||
+                    0
+                ) + 1;
+
+
+            /* =================================================
+               DELIVERED
+            ================================================= */
+
+            if(
+                status ===
+                "delivered"
+            ){
+
+                cities[city]
+                    .delivered++;
+
+
+                /*
+                -----------------------------------------------
+                BREACH ORDER TIME
+                -----------------------------------------------
+                */
+
+                const adjustedOrderDate =
+                    getBreachOrderDate(
+                        rawOrderDate
+                    );
+
+
+                /*
+                COLUMN H
+                SHIP DATE
+                */
+
+                const pickupDate =
+                    parseIndianDate(
+                        row[7]
+                    );
+
+
+                /*
+                COLUMN AE
+                DELIVERY DATE
+                */
+
+                const deliveryDate =
+                    parseIndianDate(
+                        row[30]
+                    );
+
+
+                /*
+                -----------------------------------------------
+                BREACH TIME
+
+                Delivery - Adjusted Order
+
+                > 120 = BREACH
+                <= 120 = NON BREACH
+                -----------------------------------------------
+                */
+
+                if(
+                    adjustedOrderDate &&
+                    deliveryDate
+                ){
+
+                    const diffMinutes =
+                        (
+                            deliveryDate -
+                            adjustedOrderDate
+                        ) / 60000;
+
+
+                    console.log(
+                        "--------------------------------"
+                    );
+
+                    console.log(
+                        "Tracking:",
+                        trackingNo
+                    );
+
+                    console.log(
+                        "Raw Order:",
+                        rawOrderDate
+                    );
+
+                    console.log(
+                        "Adjusted Order:",
+                        adjustedOrderDate
+                    );
+
+                    console.log(
+                        "Delivery:",
+                        deliveryDate
+                    );
+
+                    console.log(
+                        "Minutes:",
+                        diffMinutes
+                    );
+
+
+                    /*
+                    -------------------------------------------
+                    NON BREACH
+
+                    120 minutes EXACTLY
+                    IS NOT BREACH.
+
+                    BREACH ONLY > 120.
+                    -------------------------------------------
+                    */
+
+                    if(
+                        diffMinutes >= 0 &&
+                        diffMinutes <= 120
+                    ){
+
+                        cities[city]
+                            .nonbreach++;
+
+
+                        console.log(
+                            "NON BREACH"
+                        );
+
+                    }
+
+
+                    /*
+                    -------------------------------------------
+                    BREACH
+                    -------------------------------------------
+                    */
+
+                    else if(
+                        diffMinutes > 120
+                    ){
+
+                        cities[city]
+                            .breach++;
+
+
+                        console.log(
+                            "BREACH"
+                        );
+
+
+                        /*
+                        ---------------------------------------
+                        BREACH BUCKETS
+
+                        120–135
+                        136–150
+                        151–180
+                        >180
+                        ---------------------------------------
+                        */
+
+                        if(
+                            diffMinutes <= 135
+                        ){
+
+                            cities[city]
+                                .breach15++;
+
+                        }
+
+                        else if(
+                            diffMinutes <= 150
+                        ){
+
+                            cities[city]
+                                .breach30++;
+
+                        }
+
+                        else if(
+                            diffMinutes <= 180
+                        ){
+
+                            cities[city]
+                                .breach60++;
+
+                        }
+
+                        else{
+
+                            cities[city]
+                                .breachAbove++;
+
+                        }
+
+                    }
+
+                }
+
+
+                /*
+                -----------------------------------------------
+                AVERAGE DELIVERY TIME
+
+                Ship Date → Delivery Date
+
+                Existing report logic preserved.
+                -----------------------------------------------
+                */
+
+                if(
+                    pickupDate &&
+                    deliveryDate
+                ){
+
+                    const deliveryMinutes =
+                        Math.round(
+                            (
+                                deliveryDate -
+                                pickupDate
+                            ) / 60000
+                        );
+
+
+                    if(
+                        deliveryMinutes >= 0
+                    ){
+
+                        cities[city]
+                            .deliverySum +=
+                            deliveryMinutes;
+
+
+                        cities[city]
+                            .deliveryCount++;
+
+                    }
+
+                }
+
+            }
+
+
+            /* =================================================
+               SHIPPED
+            ================================================= */
+
+            else if(
+                status ===
+                "shipped"
+            ){
+
+                cities[city]
+                    .shipped++;
+
+            }
+
+
+            /* =================================================
+               SHIPPED & CANCELLED
+            ================================================= */
+
+            else if(
+                status ===
+                "shipped & cancelled"
+            ){
+
+                cities[city]
+                    .cancelled++;
+
+            }
+
+
+            /* =================================================
+               RTO
+            ================================================= */
+
+            else if(
+                status ===
+                "isrtoinitiated"
+            ){
+
+                cities[city]
+                    .rto++;
+
+            }
+
+
+            /* =================================================
+               OPEN
+
+               IMPORTANT:
+
+               Open orders are counted ONLY if their
+               Order Date is inside the report window.
+
+               Therefore:
+
+               Today 19:00+ Open
+                    = NOT in dataset
+                    = NOT counted here.
+
+               Yesterday 19:00+ Open
+                    = belongs to today's report
+                    = counted here.
+            ================================================= */
+
+            else if(
+                status ===
+                "open"
+            ){
+
+                cities[city]
+                    .open++;
+
+            }
+
+
+            /* =================================================
+               PICKED
+            ================================================= */
+
+            else if(
+                status ===
+                "picked"
+            ){
+
+                cities[city]
+                    .picked++;
+
+            }
+
+
+            /* =================================================
+               PACKED
+            ================================================= */
+
+            else if(
+                status ===
+                "packed"
+            ){
+
+                cities[city]
+                    .packed++;
+
+            }
+
+        }
+    );
+
+
+    console.table(
+        window.statusCounter
+    );
+
+
+    /* =========================================================
+       CITY ORDER
+    ========================================================= */
+
+    const cityOrder = [
+
+        "Bommasandra",
+
+        "Frazer Town",
+
+        "Yeshwantpur",
+
+        "Badshahpur"
+
+    ];
+
+
+    const names =
+        cityOrder.filter(
+            city =>
+                cities[city]
+        );
+
+
+    let html = "";
+
+
+    /* =========================================================
+       HEADER
+    ========================================================= */
+
+    html += `
+        <tr>
+
+            <th>S. No.</th>
+
+            <th>
+                Key Parameters (7)
+            </th>
+    `;
+
+
+    names.forEach(
+        name => {
+
+            html += `
+                <th>
+                    ${name}
+                </th>
+            `;
+
+        }
+    );
+
+
+    html += `
+            <th>Total</th>
+
+        </tr>
+    `;
+
+
+    /* =========================================================
+       ROW FUNCTION
+    ========================================================= */
+
+    function row(
+        sn,
+        label,
+        fn,
+        cls = "",
+        totalFn = null
+    ){
+
+        html += `
+            <tr class="${cls}">
+
+                <td>
+                    ${sn}
+                </td>
+
+                <td>
+                    ${label}
+                </td>
+        `;
+
+
+        let values = [];
+
+
+        names.forEach(
+            name => {
+
+                const value =
+                    fn(
+                        cities[name]
+                    );
+
+
+                html += `
+                    <td>
+                        ${value}
+                    </td>
+                `;
+
+
+                const number =
+                    parseFloat(
+                        String(value)
+                    );
+
+
+                if(
+                    !isNaN(number)
+                ){
+
+                    values.push(
+                        number
+                    );
+
+                }
+
+            }
+        );
+
+
+        let total;
+
+
+        if(
+            totalFn
+        ){
+
+            total =
+                totalFn();
+
+        }
+        else{
+
+            total =
+                values.reduce(
+                    (a,b) =>
+                        a + b,
+                    0
+                );
+
+        }
+
+
+        html += `
+                <td>
+                    ${total}
+                </td>
+
+            </tr>
+        `;
+
+    }
+
+
+    /* =========================================================
+       REPORT ROWS
+    ========================================================= */
+
+    row(
+        1,
+        "Total Order",
+        d =>
+            d.total
+    );
+
+
+    row(
+        2,
+        "Delivered Order",
+        d =>
+            d.delivered
+    );
+
+
+    row(
+        "",
+        "Delivery %",
+        d =>
+            d.total
+            ?
+                (
+                    d.delivered /
+                    d.total *
+                    100
+                ).toFixed(2) + "%"
+            :
+                "0%",
+        "green-row",
+        () => {
+
+            const delivered =
+                names.reduce(
+                    (sum,n) =>
+                        sum +
+                        cities[n].delivered,
+                    0
+                );
+
+
+            const total =
+                names.reduce(
+                    (sum,n) =>
+                        sum +
+                        cities[n].total,
+                    0
+                );
+
+
+            return total
+                ?
+                    (
+                        delivered /
+                        total *
+                        100
+                    ).toFixed(2) + "%"
+                :
+                    "0%";
+
+        }
+    );
+
+
+    /* BREACH */
+
+    row(
+        3,
+        "Breach",
+        d =>
+            d.breach
+    );
+
+
+    /* BREACH % */
+
+    row(
+        "",
+        "Breach %",
+        d =>
+            d.delivered
+            ?
+                (
+                    d.breach /
+                    d.delivered *
+                    100
+                ).toFixed(2) + "%"
+            :
+                "0%",
+        "",
+        () => {
+
+            const breach =
+                names.reduce(
+                    (sum,n) =>
+                        sum +
+                        cities[n].breach,
+                    0
+                );
+
+
+            const delivered =
+                names.reduce(
+                    (sum,n) =>
+                        sum +
+                        cities[n].delivered,
+                    0
+                );
+
+
+            return delivered
+                ?
+                    (
+                        breach /
+                        delivered *
+                        100
+                    ).toFixed(2) + "%"
+                :
+                    "0%";
+
+        }
+    );
+
+
+    /* BREACH BUCKETS */
+
+    row(
+        "3.1",
+        "15 min",
+        d =>
+            d.breach15
+    );
+
+
+    row(
+        "3.2",
+        "15-30 Min",
+        d =>
+            d.breach30
+    );
+
+
+    row(
+        "3.3",
+        "30-60 Min",
+        d =>
+            d.breach60
+    );
+
+
+    row(
+        "3.4",
+        "Above 60 Min",
+        d =>
+            d.breachAbove
+    );
+
+
+    /* NON BREACH */
+
+    row(
+        4,
+        "Non Breach",
+        d =>
+            d.nonbreach
+    );
+
+
+    /* NON BREACH % */
+
+    row(
+        "4.1",
+        "Non Breach %",
+        d =>
+            d.delivered
+            ?
+                (
+                    d.nonbreach /
+                    d.delivered *
+                    100
+                ).toFixed(2) + "%"
+            :
+                "0%",
+        "",
+        () => {
+
+            const nonbreach =
+                names.reduce(
+                    (sum,n) =>
+                        sum +
+                        cities[n].nonbreach,
+                    0
+                );
+
+
+            const delivered =
+                names.reduce(
+                    (sum,n) =>
+                        sum +
+                        cities[n].delivered,
+                    0
+                );
+
+
+            return delivered
+                ?
+                    (
+                        nonbreach /
+                        delivered *
+                        100
+                    ).toFixed(2) + "%"
+                :
+                    "0%";
+
+        }
+    );
+
+
+    /* AVG DELIVERY */
+
+    row(
+        "4.2",
+        "Avg. Delivery Time",
+        d =>
+            d.deliveryCount
+            ?
+                Math.round(
+                    d.deliverySum /
+                    d.deliveryCount
+                ) +
+                " mins"
+            :
+                "0 mins",
+        "",
+        () => {
+
+            const sum =
+                names.reduce(
+                    (total,n) =>
+                        total +
+                        cities[n].deliverySum,
+                    0
+                );
+
+
+            const count =
+                names.reduce(
+                    (total,n) =>
+                        total +
+                        cities[n].deliveryCount,
+                    0
+                );
+
+
+            return count
+                ?
+                    Math.round(
+                        sum / count
+                    ) +
+                    " mins"
+                :
+                    "0 mins";
+
+        }
+    );
+
+
+    /* RTO */
+
+    row(
+        5,
+        "Return to Origin (RTO)",
+        d =>
+            d.rto
+    );
+
+
+    /* RTO % */
+
+    row(
+        "",
+        "Return to Origin %",
+        d =>
+            d.total
+            ?
+                (
+                    d.rto /
+                    d.total *
+                    100
+                ).toFixed(2) + "%"
+            :
+                "0%"
+    );
+
+
+    /* SHIPPED */
+
+    row(
+        6,
+        "Shipped",
+        d =>
+            d.shipped
+    );
+
+
+    /* CANCELLED */
+
+    row(
+        7,
+        "Shipped & Cancelled",
+        d =>
+            d.cancelled
+    );
+
+
+    /* OPEN */
+
+    row(
+        8,
+        "Open",
+        d =>
+            d.open
+    );
+
+
+    /* PACKED */
+
+    row(
+        9,
+        "Packed",
+        d =>
+            d.packed
+    );
+
+
+    /* PICKED */
+
+    row(
+        10,
+        "Picked",
+        d =>
+            d.picked
+    );
+
+
+    /*
+    =========================================================
+    DISPLAY REPORT
+    =========================================================
+    */
+
+    document
+        .getElementById(
+            "finalReportTable"
+        )
+        .innerHTML =
+        html;
+
+
+    document
+        .getElementById(
+            "reportContainer"
+        )
+        .style.display =
+        "block";
+
+
+    /*
+    =========================================================
+    CURRENT DATE
+    =========================================================
+    */
+
+    const now =
+        new Date();
+
+
+    document
+        .getElementById(
+            "autoDate"
+        )
+        .innerText =
+        now.toLocaleDateString(
+            "en-GB",
+            {
+                day:"2-digit",
+                month:"short",
+                year:"numeric"
+            }
+        );
+
+
+    /*
+    =========================================================
+    CURRENT TIME
+    =========================================================
+    */
+
+    document
+        .getElementById(
+            "autoTime"
+        )
+        .innerText =
+        now.toLocaleTimeString(
+            "en-US",
+            {
+                hour:"numeric",
+                minute:"2-digit",
+                hour12:true
+            }
+        );
+
+}
+
+
+/* =========================================================
+   DOWNLOAD REPORT IMAGE
+========================================================= */
+
+function downloadImage(){
+
+    const element =
+        document.getElementById(
+            "captureBox"
+        );
+
+
+    html2canvas(
+        element,
+        {
+            scale:3,
+            backgroundColor:"#ffffff"
+        }
+    )
+    .then(
+        canvas => {
+
+            const a =
+                document.createElement(
+                    "a"
+                );
+
+
+            a.href =
+                canvas.toDataURL(
+                    "image/png"
+                );
+
+
+            a.download =
+                "Zippee_Report.png";
+
+
+            a.click();
+
+        }
+    );
+
+}
+
+</script>
+
+</body>
+
+</html>

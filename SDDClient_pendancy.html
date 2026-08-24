@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zippee PAN India Pendency</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:"Segoe UI";
+  background:url('Zippee.png') center/cover fixed no-repeat;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:rgba(255,255,255,.2);
+  backdrop-filter:blur(6px);
+  z-index:-1;
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(90deg,rgba(0,63,140,.85),rgba(0,89,179,.85));
+  color:white;
+  padding:18px 36px;
+}
+
+/* CARD */
+.card{
+  background:rgba(255,255,255,0.16);
+  backdrop-filter:blur(10px);
+  margin:40px auto;
+  width:fit-content;           /* 🔥 dynamic width */
+  min-width:700px;             /* fallback */
+  padding:30px;
+  border-radius:18px;
+  text-align:left;
+  box-sizing:border-box;
+}
+
+/* FILTER */
+.filter-box{
+  margin-top:15px;
+}
+
+/* TABLE */
+table{
+  width:100%;
+  max-width:700px;
+  margin:auto;
+  border-collapse:collapse;
+  border-radius:0 0 6px 6px;
+  overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,0.2);
+}
+
+th,td{
+  border:1px solid #ddd;
+  padding:6px;
+  font-size:12px;
+  text-align:center;
+}
+
+th{
+  background:#062e44;
+  color:white;
+}
+#downloadArea{
+  padding:3px 10px;
+  background:rgb(255, 255, 255);
+  border-radius:5px;
+}
+.total{
+  background:#dee2e6;
+  font-weight:bold;
+}
+th,td{
+  padding:5px 6px;
+  font-size:12px;
+}
+.table-header-bar{
+  background:#2f3e46;
+  color:white;
+  padding:14px 0;
+  text-align:center;
+  font-weight:800;
+  font-size:18px;
+  font-size:20px;
+  letter-spacing:0.5px;
+  width:100%;
+  max-width:700px;
+  margin:30px auto 0;
+
+  border-radius:6px 6px 0 0;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+.watermark{
+  width:100%;
+  max-width:700px;
+  margin:10px auto 30px;
+  text-align:center;
+  font-weight:bold;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+  <h2>Zippee – Pendancy Report</h2>
+</div>
+
+<button onclick="downloadImage()" style="
+  margin:15px 0 15px 20px;  /* 👈 left spacing add */
+  padding:8px 16px;
+  background:#062e44;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Report
+</button>
+
+<!-- 👇 ADD HERE -->
+<button onclick="downloadCSV()" style="
+  margin:10px 0 15px 20px;
+  padding:8px 16px;
+  background:#0a5c36;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Filtered CSV
+</button>
+<div class="card">
+
+<input type="file" id="fileInput">
+<div class="filter-box" id="filterBox"></div>
+
+<div id="tableContainer"></div>
+
+</div>
+
+<script>
+
+let globalPivot = {};
+let originalData = [];
+let selectedBrand = "ALL";
+let statusesList = ["DELIVERED","DELIVERY_ATTEMPTED","PICKUP_COMPLETED","READY"];
+
+// 👇 ADD HERE
+const storeNameMap = {
+  "zippee_andheri_sdd": "Mumbai | Andheri",
+  "zippee_horamavu_sdd" : "Bangalore | Horamavu",
+  "zippee_okhla_sdd" : "Delhi | Okhla",
+  "zippee_kalyannagar_sdd": "Bangalore | Kalyannagar",
+  "zippee_koramangala_sdd": "Bangalore | Koramangala",
+  "zippee_koregaonpark_sdd": "Pune | Koregaon Park",
+  "zippee_manikonda_sdd": "Hyderabad | Manikonda",
+  "zippee_matunga_valkyriesdd": "Mumbai | Matunga",
+  "zippee_periyamet_sdd": "Chennai | Periyamet",
+  "zippee_topsia_valkyriesdd": "Kolkata | Topsia"
+};
+
+document.getElementById("fileInput").addEventListener("change", function(e){
+
+  Papa.parse(e.target.files[0], {
+    header:true,
+    skipEmptyLines:true,
+    complete:function(res){
+      processData(res.data);
+    }
+  });
+});
+
+function processData(data){
+  originalData = data;
+  let pivot = {};
+  let latestMap = {};
+
+  data.forEach(row=>{
+    let store = (row["Darkstore"]||"").trim();
+    let brand = (row["Brand Name"] || "").trim().toLowerCase();
+    let originalBrand = (row["Brand Name"] || "").trim();
+
+if(selectedBrand !== "ALL" && originalBrand !== selectedBrand){
+  return;
+}
+
+if(brand === "testing_fabbox" || brand === "supertails") return;
+let trip = (row["Trip ID"] || "").toString().trim();
+
+// Default → remove rows WITH trip
+let tripToggle = document.getElementById("tripToggle");
+let includeTrips = tripToggle && tripToggle.checked;
+
+if(!includeTrips && trip !== "") return;
+const allowedStores = [
+  "zippee_andheri_sdd",
+  "zippee_horamavu_sdd",
+  "zippee_okhla_sdd",
+  "zippee_kalyannagar_sdd",
+  "zippee_koramangala_sdd",
+  "zippee_koregaonpark_sdd",
+  "zippee_manikonda_sdd",
+  "zippee_matunga_valkyriesdd",
+  "zippee_periyamet_sdd",
+  "zippee_topsia_valkyriesdd"
+];
+
+if(!allowedStores.includes(store)) return;
+let creationRaw = (row["Creation Date"] || "").trim();
+
+// Clean Excel format like ="30/04/2026 10:54 AM"
+creationRaw = creationRaw.replace(/^="|"$|/g, "");
+
+// Convert to Date
+let parts = creationRaw.split(/[\s/:]/); 
+// [dd, mm, yyyy, hh, min, AM/PM]
+
+if(parts.length >= 6){
+  let day = parseInt(parts[0]);
+  let month = parseInt(parts[1]) - 1;
+  let year = parseInt(parts[2]);
+  let hour = parseInt(parts[3]);
+  let minute = parseInt(parts[4]);
+  let ampm = parts[5];
+
+  if(ampm === "PM" && hour !== 12) hour += 12;
+  if(ampm === "AM" && hour === 12) hour = 0;
+
+  let creationDate = new Date(year, month, day, hour, minute);
+
+  let now = new Date();
+
+  let isToday =
+    creationDate.getDate() === now.getDate() &&
+    creationDate.getMonth() === now.getMonth() &&
+    creationDate.getFullYear() === now.getFullYear();
+
+  let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0);
+
+  // ❌ REMOVE if today and after 3 PM
+  if(isToday && creationDate > cutoff) return;
+}
+    let awb = (row["AWB Number"]||"").trim();
+    let attempts = parseInt(row["No. of Attempts"])||0;
+    if(attempts > 3) return;
+
+    if(!awb) return;
+
+    if(!latestMap[awb] || attempts > latestMap[awb].attempts){
+      latestMap[awb] = {attempts,row};
+    }
+  });
+
+  Object.values(latestMap).forEach(obj=>{
+    let row = obj.row;
+
+    let store = (row["Darkstore"]||"").trim();
+    let attempts = obj.attempts.toString();
+    let status = (row["Current Status"]||"").trim().toUpperCase();
+    let awb = (row["AWB Number"]||"").trim();
+
+    if(status==="RTO") return;
+
+    let key = store+"|"+attempts;
+
+    if(!pivot[key]) pivot[key]={};
+    if(!pivot[key][status]) pivot[key][status]=new Set();
+
+    pivot[key][status].add(awb);
+  });
+
+  globalPivot = pivot;
+
+  if(!document.getElementById("brandFilter")){
+  createFilter();
+}
+  renderTable(getSelectedStatuses());
+}
+
+function createFilter(){
+  let html = "";
+  // 🔥 Brand Filter
+let brands = [...new Set(
+  originalData
+    .map(r => (r["Brand Name"] || "").trim())
+    .filter(b =>
+  b &&
+  b.toLowerCase() !== "testing_fabbox" &&
+  b.toLowerCase() !== "supertails"
+)
+)].sort();
+
+html += `
+<b>Brand Filter:</b><br>
+<select id="brandFilter" onchange="updateTable()" style="
+  padding:6px;
+  margin:8px 0 15px;
+  min-width:220px;
+">
+  <option value="ALL">All Brands</option>
+  ${brands.map(b => `<option value="${b}">${b}</option>`).join("")}
+</select>
+<br>
+`;
+
+html += `
+<br><b>Trip Filter:</b><br>
+<label>
+  <input type="checkbox" id="tripToggle" onchange="updateTable()">
+  Include Trip Orders
+</label><br><br>
+`;
+
+  statusesList.forEach(s=>{
+    html += `<label>
+      <input type="checkbox" value="${s}" ${s==="READY"?"checked":""}
+      onchange="updateTable()"> ${s}
+    </label>`;
+  });
+
+  document.getElementById("filterBox").innerHTML = html;
+}
+
+function updateTable(){
+  let selected=[];
+  selectedBrand = document.getElementById("brandFilter")?.value || "ALL";
+
+  document.querySelectorAll("#filterBox input:checked").forEach(cb=>{
+    selected.push(cb.value);
+  });
+
+  processData(originalData);
+}
+function getSelectedStatuses(){
+
+  let selected = [];
+
+  document
+    .querySelectorAll("#filterBox input[type='checkbox']:checked")
+    .forEach(cb=>{
+
+      // skip trip toggle checkbox
+      if(cb.id !== "tripToggle"){
+        selected.push(cb.value);
+      }
+    });
+
+  return selected;
+}
+
+function renderTable(statuses){
+
+  let grouped = {};
+
+  // Group by store + attempt
+  for(let key in globalPivot){
+    let [store,attempt]=key.split("|");
+
+    if(!grouped[store]) grouped[store]={};
+    if(!grouped[store][attempt]) grouped[store][attempt]={};
+
+    grouped[store][attempt] = globalPivot[key];
+  }
+
+  let html = `
+  <div id="downloadArea">
+  <div class="table-header-bar">
+  ${
+    selectedBrand === "ALL"
+      ? "Zippee <> PAN INDIA Pendency Report"
+      : `Zippee <> ${selectedBrand} Order Pendency Report`
+  }
+</div>
+  <table>
+    <tr>
+      <th>Darkstore</th>
+      <th>No. of Attempts</th>
+      ${statuses.map(s=>`<th>${s}</th>`).join("")}
+      <th>Total</th>
+    </tr>
+  `;
+
+  let gTotal = {};
+  statuses.forEach(s=>gTotal[s]=0);
+  let grand = 0;
+
+  for(let store in grouped){
+
+    let attemptsArr = Object.keys(grouped[store]).sort((a,b)=>a-b);
+
+    let firstRow = true;
+// 👉 Filter only non-zero rows FIRST
+let validAttempts = attemptsArr.filter(attempt=>{
+  let rowData = grouped[store][attempt];
+  return statuses.some(s => (rowData[s]?.size || 0) > 0);
+});
+    let storeTotal = 0;
+    validAttempts.forEach(attempt=>{
+
+      let rowData = grouped[store][attempt];
+
+let rowTotal = 0;
+
+statuses.forEach(s=>{
+  let val = rowData[s] ? rowData[s].size : 0;
+  rowTotal += val;
+});
+
+      html += `<tr>`;
+
+      // Show store name only once (like pivot)
+      if(firstRow){
+        html += `<td rowspan="${validAttempts.length}"><span style="font-weight:600;font-size:12px;">
+  ${storeNameMap[store] || store}
+</span></td>`;
+        firstRow = false;
+      }
+
+      html += `<td><b>${attempt} Attempts</b></td>`;
+
+      statuses.forEach(s=>{
+  let val = rowData[s] ? rowData[s].size : 0;
+  gTotal[s] += val;
+
+  html += `<td>${val}</td>`;
+});
+      grand += rowTotal;
+storeTotal += rowTotal;
+
+      html += `<td>${rowTotal}</td></tr>`;
+    });
+    // ❌ Skip subtotal if total = 0
+if(storeTotal > 0){
+
+  html += `<tr style="background:#f1f3f5;font-weight:600;font-size:12px;">
+    <td colspan="2">Subtotal</td>`;
+
+statuses.forEach(s=>{
+  let sub = validAttempts.reduce((sum, attempt)=>{
+    let rowData = grouped[store][attempt];
+    return sum + (rowData[s]?.size || 0);
+  }, 0);
+
+  html += `<td>${sub}</td>`;
+});
+
+html += `<td>${storeTotal}</td></tr>`;
+}
+  }
+
+  // Grand total row
+  html += `<tr class="total">
+    <td colspan="2"><b>Total</b></td>`;
+
+  statuses.forEach(s=>{
+    html += `<td>${gTotal[s]}</td>`;
+  });
+
+  html += `<td>${grand}</td></tr></table>
+
+  <div class="watermark">
+    Powered by SASA Automation | Zippee
+  </div>
+
+  </div>`;
+
+  document.getElementById("tableContainer").innerHTML = html;
+}
+
+function downloadImage(){
+  let area = document.getElementById("downloadArea");
+
+  html2canvas(area, {
+  scale: 3,              // 🔥 increase resolution
+  useCORS: true,
+  backgroundColor: "#ffffff"
+}).then(canvas=>{
+    let link = document.createElement("a");
+    link.download = "report.png";
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
+function downloadCSV(){
+
+  let selectedStatuses = getSelectedStatuses();
+
+  let now = new Date();
+  let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0);
+
+  let latestMap = {};
+
+  originalData.forEach(row=>{
+
+    let store = (row["Darkstore"]||"").trim();
+    let brand = (row["Brand Name"] || "").trim().toLowerCase();
+    let originalBrand = (row["Brand Name"] || "").trim();
+
+if(selectedBrand !== "ALL" && originalBrand !== selectedBrand){
+  return;
+}   
+
+if(brand === "testing_fabbox" || brand === "supertails") return;
+let trip = (row["Trip ID"] || "").toString().trim();
+
+let tripToggle = document.getElementById("tripToggle");
+let includeTrips = tripToggle && tripToggle.checked;
+
+if(!includeTrips && trip !== "") return;
+
+    const allowedStores = [
+      "zippee_andheri_sdd",
+      "zippee_horamavu_sdd",
+      "zippee_okhla_sdd",
+      "zippee_kalyannagar_sdd",
+      "zippee_koramangala_sdd",
+      "zippee_koregaonpark_sdd",
+      "zippee_manikonda_sdd",
+      "zippee_matunga_valkyriesdd",
+      "zippee_periyamet_sdd",
+      "zippee_topsia_valkyriesdd"
+    ];
+
+    if(!allowedStores.includes(store)) return;
+
+    // 🔥 Creation Date filter
+    let creationRaw = (row["Creation Date"] || "").trim().replace(/^="|"$|/g, "");
+    let parts = creationRaw.split(/[\s/:]/);
+
+    if(parts.length >= 6){
+      let day = parseInt(parts[0]);
+      let month = parseInt(parts[1]) - 1;
+      let year = parseInt(parts[2]);
+      let hour = parseInt(parts[3]);
+      let minute = parseInt(parts[4]);
+      let ampm = parts[5];
+
+      if(ampm === "PM" && hour !== 12) hour += 12;
+      if(ampm === "AM" && hour === 12) hour = 0;
+
+      let creationDate = new Date(year, month, day, hour, minute);
+
+      let isToday =
+        creationDate.getDate() === now.getDate() &&
+        creationDate.getMonth() === now.getMonth() &&
+        creationDate.getFullYear() === now.getFullYear();
+
+      if(isToday && creationDate > cutoff) return;
+    }
+
+    let awb = (row["AWB Number"]||"").trim();
+    let attempts = parseInt(row["No. of Attempts"])||0;
+    if(attempts > 3) return;
+
+    if(!awb) return;
+
+    // 🔥 latest attempt logic
+    if(!latestMap[awb] || attempts > latestMap[awb].attempts){
+      latestMap[awb] = {attempts,row};
+    }
+  });
+
+  // 🔥 apply status filter
+  let finalRows = [];
+
+  Object.values(latestMap).forEach(obj=>{
+    let row = obj.row;
+    let status = (row["Current Status"]||"").trim().toUpperCase();
+
+    if(selectedStatuses.includes(status)){
+      finalRows.push(row);
+    }
+  });
+
+  // 🔥 Convert to CSV
+  let csv = Papa.unparse(finalRows);
+
+  let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  let link = document.createElement("a");
+
+  link.href = URL.createObjectURL(blob);
+  link.download = "filtered_data.csv";
+  link.click();
+}
+</script>
+
+</body>
+</html>

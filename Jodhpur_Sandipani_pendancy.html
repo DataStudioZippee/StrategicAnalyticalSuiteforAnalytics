@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sandipani <> Jodhpur Pendancy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:"Segoe UI";
+  background:url('Zippee.png') center/cover fixed no-repeat;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:rgba(255,255,255,.2);
+  backdrop-filter:blur(6px);
+  z-index:-1;
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(90deg,rgba(0,63,140,.85),rgba(0,89,179,.85));
+  color:white;
+  padding:18px 36px;
+}
+
+/* CARD */
+.card{
+  background:rgba(255,255,255,0.16);
+  backdrop-filter:blur(10px);
+  margin:40px auto;
+  max-width:700px;
+  padding:30px;
+  border-radius:18px;
+  text-align:left;
+  box-sizing:border-box;
+
+}
+
+/* FILTER */
+.filter-box{
+  margin-top:15px;
+}
+
+/* TABLE */
+table{
+  width:100%;
+  max-width:700px;
+  margin:auto;
+  border-collapse:collapse;
+  border-radius:0 0 6px 6px;
+  overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,0.2);
+}
+
+th,td{
+  border:1px solid #ddd;
+  padding:6px;
+  font-size:12px;
+  text-align:center;
+}
+
+th{
+  background:#062e44;
+  color:white;
+}
+#downloadArea{
+  padding:3px 10px;
+  background:rgb(255, 255, 255);
+  border-radius:5px;
+}
+.total{
+  background:#dee2e6;
+  font-weight:bold;
+}
+th,td{
+  padding:10px;
+  font-size:13px;
+}
+.table-header-bar{
+  background:#2f3e46;
+  color:white;
+  padding:14px 0;
+  text-align:center;
+  font-weight:800;
+  font-size:18px;
+  font-size:20px;
+  letter-spacing:0.5px;
+  width:100%;
+  max-width:700px;
+  margin:30px auto 0;
+
+  border-radius:6px 6px 0 0;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+.watermark{
+  width:100%;
+  max-width:700px;
+  margin:10px auto 30px;
+  text-align:center;
+  font-weight:bold;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+  <h2>Zippee – Pendancy Report</h2>
+</div>
+
+<button onclick="downloadImage()" style="
+  margin:15px 0 15px 20px;  /* 👈 left spacing add */
+  padding:8px 16px;
+  background:#062e44;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Report
+</button>
+<div class="card">
+
+<input type="file" id="fileInput">
+<div class="filter-box" id="filterBox"></div>
+
+<div id="tableContainer"></div>
+
+</div>
+
+<script>
+
+let globalPivot = {};
+let statusesList = ["DELIVERED","DELIVERY_ATTEMPTED","PICKUP_COMPLETED","READY"];
+
+document.getElementById("fileInput").addEventListener("change", function(e){
+
+  Papa.parse(e.target.files[0], {
+    header:true,
+    skipEmptyLines:true,
+    complete:function(res){
+      processData(res.data);
+    }
+  });
+});
+
+function processData(data){
+
+  let pivot = {};
+  let latestMap = {};
+
+  data.forEach(row=>{
+    let store = (row["Darkstore"]||"").trim();
+if(
+  store !== "zippee_krishna_herbal_jodhpurwh" &&
+  store !== "zippee_krishna_herbal_indorewh"
+) return;
+let creationRaw = (row["Creation Date"] || "").trim();
+
+// Clean Excel format like ="30/04/2026 10:54 AM"
+creationRaw = creationRaw.replace(/^="|"$/g, "");
+
+// Convert to Date
+let parts = creationRaw.split(/[\s/:]/); 
+// [dd, mm, yyyy, hh, min, AM/PM]
+
+if(parts.length >= 6){
+  let day = parseInt(parts[0]);
+  let month = parseInt(parts[1]) - 1;
+  let year = parseInt(parts[2]);
+  let hour = parseInt(parts[3]);
+  let minute = parseInt(parts[4]);
+  let ampm = parts[5];
+
+  if(ampm === "PM" && hour !== 12) hour += 12;
+  if(ampm === "AM" && hour === 12) hour = 0;
+
+  let creationDate = new Date(year, month, day, hour, minute);
+
+  let now = new Date();
+
+  let isToday =
+    creationDate.getDate() === now.getDate() &&
+    creationDate.getMonth() === now.getMonth() &&
+    creationDate.getFullYear() === now.getFullYear();
+
+  let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0, 0);
+
+  // ❌ REMOVE if today and after 11 AM
+  if(isToday && creationDate > cutoff) return;
+}
+    let awb = (row["AWB Number"]||"").trim();
+    let attempts = parseInt(row["No. of Attempts"]) || 0;
+
+// Remove rows where attempts > 3
+if(attempts > 3) return;
+
+    if(!awb) return;
+
+    if(!latestMap[awb] || attempts > latestMap[awb].attempts){
+      latestMap[awb] = {attempts,row};
+    }
+  });
+
+  Object.values(latestMap).forEach(obj=>{
+    let row = obj.row;
+
+    let store = (row["Darkstore"]||"").trim();
+    let attempts = obj.attempts.toString();
+    let status = (row["Current Status"]||"").trim().toUpperCase();
+    let awb = (row["AWB Number"]||"").trim();
+
+    if(status==="RTO") return;
+
+    let key = store+"|"+attempts;
+
+    if(!pivot[key]) pivot[key]={};
+    if(!pivot[key][status]) pivot[key][status]=new Set();
+
+    pivot[key][status].add(awb);
+  });
+
+  globalPivot = pivot;
+
+  createFilter();
+  renderTable(["READY"]);
+}
+
+function createFilter(){
+  let html = "<b>Status Filter:</b><br>";
+
+  statusesList.forEach(s=>{
+    html += `<label>
+      <input type="checkbox" value="${s}" ${s==="READY"?"checked":""}
+      onchange="updateTable()"> ${s}
+    </label>`;
+  });
+
+  document.getElementById("filterBox").innerHTML = html;
+}
+
+function updateTable(){
+  let selected=[];
+
+  document.querySelectorAll("#filterBox input:checked").forEach(cb=>{
+    selected.push(cb.value);
+  });
+
+  renderTable(selected);
+}
+
+function renderTable(statuses){
+
+  let grouped = {};
+
+  for(let key in globalPivot){
+
+    let [store,attempt] = key.split("|");
+
+    if(!grouped[store]) grouped[store] = {};
+
+    grouped[store][attempt] = globalPivot[key];
+  }
+
+  let html = `
+
+  <div class="downloadArea">
+
+  <div class="table-header-bar">
+    Zippee <> Krishna Herbal Pendancy Report
+  </div>
+
+  <table>
+
+    <tr>
+      <th>Store Name</th>
+      <th>No. of Attempts</th>
+      ${statuses.map(s=>`<th>${s}</th>`).join("")}
+      <th>Total</th>
+    </tr>
+  `;
+
+  let grandTotals = {};
+  statuses.forEach(s => grandTotals[s] = 0);
+
+  let overallGrand = 0;
+
+for(let store in grouped){
+
+  let formattedStore = store
+    .replace("zippee_", "")
+    .replace("wh", "")
+    .replaceAll("_", " ")
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  let attemptsArr = Object.keys(grouped[store])
+    .sort((a,b)=>Number(a)-Number(b));
+
+  // ✅ Only rows having data
+  let validAttempts = attemptsArr.filter(attempt=>{
+
+    let rowData = grouped[store][attempt];
+
+    return statuses.some(s => (rowData[s]?.size || 0) > 0);
+  });
+
+  validAttempts.forEach((attempt,index)=>{
+
+    let rowData = grouped[store][attempt];
+
+    let rowTotal = 0;
+
+    html += `<tr>`;
+
+    // ✅ Correct rowspan
+    if(index === 0){
+      html += `
+      <td rowspan="${validAttempts.length}">
+        <b>${formattedStore}</b>
+      </td>`;
+    }
+
+    html += `<td><b>${attempt} Attempts</b></td>`;
+
+    statuses.forEach(s=>{
+
+      let val = rowData[s] ? rowData[s].size : 0;
+
+      rowTotal += val;
+      grandTotals[s] += val;
+
+      html += `<td>${val}</td>`;
+    });
+
+    overallGrand += rowTotal;
+
+    html += `<td>${rowTotal}</td></tr>`;
+  });
+}
+
+  // Grand Total Row
+  html += `<tr class="total">
+
+    <td colspan="2"><b>Grand Total</b></td>`;
+
+  statuses.forEach(s=>{
+    html += `<td>${grandTotals[s]}</td>`;
+  });
+
+  html += `<td>${overallGrand}</td></tr>`;
+
+  html += `</table>
+
+  <div class="watermark">
+    Powered by SASA Automation | Zippee
+  </div>
+
+  </div>`;
+
+  document.getElementById("tableContainer").innerHTML = html;
+}
+function downloadImage(){
+
+  let area = document.querySelector(".downloadArea");
+
+  html2canvas(area).then(canvas=>{
+
+    let link = document.createElement("a");
+
+    link.download = "report.png";
+    link.href = canvas.toDataURL();
+
+    link.click();
+  });
+}
+</script>
+
+</body>
+</html>
