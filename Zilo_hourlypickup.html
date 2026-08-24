@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hourly Picking Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#eef3ff}
+header{background:linear-gradient(90deg,#4F46E5,#2563EB);color:#fff;padding:20px;text-align:center}
+.container{max-width:1200px;margin:20px auto;padding:15px}
+.upload{background:#fff;border:2px dashed #4F46E5;border-radius:12px;padding:30px;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin:20px 0}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.card h3{margin:0;color:#555;font-size:15px}
+.card h2{margin:10px 0 0;color:#2563EB}
+canvas{background:#fff;border-radius:12px;padding:15px}
+table{width:auto;min-width:900px;border-collapse:collapse;margin-top:20px;background:#fff}
+th,td{padding:6px 10px;border:1px solid #ddd;text-align:center}
+th{background:#2563EB;color:#fff;position:sticky;top:0}
+button{padding:10px 20px;background:#2563EB;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-top:15px}
+footer{text-align:center;padding:20px;color:#666}
+
+.table-container{
+    width:fit-content;
+    margin:25px auto;
+    background:#fff;
+    padding:20px;
+    border-radius:10px;
+}
+
+.table-container table{
+    width:auto;
+}</style>
+</head>
+<body>
+
+<div class="container">
+<div class="upload">
+<input type="file" id="csvFile" accept=".csv" multiple>
+</div>
+
+
+<button onclick="downloadPNG()" style="
+margin:20px 0;
+display:block;
+background:#2563EB;
+color:white;
+padding:12px 25px;
+border:none;
+border-radius:8px;
+font-size:16px;
+font-weight:600;
+cursor:pointer;">
+📥 Download PNG
+</button>
+
+<div id="reports"></div>
+</div>
+<script>
+
+document.getElementById("csvFile").addEventListener("change", function(e){
+
+    const files = [...e.target.files];
+
+    let completed = 0;
+
+document.getElementById("reports").innerHTML = "";
+    files.forEach(file=>{
+
+        Papa.parse(file,{
+            header:true,
+            skipEmptyLines:true,
+            complete:function(result){
+
+                completed++;
+
+processData(result.data);
+
+            }
+
+        });
+
+    });
+
+});
+
+function processData(rows){
+    let reportDate = "";
+
+for (const row of rows) {
+    if (row["Picklist finish time"]) {
+
+        const d = new Date(
+            row["Picklist finish time"]
+                .replace(/^(\d{4}-\d{2}-\d{2})(\d{2}:\d{2}:\d{2})$/, "$1 $2")
+        );
+
+        reportDate = d.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "2-digit"
+        }).replace(/ /g, "-");
+
+        break;
+    }
+}
+
+const storeName = rows[0]["Location"];
+
+const generatedTime = new Date().toLocaleTimeString("en-GB",{
+    hour:"2-digit",
+    minute:"2-digit",
+    hour12:true
+});
+
+    const currentHour = new Date().getHours();
+
+const report = {};
+
+rows.forEach(row=>{
+
+    let finish = row["Picklist finish time"];
+    let start  = row["Picklist Date"];
+
+    if(!finish || !start) return;
+
+    finish = finish.replace(
+        /^(\d{4}-\d{2}-\d{2})(\d{2}:\d{2}:\d{2})$/,
+        "$1 $2"
+    );
+
+    start = start.replace(
+        /^(\d{4}-\d{2}-\d{2})(\d{2}:\d{2}:\d{2})$/,
+        "$1 $2"
+    );
+
+    const finishTime = new Date(finish);
+    const startTime  = new Date(start);
+
+    if(isNaN(finishTime) || isNaN(startTime)) return;
+
+    const hour = finishTime.getHours();
+
+    if(!report[hour]){
+        report[hour]={
+            totalMinutes:0,
+            total:0,
+            lt10:0,
+            m10_15:0,
+            m15_20:0,
+            m20_30:0,
+            gt30:0
+        };
+    }
+
+    const diff=(finishTime-startTime)/60000;
+
+    report[hour].totalMinutes+=diff;
+    report[hour].total++;
+
+    if(diff<10)
+        report[hour].lt10++;
+
+    else if(diff<15)
+        report[hour].m10_15++;
+
+    else if(diff<20)
+        report[hour].m15_20++;
+
+    else if(diff<30)
+        report[hour].m20_30++;
+
+    else
+        report[hour].gt30++;
+
+});
+
+    // Table Header
+
+
+    let header=`
+<tr>
+<th>From</th>
+<th>To</th>
+<th>Avg TAT</th>
+<th>&lt;10 Min</th>
+<th>10-15 Min</th>
+<th>15-20 Min</th>
+<th>20-30 Min</th>
+<th>30+ Min</th>
+<th>Total</th>
+</tr>
+`;
+
+    // Table Body
+let body = "";
+let totalOrders = 0;
+let totalLT10 = 0;
+let total10_15 = 0;
+let total15_20 = 0;
+let total20_30 = 0;
+let totalGT30 = 0; 
+let grandTotalMinutes = 0;
+for(let h=6;h<=currentHour;h++){
+
+    const r = report[h] || {
+        totalMinutes:0,
+        total:0,
+        lt10:0,
+        m10_15:0,
+        m15_20:0,
+        m20_30:0,
+        gt30:0
+    };
+
+    const avg = r.total
+        ? formatDuration(r.totalMinutes/r.total)
+        : "00:00:00";
+        let avgColor = "#28a745";   // Green
+
+if(r.total){
+
+    const avgMinutes = r.totalMinutes / r.total;
+
+    if(avgMinutes >= 20)
+        avgColor = "#dc3545";     // Red
+
+    else if(avgMinutes >= 10)
+        avgColor = "#ffc107";     // Yellow
+}
+        grandTotalMinutes += r.totalMinutes;
+totalLT10 += r.lt10;
+total10_15 += r.m10_15;
+total15_20 += r.m15_20;
+total20_30 += r.m20_30;
+totalGT30 += r.gt30;
+totalOrders += r.total;
+    body += `
+<tr>
+    <td>${String(h).padStart(2,"0")}:00</td>
+    <td>${String(h+1).padStart(2,"0")}:00</td>
+    <td style="
+background:${avgColor};
+color:${avgColor=="#ffc107" ? "#000" : "#fff"};
+font-weight:bold;">
+${avg}
+</td>
+    <td>${r.lt10}</td>
+
+<td>${r.m10_15}</td>
+
+<td style="
+background:${
+    r.m15_20 >= 8 ? '#d4a000' :
+    r.m15_20 >= 3 ? '#ffd54f' :
+    r.m15_20 > 0 ? '#fff8b3' : ''
+};
+font-weight:bold;">
+${r.m15_20}
+</td>
+
+<td style="
+background:${
+    r.m20_30 >= 8 ? '#d81b60' :
+    r.m20_30 >= 3 ? '#f48fb1' :
+    r.m20_30 > 0 ? '#fce4ec' : ''
+};
+font-weight:bold;">
+${r.m20_30}
+</td>
+
+<td style="
+background:${
+    r.gt30 >= 8 ? '#b71c1c' :
+    r.gt30 >= 3 ? '#ef5350' :
+    r.gt30 > 0 ? '#ffcdd2' : ''
+};
+color:${r.gt30 >= 3 ? '#fff' : '#000'};
+font-weight:bold;">
+${r.gt30}
+</td>
+
+<td>${r.total}</td>
+</tr>`;
+}
+const overallAvg = totalOrders
+    ? formatDuration(grandTotalMinutes / totalOrders)
+    : "00:00:00";
+body += `
+<tr style="background:#f3f6ff;font-weight:bold;">
+    <td colspan="2">Total</td>
+    <td>${overallAvg}</td>
+    <td>${totalLT10}</td>
+    <td>${total10_15}</td>
+    <td>${total15_20}</td>
+    <td>${total20_30}</td>
+    <td>${totalGT30}</td>
+    <td>${totalOrders}</td>
+</tr>`;
+const html = `
+<div class="table-container reportCapture">
+
+<div style="text-align:center;margin-bottom:18px;">
+
+    <h2 style="
+    margin:0;
+    font-size:28px;
+    font-weight:700;
+    color:#111;">
+        Zippee &lt;&gt; Zilo Pickup Report
+    </h2>
+
+    <div style="
+    margin-top:8px;
+    font-size:17px;
+    color:#666;
+    font-weight:600;">
+        ${storeName} | ${reportDate} | ${generatedTime}
+    </div>
+
+</div>
+
+<table>
+    <thead>
+        ${header}
+    </thead>
+    <tbody>
+        ${body}
+    </tbody>
+</table>
+
+<div style="
+text-align:center;
+margin-top:20px;
+font-size:18px;
+color:#666;
+font-weight:600;">
+Powered by SASA Automation | Zippee
+</div>
+
+</div>
+
+<br><br>
+`;
+
+document.getElementById("reports").innerHTML += html;
+
+}
+function formatDuration(minutes){
+
+    const totalSeconds=Math.round(minutes*60);
+
+    const h=Math.floor(totalSeconds/3600);
+
+    const m=Math.floor((totalSeconds%3600)/60);
+
+    const s=totalSeconds%60;
+
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+async function downloadPNG(){
+
+    const reports = document.querySelectorAll(".reportCapture");
+
+    for(let i=0;i<reports.length;i++){
+
+        const report = reports[i];
+
+        const canvas = await html2canvas(report,{
+            scale:3,
+            backgroundColor:"#ffffff",
+            useCORS:true
+        });
+
+        const title =
+`Zippee Pickup Report - ${report.querySelector("div div").innerText}`;
+
+        const link = document.createElement("a");
+
+        link.download = title + ".png";
+
+        link.href = canvas.toDataURL("image/png");
+
+        link.click();
+
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+    }
+
+}
+</script>
+</body>
+</html>
