@@ -687,14 +687,14 @@ darkstores.forEach(ds=>{
 s.riderIds.forEach(id => totalUniqueRiders.add(id));
 
     const d0Pct = s.total
-        ? (((s.total-s.readyZeroAttempt)/s.total)*100).toFixed(0)
+        ? (((s.total-s.readyZeroAttempt)/s.total)*100).toFixed(2)
         : 0;
 
     const fasrPct = s.total
-        ? ((s.fasrDelivered/s.total)*100).toFixed(0)
+        ? ((s.fasrDelivered/s.total)*100).toFixed(2)
         : 0;
 const deliveredPct = s.total
-    ? ((s.delivered/s.total)*100).toFixed(0)
+    ? ((s.delivered/s.total)*100).toFixed(2)
     : 0;
 totalProcessed += s.total;
 totalD0Dispatched += (s.total - s.readyZeroAttempt);
@@ -760,17 +760,21 @@ html += `
 
     <td><b>${totalProcessed}</b></td>
 
-    <td><b>${(totalD0Pct / storeCount).toFixed(0)}%</b></td>
+    <td><b>${(totalD0Pct / storeCount).toFixed(2)}%</b></td>
 
     <td><b>${totalD0Dispatched}</b></td>
 
-    <td><b>${(totalFasrPct / storeCount).toFixed(0)}%</b></td>
+    <td><b>${
+    totalProcessed
+        ? ((totalFasr / totalProcessed) * 100).toFixed(2)
+        : 0
+}%</b></td>
 
     <td><b>${totalFasr}</b></td>
 
     <td><b>${
         totalProcessed
-            ? ((totalDelivered / totalProcessed) * 100).toFixed(0)
+            ? ((totalDelivered / totalProcessed) * 100).toFixed(2)
             : 0
     }%</b></td>
 
