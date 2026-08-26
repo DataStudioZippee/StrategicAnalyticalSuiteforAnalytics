@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV Pivot Table</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.3/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    html,
+    body {
+        margin: 0;
+        min-height: 100%;
+        font-family: Arial, sans-serif;
+        color: #222;
+    }
+
+    body {
+        min-height: 100vh;
+        background:
+            linear-gradient(
+                rgba(255,255,255,0.72),
+                rgba(255,255,255,0.72)
+            ),
+            url("sasa.png") center center / cover fixed no-repeat;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(255,255,255,0.35);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: -1;
+    }
+
+    /* HEADER */
+
+    .header {
+        width: 100%;
+        padding: 18px 36px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(90deg, #003f8c, #0066cc);
+        color: white;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+    }
+
+    .header-title {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .header-logo {
+        height: 42px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    /* MAIN GLASS CARD */
+
+    .main-card {
+        width: calc(100% - 40px);
+        max-width: 1300px;
+        margin: 30px auto;
+        padding: 30px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.72);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        border: 1px solid rgba(255,255,255,0.7);
+    }
+
+    /* UPLOAD / CONTROL AREA */
+
+    .upload-section h2 {
+        margin: 0;
+        font-size: 22px;
+    }
+
+    .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        align-items: center;
+    }
+
+    .status {
+        color: #555;
+        font-size: 13px;
+    }
+
+    #fileStatus {
+        min-width: 180px;
+    }
+
+    input[type="file"],
+    select {
+        height: 40px;
+        padding: 8px 12px;
+        border: 1px solid #bbb;
+        border-radius: 7px;
+        background: white;
+        font-size: 14px;
+    }
+
+    input[type="file"] {
+        width: auto;
+    }
+
+    select {
+        min-width: 180px;
+    }
+
+    button {
+        height: 40px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 7px;
+        background: #003f8c;
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    button:hover {
+        background: #002f6c;
+    }
+
+    /* REPORT AREA */
+
+    #resultCard {
+        margin-top: 20px;
+    }
+
+    #resultInfo {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
+    .report-container {
+        overflow-x: auto;
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .capture-box {
+        position: relative;
+        display: inline-block;
+        padding: 24px;
+        min-width: 750px;
+        background: rgba(255,255,255,0.88);
+        border-radius: 14px;
+    }
+
+    /* REPORT HEADER */
+
+    .report-header {
+        text-align: center;
+        margin-bottom: 18px;
+    }
+
+    .report-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #003f8c;
+    }
+
+    .report-datetime {
+        margin-top: 6px;
+        font-size: 13px;
+        color: #666;
+    }
+
+    /* EXISTING PIVOT TABLE */
+
+    .table-wrap {
+        overflow-x: auto;
+        border: 0;
+        max-height: none;
+    }
+
+    table {
+        width: 100%;
+        min-width: 700px;
+        border-collapse: collapse;
+        margin-top: 10px;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+    }
+
+    th,
+    td {
+        padding: 10px 12px;
+        text-align: center;
+        font-size: 14px;
+        border: 1px solid #d9e1ea;
+        white-space: nowrap;
+    }
+
+    th {
+        background: #003f8c;
+        color: white;
+        font-weight: bold;
+        position: static;
+    }
+
+    th:first-child,
+    td:first-child {
+        position: static;
+    }
+
+    td:first-child {
+        text-align: center;
+        font-weight: 600;
+        background: white;
+    }
+
+    .total-row td {
+        background: #e7f0fa;
+        font-weight: bold;
+    }
+
+    /* FOOTER */
+
+    .report-footer {
+        margin-top: 16px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: bold;
+        color: #555;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    @media (max-width: 800px) {
+
+        .header {
+            padding: 15px 20px;
+        }
+
+        .header-title {
+            font-size: 19px;
+        }
+
+        .main-card {
+            width: calc(100% - 20px);
+            padding: 20px;
+            margin: 15px auto;
+        }
+
+        .capture-box {
+            min-width: 700px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<header class="header">
+
+    <div class="header-title">
+        Zippee – Overnight Pendancy Report
+    </div>
+
+    <img
+        src="sasa.png"
+        class="header-logo"
+        alt="Zippee"
+    >
+
+</header>
+
+<main class="main-card">
+
+    <!-- UPLOAD / CONTROLS -->
+
+    <div class="upload-section">
+
+        <h2>Upload Order Data</h2>
+
+        <div class="controls">
+
+            <div id="fileStatus" class="status">
+                No file loaded.
+            </div>
+
+            <input
+                id="fileInput"
+                type="file"
+                accept=".csv,text/csv"
+            >
+
+        </div>
+
+    </div>
+
+
+    <!-- EXISTING ORDER STATUS FILTER -->
+
+    <div id="controlsCard" class="hidden">
+
+        <div class="controls">
+
+            <div>
+
+                <label>Order Status Filter</label>
+
+                <select id="statusFilter"></select>
+
+            </div>
+
+            <div>
+
+                <label>Pivot Configuration</label>
+
+                <div style="padding:9px 0; line-height:1.7;">
+
+                    <b>Rows:</b> Store Name<br>
+
+                    <b>Columns:</b> Order Tags<br>
+
+                    <b>Values:</b> Count of Order Number
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <button onclick="generatePivot()">
+            Generate Report
+        </button>
+<button onclick="downloadReportPNG()">
+    Download
+</button>
+    </div>
+
+
+    <!-- REPORT -->
+
+    <div
+        id="resultCard"
+        class="hidden"
+    >
+
+        <div class="report-container">
+
+            <div class="capture-box">
+
+                <div class="report-header">
+
+                    <div class="report-title">
+                        📥 Mnow Overnight Pendancy Report
+                    </div>
+
+                </div>
+
+                <div class="status" id="resultInfo"></div>
+
+                <div class="table-wrap">
+
+                    <table id="pivotTable"></table>
+
+                </div>
+
+                <div class="report-footer">
+
+                    Powered by SASA Automation |
+                    Zippee &lt;&gt; Data Analyst Team
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+<script>
+let rawData = [];
+let headers = [];
+
+const fileInput = document.getElementById("fileInput");
+
+// Native CSV parser — no external library/CDN required.
+function parseCSV(text) {
+    text = text.replace(/^\uFEFF/, "");
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        if (inQuotes) {
+            if (ch === '"' && next === '"') {
+                cell += '"';
+                i++;
+            } else if (ch === '"') {
+                inQuotes = false;
+            } else {
+                cell += ch;
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true;
+            } else if (ch === ',') {
+                row.push(cell);
+                cell = "";
+            } else if (ch === '\n') {
+                row.push(cell);
+                if (row.some(v => v.trim() !== "")) rows.push(row);
+                row = [];
+                cell = "";
+            } else if (ch === '\r') {
+                // Ignore CR; LF handles the row break.
+            } else {
+                cell += ch;
+            }
+        }
+    }
+
+    row.push(cell);
+    if (row.some(v => v.trim() !== "")) rows.push(row);
+
+    if (!rows.length) return { headers: [], rows: [] };
+
+    const headers = rows[0].map((h, i) => {
+        let name = String(h || "").trim();
+        if (i === 0) name = name.replace(/^\uFEFF/, "");
+        return name;
+    });
+
+    const cleanHeaders = headers.filter(h => h !== "");
+    const data = rows.slice(1).map(values => {
+        const obj = {};
+        cleanHeaders.forEach((h) => {
+            const index = headers.indexOf(h);
+            obj[h] = String(values[index] ?? "").trim();
+        });
+        return obj;
+    }).filter(obj => Object.values(obj).some(v => v !== ""));
+
+    return { headers: cleanHeaders, rows: data };
+}
+
+fileInput.addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById("fileStatus").textContent =
+        "Loading " + file.name + "...";
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        try {
+            const parsed = parseCSV(event.target.result);
+            headers = parsed.headers;
+            rawData = parsed.rows;
+
+            if (!headers.length || !rawData.length) {
+                document.getElementById("fileStatus").textContent =
+                    "Could not read usable data from the file.";
+                return;
+            }
+
+            document.getElementById("fileStatus").textContent =
+                file.name + " loaded — " + rawData.length.toLocaleString() + " rows.";
+
+            setupControls();
+            document.getElementById("controlsCard").classList.remove("hidden");
+        } catch (error) {
+            console.error(error);
+            document.getElementById("fileStatus").textContent =
+                "Error reading CSV: " + error.message;
+        }
+    };
+    reader.onerror = function() {
+        document.getElementById("fileStatus").textContent =
+            "Could not read the selected file.";
+    };
+    reader.readAsText(file);
+});
+
+function setupControls() {
+    const statusFilter = document.getElementById("statusFilter");
+    statusFilter.innerHTML = "";
+
+    if (headers.includes("Order Status")) {
+        const values = [...new Set(
+            rawData.map(r => String(r["Order Status"] ?? "").trim())
+        )].filter(Boolean).sort();
+
+        statusFilter.add(new Option("All", "__ALL__"));
+        values.forEach(v => statusFilter.add(new Option(v, v)));
+
+        // Default filter to "unassigned".
+        // Match case-insensitively because the source may use different casing.
+        const unassignedValue = values.find(
+            v => v.trim().toLowerCase() === "unassigned"
+        );
+
+        if (unassignedValue) {
+            statusFilter.value = unassignedValue;
+        }
+    } else {
+        statusFilter.add(new Option("All", "__ALL__"));
+    }
+
+    generatePivot();
+}
+
+// Only these Store Name values will appear in the pivot.
+const ALLOWED_STORES = [
+    "Attapur_mnow",
+    "Basaveshwar Nagar_mnow",
+    "Begur_mnow",
+    "Brookfield_mnow",
+    "Gachibowli_mnow",
+    "Hulimavu_mnow",
+    "Jakkur_mnow",
+    "Kalyan Nagar_mnow",
+    "Manikonda_mnow",
+    "Nizampet_mnow",
+    "Sarjapur Road_mnow"
+];
+
+function generatePivot() {
+    const status = document.getElementById("statusFilter").value;
+
+    // EXACT Order Tags categories to display.
+    // These are separate values in the source data:
+    // ["OVERNIGHT"]
+    // ["LIGHT_RAIN", "OVERNIGHT"]
+    const rowField = "Store Name";
+    const valueField = "Order Number";
+
+    const exactTagValues = [
+        '["OVERNIGHT"]',
+        '["LIGHT_RAIN", "OVERNIGHT"]'
+    ];
+
+    if (!headers.includes(rowField) ||
+        !headers.includes("Order Tags") ||
+        !headers.includes(valueField)) {
+        document.getElementById("resultInfo").textContent =
+            "Required columns are missing: Store Name, Order Tags, or Order Number.";
+        document.getElementById("resultCard").classList.remove("hidden");
+        return;
+    }
+
+    // Only the requested stores.
+    let filtered = rawData.filter(r =>
+        ALLOWED_STORES.includes(String(r["Store Name"] ?? "").trim())
+    );
+
+    // Apply Order Status filter.
+    if (status !== "__ALL__") {
+        filtered = filtered.filter(r =>
+            String(r["Order Status"] ?? "").trim() === status
+        );
+    }
+
+    const rowSet = new Set();
+    const counts = new Map();
+
+    filtered.forEach(row => {
+        const orderNumber = String(row[valueField] ?? "").trim();
+        if (!orderNumber) return;
+
+        const store = String(row[rowField] ?? "").trim() || "(Blank)";
+        const rawTags = normalizeOrderTagsValue(row["Order Tags"]);
+
+        // IMPORTANT:
+        // Match the complete Order Tags value exactly.
+        // Do NOT split tags and do NOT treat LIGHT_RAIN + OVERNIGHT
+        // as two separate columns.
+        if (!exactTagValues.includes(rawTags)) return;
+
+        rowSet.add(store);
+
+        const key = store + "|||" + rawTags;
+        counts.set(key, (counts.get(key) || 0) + 1);
+    });
+
+    // Keep requested store order.
+    const rows = ALLOWED_STORES.filter(store => rowSet.has(store));
+
+    const table = document.getElementById("pivotTable");
+    table.innerHTML = "";
+
+// Calculate column totals first
+const colTotals = {};
+
+exactTagValues.forEach(tag => {
+    colTotals[tag] = 0;
+});
+
+rows.forEach(store => {
+
+    exactTagValues.forEach(tag => {
+
+        const count =
+            counts.get(store + "|||" + tag) || 0;
+
+        colTotals[tag] += count;
+
+    });
+
+});
+
+// Only show columns whose total is greater than 0
+const visibleTagValues = exactTagValues.filter(
+    tag => colTotals[tag] > 0
+);
+
+
+// --------------------------------
+// HEADER
+// --------------------------------
+
+const thead = document.createElement("thead");
+const headerRow = document.createElement("tr");
+
+const firstTh = document.createElement("th");
+firstTh.textContent = rowField;
+headerRow.appendChild(firstTh);
+
+
+// Only create non-zero tag columns
+visibleTagValues.forEach(tag => {
+
+    const th = document.createElement("th");
+
+    th.textContent = tag;
+
+    headerRow.appendChild(th);
+
+});
+
+
+const totalTh = document.createElement("th");
+
+totalTh.textContent = "Grand Total";
+
+headerRow.appendChild(totalTh);
+
+thead.appendChild(headerRow);
+
+table.appendChild(thead);
+
+
+// --------------------------------
+// BODY
+// --------------------------------
+
+const tbody = document.createElement("tbody");
+
+let grandTotal = 0;
+
+
+rows.forEach(store => {
+
+    const tr = document.createElement("tr");
+
+    const storeTd = document.createElement("td");
+
+    storeTd.textContent = store;
+
+    tr.appendChild(storeTd);
+
+    let rowTotal = 0;
+
+
+    // Only create visible columns
+    visibleTagValues.forEach(tag => {
+
+        const count =
+            counts.get(store + "|||" + tag) || 0;
+
+        rowTotal += count;
+
+        const td = document.createElement("td");
+
+        td.textContent = count;
+
+        tr.appendChild(td);
+
+    });
+
+
+    grandTotal += rowTotal;
+
+
+    const totalTd = document.createElement("td");
+
+    totalTd.textContent = rowTotal;
+
+    tr.appendChild(totalTd);
+
+    tbody.appendChild(tr);
+
+});
+
+
+// --------------------------------
+// GRAND TOTAL
+// --------------------------------
+
+const totalRow = document.createElement("tr");
+
+totalRow.className = "total-row";
+
+
+const totalLabel = document.createElement("td");
+
+totalLabel.textContent = "Grand Total";
+
+totalRow.appendChild(totalLabel);
+
+
+// Only show totals for visible columns
+visibleTagValues.forEach(tag => {
+
+    const td = document.createElement("td");
+
+    td.textContent = colTotals[tag];
+
+    totalRow.appendChild(td);
+
+});
+
+
+const grandTd = document.createElement("td");
+
+grandTd.textContent = grandTotal;
+
+totalRow.appendChild(grandTd);
+
+
+tbody.appendChild(totalRow);
+
+table.appendChild(tbody);
+
+    document.getElementById("resultCard").classList.remove("hidden");
+}
+
+function normalizeOrderTagsValue(value) {
+    if (value === null || value === undefined) return "";
+
+    let text = String(value).trim();
+
+    // Normalize whitespace inside the JSON-style array so that
+    // the source value is compared consistently.
+    try {
+        const parsed = JSON.parse(text);
+
+        if (Array.isArray(parsed)) {
+            return JSON.stringify(parsed.map(x => String(x).trim()));
+        }
+    } catch (e) {
+        // Keep the original text for non-JSON values.
+    }
+
+    return text;
+}
+function downloadReportPNG() {
+
+    const captureBox = document.querySelector(".capture-box");
+
+    if (!captureBox) {
+        alert("Please generate the report first.");
+        return;
+    }
+
+    html2canvas(captureBox, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true
+    }).then(canvas => {
+
+        const link = document.createElement("a");
+
+        link.download = "Zippee_Overnight_Pendancy_Report.png";
+
+        link.href = canvas.toDataURL("image/png");
+
+        link.click();
+
+    }).catch(error => {
+
+        console.error("PNG download failed:", error);
+
+        alert("Unable to download the report as PNG.");
+
+    });
+}
+</script>
+
+
+</body>
+</html>
