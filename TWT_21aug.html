@@ -528,8 +528,6 @@ const attempts = String(
 
 let darkstore =
     String(row["Darkstore"] || "").trim();
-    const riderId =
-    String(row["Rider ID"] || "").trim();
 if(!brandStats[brand]){
     brandStats[brand] = {};
 }
@@ -543,12 +541,7 @@ if(!brandStats[brand][darkstore]){
         fasrDelivered:0,
         delivered:0,
         notDispatched:0,
-        uniqueRiders:new Set()
     };
-}
-
-if(riderId){
-    brandStats[brand][darkstore].uniqueRiders.add(riderId);
 }
 
 brandStats[brand][darkstore].total++;
@@ -869,20 +862,6 @@ darkstores.forEach(ds => {
     const s = brandStats[brand][ds];
 
     html += `<td>${s.readyZeroAttempt}</td>`;
-});
-
-html += `</tr>`;
-
-
-/* Unique Riders */
-
-html += `<tr><td class="yellow"><b>Unique Riders</b></td>`;
-
-darkstores.forEach(ds => {
-
-    const s = brandStats[brand][ds];
-
-    html += `<td>${s.uniqueRiders.size}</td>`;
 });
 
 html += `</tr>`;
