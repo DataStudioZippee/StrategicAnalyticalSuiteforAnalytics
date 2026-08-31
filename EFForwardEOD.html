@@ -1182,7 +1182,7 @@ function buildDashboard(){
     const statusMap = countBy("Updated Status");
 
     const delivered =
-        statusMap["Delivered"] || 0;
+    statusMap["DELIVERED"] || 0;
 
     const pending =
         statusMap["Pending"] || 0;
@@ -1636,7 +1636,7 @@ function buildTatChart(){
                 "bold 24px Arial";
 
             ctx.fillText(
-                formatNumber(applicableCount),
+                formatNumber(inTat + outTat),
                 x,
                 y - 2
             );
@@ -1956,7 +1956,7 @@ function buildTransporterTable(total){
 
     body.innerHTML = "";
 
-    sorted.slice(0,6).forEach(([name,count]) => {
+    sorted.forEach(([name,count]) => {
 
         body.innerHTML += `
             <tr>
