@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eureka Forbes Courier Operations Dashboard</title>
+<title>Eureka Forbes Courier Reverse Pickup Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
@@ -16,6 +16,19 @@
 .title{flex:1;text-align:center}
 .title h1{margin:0;font-size:32px;letter-spacing:.2px}.title p{margin:5px 0 0;font-size:21px}
 .datebox{width:225px;border:1px solid rgba(255,255,255,.75);border-radius:9px;padding:11px 14px;text-align:center;font-size:15px}.datebox b{display:block;font-size:19px;margin-top:3px}
+.datebox input[type=date]{
+  display:block;
+  margin:3px auto 0;
+  width:170px;
+  background:transparent;
+  border:0;
+  color:#fff;
+  font-size:19px;
+  font-weight:800;
+  text-align:center;
+  cursor:pointer;
+  color-scheme:dark;
+}
 .controls{padding:12px 18px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #e4e9f1;background:#fafcff}
 .controls input[type=file]{max-width:300px}.controls label{font-weight:700;font-size:13px}.controls input[type=number]{margin-left:5px;padding:7px;border:1px solid #ccd5e3;border-radius:6px;width:100px}
 button{border:0;border-radius:7px;padding:9px 15px;font-weight:700;cursor:pointer}.primary{background:#073a86;color:#fff}.secondary{background:#e8edf5;color:#12376e}.status{font-size:12px;color:#61708a;margin-left:auto}
@@ -42,12 +55,16 @@ button{border:0;border-radius:7px;padding:9px 15px;font-weight:700;cursor:pointe
   <div class="header">
     <div class="logo">EUREKA<br>FORBES<small>Your friend for life</small></div>
     <div class="title"><h1>EUREKA FORBES COURIER OPERATIONS DASHBOARD</h1><p>Daily Overview &amp; Operational Summary</p></div>
-    <div class="datebox">▣ &nbsp; Reporting Date<b id="reportDate">28 August 2026</b></div>
+    <div class="datebox">
+  ▣ &nbsp; Reporting Date
+  <input id="reportingDate" type="date" onchange="updateReportingDate()">
+</div>
   </div>
 
   <div class="controls">
     <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
-    <button class="primary" onclick="generate()">Generate Report</button>
+
+<button class="primary" onclick="generate()">Generate Report</button>
     <button class="secondary" onclick="clearReport()">Clear</button>
     <span class="status" id="status">Upload the raw Excel file. Courier records will be used automatically.</span>
   </div>
@@ -132,7 +149,7 @@ function makeDonut(id, vals, colors){
 function legend(vals,colors){
   return vals.map((x,i)=>`<div><span class="sw" style="background:${colors[i]}"></span><span>${esc(x.label)}<br><b>${x.value} (${pct(x.value,vals.reduce((a,b)=>a+b.value,0))})</b></span></div>`).join('')
 }
-function build(data){
+function build(data, selectedReportingDate){
   charts.forEach(c=>c.destroy());charts=[];
   const partner=header(data[0],['Assigned Partner','Partner','AssignedPartner']);
   const rows=partner?data.filter(r=>norm(r[partner])==='courier'):data;
@@ -178,30 +195,35 @@ const requestDate = header(rows[0], [
   'PickupRequestDate'
 ]);
 
-rows.filter(r => !pickup || String(r[pickup]).trim().toLowerCase() === 'n').forEach(r => {
-  const request = requestDate ? dateValue(r[requestDate]) : null;
-  const pickupActual = pickupDate ? dateValue(r[pickupDate]) : null;
+const ageingAsOf = selectedReportingDate || firstDate(rows, requestDate) || new Date();
 
-  // Only calculate when both dates exist
-  if (request && pickupActual) {
-    const days = Math.floor(
-      (pickupActual - request) / 86400000
-    );
+rows
+  .filter(r =>
+    !pickup ||
+    String(r[pickup]).trim().toLowerCase() === 'n'
+  )
+  .forEach(r => {
+    const request = requestDate ? dateValue(r[requestDate]) : null;
 
-    // Negative values are also included in 0-3 Days
-    if (days < 3) {
-      ages['0-3 Days']++;
-    } else if (days < 5) {
-      ages['3-5 Days']++;
-    } else if (days < 10) {
-      ages['5-10 Days']++;
-    } else if (days < 15) {
-      ages['10-15 Days']++;
-    } else {
-      ages['Above 15 Days']++;
+    if (request) {
+      const days = Math.max(
+        0,
+        Math.floor((ageingAsOf - request) / 86400000)
+      );
+
+      if (days < 3) {
+        ages['0-3 Days']++;
+      } else if (days < 5) {
+        ages['3-5 Days']++;
+      } else if (days < 10) {
+        ages['5-10 Days']++;
+      } else if (days < 15) {
+        ages['10-15 Days']++;
+      } else {
+        ages['Above 15 Days']++;
+      }
     }
-  }
-});
+  });
 
 
 // ===============================
@@ -211,7 +233,9 @@ rows.filter(r => !pickup || String(r[pickup]).trim().toLowerCase() === 'n').forE
 const tatCounts = {};
 
 if (pickupDate && deliveredDate) {
-  rows.filter(r => !pickup || String(r[pickup]).trim().toLowerCase() === 'n').forEach(r => {
+  rows.filter(r =>
+    !delivery || ['y', 'yes'].includes(String(r[delivery]).trim().toLowerCase())
+  ).forEach(r => {
     const actualPickup = dateValue(r[pickupDate]);
     const actualDelivery = dateValue(r[deliveredDate]);
 
@@ -232,7 +256,18 @@ if (pickupDate && deliveredDate) {
   if(hub)rows.forEach(r=>{const h=String(r[hub]??'').trim();if(h)hubs[h]=(hubs[h]||0)+1});
   const hubRows=Object.entries(hubs).sort((a,b)=>b[1]-a[1]);
 
-  document.getElementById('reportDate').textContent=fmtDate(firstDate(rows,header(rows[0],['Pickup Request Date','Request Date','PickupRequestDate'])));
+  const displayDate =
+  selectedReportingDate ||
+  firstDate(rows,requestDate);
+
+if(displayDate){
+  const yyyy = displayDate.getFullYear();
+  const mm = String(displayDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(displayDate.getDate()).padStart(2, '0');
+
+  document.getElementById('reportingDate').value =
+    `${yyyy}-${mm}-${dd}`;
+}
   document.getElementById('status').textContent=`Courier report generated: ${total} orders`;
 
   document.getElementById('dashboard').innerHTML=`
@@ -259,16 +294,81 @@ if (pickupDate && deliveredDate) {
   <div class="footer"><span>Note: Percentages are calculated against Total Orders (${total})</span><span>Source: Courier Data &nbsp; | &nbsp; Data as on ${fmtDate(firstDate(rows,header(rows[0],['Pickup Request Date','Request Date','PickupRequestDate'])))}</span></div>
   `;
 
-  charts.push(new Chart(document.getElementById('tat'),{type:'bar',data:{labels:Object.keys(tatCounts),datasets:[{data:Object.values(tatCounts),backgroundColor:'#073b83',borderRadius:3,barThickness:25}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,title:{display:true,text:'Count of WO No.'}},y:{title:{display:true,text:'TAT (Days)'}}}}}));
+  charts.push(new Chart(document.getElementById('tat'),{
+  type:'bar',
+  data:{
+    labels:Object.keys(tatCounts),
+    datasets:[{
+      data:Object.values(tatCounts),
+      backgroundColor:'#073b83',
+      borderRadius:3,
+      barThickness:20,
+      categoryPercentage:0.75,
+      barPercentage:0.8
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{
+        beginAtZero:true,
+        title:{display:true,text:'Count of WO No.'}
+      },
+      y:{
+        title:{display:true,text:'TAT (Days)'}
+      }
+    }
+  }
+}));
   charts.push(makeDonut('bookingChart',bookingVals,['#073b83','#e8a51a']));
   charts.push(makeDonut('deliveryChart',[{label:'No',value:delN},{label:'Yes',value:delY}],['#073b83','#31953a']));
   charts.push(makeDonut('grnChart',[{label:'No',value:grnN},{label:'Yes',value:grnY}],['#073b83','#31953a']));
-  charts.push(new Chart(document.getElementById('ageChart'),{type:'bar',data:{labels:Object.keys(ages),datasets:[{data:Object.values(ages),backgroundColor:'#073b83',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,title:{display:true,text:'Count of WO No.'}},x:{title:{display:true,text:'Ageing Range'}}}}}));
+  charts.push(new Chart(document.getElementById('ageChart'),{
+  type:'bar',
+  data:{
+    labels:Object.keys(ages),
+    datasets:[{
+      data:Object.values(ages),
+      backgroundColor:'#073b83',
+      borderRadius:4,
+      barThickness:20,
+      categoryPercentage:0.75,
+      barPercentage:0.8
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false}
+    },
+    scales:{
+      y:{
+        beginAtZero:true,
+        title:{
+          display:true,
+          text:'Count of WO No.'
+        }
+      },
+      x:{
+        title:{
+          display:true,
+          text:'Ageing Range'
+        }
+      }
+    }
+  }
+}));
 }
 function card(icon,title,value,cls,sub){return `<div class="card"><div class="icon">${icon}</div><div><h3>${title}</h3><div class="value ${cls}">${value}</div>${sub?`<div class="sub ${cls}">(${sub})</div>`:''}</div></div>`}
 function donutPanel(title,id,vals,colors){return `<div class="panel"><div class="ph">${title}</div><div class="panelbody donutwrap"><canvas id="${id}"></canvas><div class="legend">${legend(vals,colors)}</div></div></div>`}
 function flowRow(label,value,total,color){return `<div class="flowrow"><span>${label}</span><div class="barbg"><div class="bar" style="width:${total?value/total*100:0}%;background:${color}"></div></div><span style="text-align:right">${value}</span><span style="text-align:right">(${pct(value,total)})</span></div>`}
-
+function updateReportingDate(){
+  // Keep the manually selected date exactly as selected.
+}
 function generate(){
  const file=document.getElementById('fileInput').files[0];
  if(!file){alert('Please upload the raw Excel file first.');return}
@@ -279,7 +379,13 @@ function generate(){
      const ws=wb.Sheets[wb.SheetNames[0]];
      const data=XLSX.utils.sheet_to_json(ws,{defval:''});
      if(!data.length)throw new Error('No data found in the first worksheet.');
-     build(data);
+     const selectedDateValue = document.getElementById('reportingDate').value;
+
+const selectedReportingDate = selectedDateValue
+  ? new Date(selectedDateValue + 'T00:00:00')
+  : null;
+
+build(data, selectedReportingDate); 
    }catch(err){alert('Could not generate the report: '+err.message)}
  };
  reader.readAsArrayBuffer(file);
