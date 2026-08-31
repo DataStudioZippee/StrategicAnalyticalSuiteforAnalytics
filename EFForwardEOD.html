@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Forward Courier – Operations Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<style>
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#071b55;
+    color:#07113d;
+}
+
+.wrapper{
+    width:100%;
+    min-height:100vh;
+    padding:8px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+}
+
+.dashboard{
+    width:1536px;
+    min-width:1536px;
+    height:auto;
+    background:#f7f9ff;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 0 20px rgba(0,0,0,.25);
+}
+
+/* ================= HEADER ================= */
+
+.header{
+    height:58px;
+    background:linear-gradient(90deg,#07134c,#122c83);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 22px;
+}
+
+.title{
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:.3px;
+}
+
+.header-right{
+    display:flex;
+    gap:25px;
+    align-items:center;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.header-right span{
+    color:#fff;
+}
+
+.upload-area{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.upload-btn{
+    background:#fff;
+    color:#102268;
+    border:0;
+    border-radius:6px;
+    padding:8px 13px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.upload-btn:hover{
+    background:#e9eeff;
+}
+
+#fileName{
+    font-size:12px;
+    color:#dbe3ff;
+}
+
+/* ================= REPORTING BAR ================= */
+
+.reporting{
+    margin:8px 10px 4px;
+    background:white;
+    border-radius:12px;
+    min-height:60px;
+    display:flex;
+    align-items:center;
+    padding:8px 18px;
+    box-shadow:0 1px 4px rgba(0,0,0,.12);
+}
+
+.reporting-icon{
+    font-size:30px;
+    margin-right:15px;
+}
+
+.reporting-label{
+    font-size:12px;
+    font-weight:800;
+    color:#182875;
+    letter-spacing:.4px;
+}
+
+.reporting-date{
+    font-size:25px;
+    font-weight:800;
+    color:#07113d;
+    margin-top:2px;
+}
+
+/* ================= KPI ================= */
+
+.kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    gap:7px;
+    padding:4px 10px 7px;
+}
+
+.kpi{
+    min-height:82px;
+    background:white;
+    border:1px solid #dce2f2;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    padding:7px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
+.kpi-icon{
+    width:43px;
+    height:43px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    margin-right:10px;
+    flex-shrink:0;
+}
+
+.kpi-content{
+    min-width:0;
+}
+
+.kpi-title{
+    font-size:11px;
+    font-weight:800;
+    line-height:1.15;
+    color:#11216c;
+}
+
+.kpi-value{
+    font-size:27px;
+    font-weight:800;
+    margin-top:7px;
+    color:#080d2e;
+}
+
+.kpi-percent{
+    font-size:16px;
+    font-weight:800;
+    margin-top:4px;
+}
+
+.total .kpi-icon{background:#182a7c;color:white}
+.delivered .kpi-icon{background:#159638;color:white}
+.transit .kpi-icon{background:#ef5b22;color:white}
+.rto .kpi-icon{background:#542078;color:white}
+.courier .kpi-icon{background:#e0000b;color:white}
+.customer .kpi-icon{background:#076582;color:white}
+.noway .kpi-icon{background:#132361;color:white}
+.lost .kpi-icon{background:#555;color:white}
+
+.delivered .kpi-percent{color:#158b36}
+.transit .kpi-percent{color:#ed571c}
+.rto .kpi-percent{color:#57207d}
+.courier .kpi-percent{color:#d40000}
+.customer .kpi-percent{color:#075678}
+.noway .kpi-percent{color:#12205f}
+.lost .kpi-percent{color:#555}
+
+/* ================= GRID ================= */
+
+.main-grid{
+    display:grid;
+    grid-template-columns:1.15fr .9fr 1.05fr;
+    gap:7px;
+    padding:0 10px 7px;
+}
+
+.panel{
+    background:white;
+    border:1px solid #dce2f2;
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
+.panel-title{
+    color:#102268;
+    font-weight:800;
+    font-size:13px;
+    padding:7px 10px;
+    border-bottom:1px solid #e0e5f2;
+    text-transform:uppercase;
+}
+
+.chart-box{
+    height:190px;
+    padding:5px;
+}
+.status-chart-box{
+    height:300px;
+    padding:5px;
+}
+.tat-panel{
+    position:relative;
+}
+
+.tat-note{
+    margin:0 12px 9px;
+    padding:7px 9px;
+    border:1px solid #efc24d;
+    background:#fff7dc;
+    border-radius:6px;
+    font-size:11px;
+    font-weight:700;
+    color:#343434;
+}
+
+/* ================= LOWER GRID ================= */
+
+.lower-grid{
+    display:grid;
+    grid-template-columns:1fr .9fr .95fr .95fr;
+    gap:7px;
+    padding:0 10px 7px;
+}
+
+/* ================= TABLE ================= */
+
+.table-wrap{
+    padding:0 7px 7px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:11px;
+}
+
+th{
+    background:#102268;
+    color:white;
+    padding:6px 5px;
+    text-align:center;
+    font-size:10px;
+}
+
+td{
+    padding:5px 5px;
+    border-bottom:1px solid #e1e5ee;
+    font-weight:600;
+}
+
+td:first-child{
+    text-align:left;
+}
+
+td:not(:first-child){
+    text-align:center;
+}
+
+tbody tr:last-child td{
+    background:#e8edf9;
+    font-weight:800;
+    color:#0d1c68;
+}
+
+.bar-cell{
+    position:relative;
+}
+
+.mini-bar{
+    position:absolute;
+    left:4px;
+    top:50%;
+    transform:translateY(-50%);
+    height:12px;
+    background:#143fc2;
+    opacity:.92;
+    border-radius:1px;
+    z-index:0;
+}
+
+.bar-text{
+    position:relative;
+    z-index:1;
+}
+
+/* ================= BOTTOM ================= */
+
+.bottom-grid{
+    display:grid;
+    grid-template-columns:1.55fr 1fr;
+    gap:7px;
+    padding:0 10px 8px;
+}
+
+.priority{
+    color:white;
+    font-size:9px;
+    font-weight:800;
+    padding:3px 13px;
+    border-radius:3px;
+    display:inline-block;
+    min-width:55px;
+}
+
+.high{background:#b60000}
+.medium{background:#f08a00}
+.low{background:#168b34}
+.lowblack{background:#333}
+
+.action-table td{
+    height:25px;
+}
+
+.footer{
+    background:#07194f;
+    color:white;
+    padding:8px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:10px;
+    font-weight:600;
+}
+
+.footer strong{
+    font-size:12px;
+}
+
+/* ================= EMPTY STATE ================= */
+
+.empty{
+    min-height:500px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    color:#566;
+}
+
+.empty-icon{
+    font-size:70px;
+    margin-bottom:10px;
+}
+
+.empty h2{
+    margin:0 0 7px;
+    color:#122268;
+}
+
+.empty p{
+    margin:0;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media(max-width:1200px){
+    .kpi-grid{
+        grid-template-columns:repeat(4,1fr);
+    }
+
+    .main-grid{
+        grid-template-columns:1fr;
+    }
+
+    .lower-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .bottom-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+@media(max-width:700px){
+    .kpi-grid,
+    .lower-grid{
+        grid-template-columns:1fr;
+    }
+
+    .header{
+        height:auto;
+        padding:12px;
+        flex-direction:column;
+        align-items:flex-start;
+        gap:10px;
+    }
+
+    .title{
+        font-size:19px;
+    }
+
+    .header-right{
+        flex-wrap:wrap;
+        gap:10px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+<div class="dashboard">
+
+<!-- ================= HEADER ================= -->
+
+<div class="header">
+
+    <div class="title">
+        🚚 FORWARD COURIER – OPERATIONS DASHBOARD
+    </div>
+
+    <div class="header-right">
+
+        <div>
+            📅 DATA AS ON:
+            <span id="headerDate">--</span>
+        </div>
+
+        <div>|</div>
+
+        <div>
+            LAST UPDATED:
+            <span id="updatedDate">--</span>
+        </div>
+
+        <div class="upload-area">
+
+    <label class="upload-btn">
+        📂 Upload Excel
+        <input
+            type="file"
+            id="fileInput"
+            accept=".xlsx,.xls,.csv"
+            hidden
+        >
+    </label>
+
+    <button
+        class="upload-btn"
+        type="button"
+        onclick="downloadDashboardPNG()"
+    >
+        📸 Download PNG
+    </button>
+
+    <span id="fileName">No file selected</span>
+
+</div>
+    </div>
+</div>
+
+
+<!-- ================= REPORTING ================= -->
+
+<div class="reporting">
+
+    <div class="reporting-icon">📅</div>
+
+    <div>
+        <div class="reporting-label">REPORTING DATE</div>
+        <div class="reporting-date" id="reportDate">--</div>
+    </div>
+
+</div>
+
+
+<!-- ================= KPI CARDS ================= -->
+
+<div class="kpi-grid">
+
+    <div class="kpi total">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-content">
+            <div class="kpi-title">TOTAL SHIPMENTS</div>
+            <div class="kpi-value" id="totalShipments">0</div>
+        </div>
+    </div>
+
+
+    <div class="kpi delivered">
+        <div class="kpi-icon">✓</div>
+        <div class="kpi-content">
+            <div class="kpi-title">DELIVERED</div>
+            <div class="kpi-value" id="delivered">0</div>
+            <div class="kpi-percent" id="deliveredPct">0%</div>
+        </div>
+    </div>
+
+
+    <div class="kpi transit">
+        <div class="kpi-icon">🚚</div>
+        <div class="kpi-content">
+            <div class="kpi-title">IN TRANSIT /<br>PENDING</div>
+            <div class="kpi-value" id="pending">0</div>
+            <div class="kpi-percent" id="pendingPct">0%</div>
+        </div>
+    </div>
+
+
+    <div class="kpi rto">
+        <div class="kpi-icon">↻</div>
+        <div class="kpi-content">
+            <div class="kpi-title">RTO</div>
+            <div class="kpi-value" id="rto">0</div>
+            <div class="kpi-percent" id="rtoPct">0%</div>
+        </div>
+    </div>
+
+
+    <div class="kpi courier">
+        <div class="kpi-icon">!</div>
+        <div class="kpi-content">
+            <div class="kpi-title">COURIER ISSUE</div>
+            <div class="kpi-value" id="courier">0</div>
+            <div class="kpi-percent" id="courierPct">0%</div>
+        </div>
+    </div>
+
+
+    <div class="kpi customer">
+        <div class="kpi-icon">●</div>
+        <div class="kpi-content">
+            <div class="kpi-title">CUSTOMER ISSUE</div>
+            <div class="kpi-value" id="customer">0</div>
+            <div class="kpi-percent" id="customerPct">0%</div>
+        </div>
+    </div>
+
+
+    <div class="kpi noway">
+        <div class="kpi-icon">▤</div>
+        <div class="kpi-content">
+            <div class="kpi-title">NO WAY BILL</div>
+            <div class="kpi-value" id="noway">0</div>
+            <div class="kpi-percent" id="nowayPct">0%</div>
+        </div>
+    </div>
+
+
+    <div class="kpi lost">
+        <div class="kpi-icon">⬢</div>
+        <div class="kpi-content">
+            <div class="kpi-title">SHIPMENT LOST</div>
+            <div class="kpi-value" id="lost">0</div>
+            <div class="kpi-percent" id="lostPct">0%</div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ================= MAIN CHARTS ================= -->
+
+<div class="main-grid">
+
+    <!-- STATUS -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            SHIPMENT STATUS DISTRIBUTION
+            <span style="font-weight:500;text-transform:none;">
+                (By Updated Status)
+            </span>
+        </div>
+
+<div class="chart-box status-chart-box">
+    <canvas id="statusChart"></canvas>
+</div>
+
+    </div>
+
+
+    <!-- TAT -->
+
+    <div class="panel tat-panel">
+
+        <div class="panel-title">
+            TAT PERFORMANCE
+            <span style="font-weight:500;text-transform:none;">
+                (Applicable Shipments: <span id="tatApplicable">0</span>)
+            </span>
+        </div>
+
+        <div class="chart-box">
+            <canvas id="tatChart"></canvas>
+        </div>
+
+        <div class="tat-note">
+            ℹ️ <span id="blankTat">0</span>
+            shipments have blank TAT and are not included in TAT performance.
+        </div>
+
+    </div>
+
+
+    <!-- AGEING -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            IN TRANSIT AGEING
+            <span style="font-weight:500;text-transform:none;">
+                (By Ageing Bucket)
+            </span>
+        </div>
+
+        <div class="chart-box">
+            <canvas id="ageingChart"></canvas>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= LOWER TABLES ================= -->
+
+<div class="lower-grid">
+
+    <!-- ZONE -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            ZONE WISE PERFORMANCE
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Zone</th>
+                        <th>Shipments</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+
+                <tbody id="zoneTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- TRANSPORTER -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            TRANSPORTER PERFORMANCE
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Transporter</th>
+                        <th>Shipments</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+
+                <tbody id="transporterTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- CATEGORY -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            CATEGORY WISE PERFORMANCE
+            <span style="font-weight:500;text-transform:none;">
+                (Applicable Shipments:
+                <span id="categoryApplicable">0</span>)
+            </span>
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Shipments</th>
+                        <th>% of Applicable</th>
+                    </tr>
+                </thead>
+
+                <tbody id="categoryTable"></tbody>
+
+            </table>
+
+        </div>
+
+        <div class="tat-note" style="margin-top:2px;">
+            ℹ️ <span id="blankCategory">0</span>
+            shipments have blank category and are not included.
+        </div>
+
+    </div>
+
+
+    <!-- PINCODE -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            CITY / PINCODE HOTSPOTS
+            <span style="font-weight:500;text-transform:none;">
+                (Top 10 by Shipments)
+            </span>
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Pincode</th>
+                        <th>Shipments</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+
+                <tbody id="pincodeTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= BOTTOM ================= -->
+
+<div class="bottom-grid">
+
+    <!-- ACTION REQUIRED -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            CRITICAL SHIPMENTS / ACTION REQUIRED
+        </div>
+
+        <div class="table-wrap">
+
+            <table class="action-table">
+
+                <thead>
+    <tr>
+        <th style="width:50%; text-align:center;">Updated Status</th>
+        <th style="width:25%; text-align:center;">Shipments</th>
+        <th style="width:25%; text-align:center;">% of Total</th>
+    </tr>
+</thead>
+
+                <tbody id="actionTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- CUSTOMER -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+            CUSTOMER PERFORMANCE
+            <span style="font-weight:500;text-transform:none;">
+                (Top 10 by Shipments)
+            </span>
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Shipments</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+
+                <tbody id="customerTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= FOOTER ================= -->
+
+<div class="footer">
+
+    <div>
+        Note: TAT & Category performance is based on applicable records only
+        (<span id="footerApplicable">0</span> shipments).
+        Shipments with blank values are shown separately in Zone, Category & TAT sections.
+    </div>
+
+    <div>
+        📊 <strong>Dashboard Designed for Operational Excellence</strong>
+    </div>
+
+</div>
+
+
+</div>
+</div>
+
+
+<script>
+
+/* ============================================================
+   GLOBAL VARIABLES
+============================================================ */
+
+let rows = [];
+
+let statusChart = null;
+let tatChart = null;
+let ageingChart = null;
+const barLabelPlugin = {
+    id: "barLabels",
+
+    afterDatasetsDraw(chart) {
+
+        const { ctx } = chart;
+
+        ctx.save();
+
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+
+            const meta = chart.getDatasetMeta(datasetIndex);
+
+            meta.data.forEach((bar, index) => {
+
+                const value = dataset.data[index];
+
+                if (value === undefined || value === null) return;
+
+                ctx.fillStyle = "#111";
+                ctx.font = "bold 10px Arial";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+
+                ctx.fillText(
+                    formatNumber(value) +
+                    " (" +
+                    pct(value, rows.length) +
+                    ")",
+                    bar.x + 7,
+                    bar.y
+                );
+
+            });
+
+        });
+
+        ctx.restore();
+    }
+};
+
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function norm(value){
+
+    return String(value ?? "")
+        .trim()
+        .replace(/\s+/g," ")
+        .toLowerCase();
+
+}
+
+
+function display(value){
+
+    if(value === null || value === undefined || value === "")
+        return "";
+
+    return String(value).trim();
+
+}
+
+
+function number(value){
+
+    const n = parseFloat(
+        String(value ?? "")
+        .replace(/,/g,"")
+    );
+
+    return Number.isFinite(n) ? n : null;
+
+}
+
+
+function pct(value,total){
+
+    if(!total) return "0.00%";
+
+    return ((value / total) * 100).toFixed(2) + "%";
+
+}
+
+
+function formatNumber(value){
+
+    return Number(value || 0).toLocaleString("en-IN");
+
+}
+
+
+function formatDate(date){
+
+    return date.toLocaleDateString(
+        "en-GB",
+        {
+            day:"2-digit",
+            month:"short",
+            year:"numeric"
+        }
+    );
+
+}
+
+
+/* ============================================================
+   DATE
+============================================================ */
+
+const today = new Date();
+
+document.getElementById("headerDate").textContent =
+    formatDate(today);
+
+document.getElementById("updatedDate").textContent =
+    formatDate(today);
+
+document.getElementById("reportDate").textContent =
+    formatDate(today);
+
+
+/* ============================================================
+   GET FIELD
+============================================================ */
+
+function getField(row, field){
+
+    const target = norm(field);
+
+    const key = Object.keys(row).find(
+        k => norm(k) === target
+    );
+
+    return key ? row[key] : "";
+
+}
+
+
+/* ============================================================
+   STATUS NORMALIZATION
+============================================================ */
+
+function status(row){
+
+    return display(
+        getField(row,"Updated Status")
+    ).toUpperCase();
+
+}
+
+
+/* ============================================================
+   LOAD FILE
+============================================================ */
+
+document.getElementById("fileInput")
+.addEventListener("change", function(e){
+
+    const file = e.target.files[0];
+
+    if(!file) return;
+
+    document.getElementById("fileName").textContent =
+        file.name;
+
+    const reader = new FileReader();
+
+    reader.onload = function(event){
+
+        try{
+
+            const data = new Uint8Array(
+                event.target.result
+            );
+
+            const workbook = XLSX.read(
+                data,
+                {
+                    type:"array",
+                    cellDates:true
+                }
+            );
+
+            const sheet =
+                workbook.Sheets[
+                    workbook.SheetNames[0]
+                ];
+
+            rows = XLSX.utils.sheet_to_json(
+                sheet,
+                {
+                    defval:""
+                }
+            );
+
+            if(!rows.length){
+
+                alert("The uploaded file contains no data.");
+                return;
+
+            }
+
+            buildDashboard();
+
+        }
+        catch(error){
+
+            console.error(error);
+
+            alert(
+                "Unable to read this Excel file. " +
+                "Please check the file format."
+            );
+
+        }
+
+    };
+
+    reader.readAsArrayBuffer(file);
+
+});
+
+
+/* ============================================================
+   TRANSPORTER NORMALIZATION
+============================================================ */
+
+function transporterName(value){
+
+    const x = norm(value);
+
+    if(x.includes("blue dart express"))
+        return "Blue Dart Expr";
+
+    if(x.includes("allcargo"))
+        return "Allcargo Logist";
+
+    if(x.includes("sri sai"))
+        return "Sri Sai Logist";
+
+    if(x.includes("gms worldwide"))
+        return "GMS WORLDWLD";
+
+    if(x.includes("instakart"))
+        return "INSTAKART SE";
+
+    if(x.includes("gati"))
+        return "GATI EXPRESS";
+
+    return display(value);
+
+}
+
+
+/* ============================================================
+   GENERIC COUNT
+============================================================ */
+
+function countBy(field){
+
+    const map = {};
+
+    rows.forEach(row => {
+
+        let value =
+            display(getField(row,field));
+
+        if(!value)
+            value = "(Blank)";
+
+        map[value] =
+            (map[value] || 0) + 1;
+
+    });
+
+    return map;
+
+}
+
+
+/* ============================================================
+   BUILD DASHBOARD
+============================================================ */
+
+function buildDashboard(){
+
+    const total = rows.length;
+
+    /* --------------------------------------------------------
+       STATUS COUNTS
+    -------------------------------------------------------- */
+
+    const statusMap = countBy("Updated Status");
+
+    const delivered =
+        statusMap["Delivered"] || 0;
+
+    const pending =
+        statusMap["Pending"] || 0;
+
+    const rto =
+        statusMap["RTO"] || 0;
+
+    const courier =
+        statusMap["Courier Issue"] || 0;
+
+    const customer =
+        (statusMap["Customer Issue"] || 0);
+
+    const noway =
+        statusMap["NO WAY BILL"] || 0;
+
+    const lost =
+        statusMap["Shipment Lost"] || 0;
+
+
+    setText("totalShipments",formatNumber(total));
+
+    setText("delivered",formatNumber(delivered));
+    setText("deliveredPct",pct(delivered,total));
+
+    setText("pending",formatNumber(pending));
+    setText("pendingPct",pct(pending,total));
+
+    setText("rto",formatNumber(rto));
+    setText("rtoPct",pct(rto,total));
+
+    setText("courier",formatNumber(courier));
+    setText("courierPct",pct(courier,total));
+
+    setText("customer",formatNumber(customer));
+    setText("customerPct",pct(customer,total));
+
+    setText("noway",formatNumber(noway));
+    setText("nowayPct",pct(noway,total));
+
+    setText("lost",formatNumber(lost));
+    setText("lostPct",pct(lost,total));
+
+
+    /* --------------------------------------------------------
+       CHARTS
+    -------------------------------------------------------- */
+
+    buildStatusChart(statusMap,total);
+
+    buildTatChart();
+
+    buildAgeingChart();
+
+
+    /* --------------------------------------------------------
+       TABLES
+    -------------------------------------------------------- */
+
+    buildZoneTable(total);
+
+    buildTransporterTable(total);
+
+    buildCategoryTable();
+
+    buildPincodeTable(total);
+
+    buildActionTable(total);
+
+    buildCustomerTable(total);
+
+}
+
+
+/* ============================================================
+   STATUS CHART
+============================================================ */
+
+function buildStatusChart(statusMap,total){
+
+    const desired = [
+        "NO WAY BILL",
+        "Courier Issue",
+        "Delivered",
+        "Customer Issue",
+        "RTO",
+        "Pending",
+        "Pending for Check",
+        "Order Cancelled",
+        "Delivered - Partially",
+        "Shipment Lost",
+        "WH Team Issue"
+    ];
+
+    const labels = [];
+    const values = [];
+
+    desired.forEach(label => {
+
+        const value = statusMap[label] || 0;
+
+        if(value > 0){
+            labels.push(label);
+            values.push(value);
+        }
+
+    });
+
+    if(statusChart)
+        statusChart.destroy();
+
+    statusChart = new Chart(
+        document.getElementById("statusChart"),
+        {
+            type:"bar",
+
+            data:{
+                labels:labels,
+
+                datasets:[
+                    {
+                        data:values,
+
+                        backgroundColor:[
+                            "#071b61",
+                            "#cf0000",
+                            "#27788d",
+                            "#168c31",
+                            "#531a7b",
+                            "#f04e16",
+                            "#4c8d34",
+                            "#999999",
+                            "#78a5b5",
+                            "#555555",
+                            "#222222"
+                        ],
+
+                        borderWidth:0
+                    }
+                ]
+            },
+
+            options:{
+                indexAxis:"y",
+
+                responsive:true,
+                maintainAspectRatio:false,
+
+                layout:{
+                    padding:{
+                        right:80
+                    }
+                },
+
+                plugins:{
+                    legend:{
+                        display:false
+                    },
+
+                    tooltip:{
+                        callbacks:{
+                            label:function(ctx){
+
+                                return (
+                                    formatNumber(ctx.raw) +
+                                    " (" +
+                                    pct(ctx.raw,total) +
+                                    ")"
+                                );
+
+                            }
+                        }
+                    }
+                },
+
+                scales:{
+
+                    x:{
+                        beginAtZero:true,
+
+                        grid:{
+                            display:false
+                        },
+
+                        ticks:{
+                            font:{
+                                size:9
+                            }
+                        },
+
+                        title:{
+                            display:true,
+                            text:"Shipments",
+
+                            font:{
+                                size:10,
+                                weight:"bold"
+                            }
+                        }
+                    },
+
+                    y:{
+                        grid:{
+                            display:false
+                        },
+
+                        ticks:{
+                            font:{
+                                size:9,
+                                weight:"bold"
+                            }
+                        }
+                    }
+                }
+            },
+
+            plugins:[
+                {
+                    id:"statusBarLabels",
+
+                    afterDatasetsDraw:function(chart){
+
+                        const ctx = chart.ctx;
+
+                        chart.data.datasets.forEach(function(dataset, datasetIndex){
+
+                            const meta =
+                                chart.getDatasetMeta(datasetIndex);
+
+                            meta.data.forEach(function(bar,index){
+
+                                const value =
+                                    dataset.data[index];
+
+                                ctx.save();
+
+                                ctx.fillStyle = "#111111";
+
+                                ctx.font =
+                                    "bold 10px Arial";
+
+                                ctx.textAlign = "left";
+
+                                ctx.textBaseline =
+                                    "middle";
+
+                                ctx.fillText(
+                                    formatNumber(value) +
+                                    " (" +
+                                    pct(value,total) +
+                                    ")",
+                                    bar.x + 7,
+                                    bar.y
+                                );
+
+                                ctx.restore();
+
+                            });
+
+                        });
+
+                    }
+                }
+            ]
+        }
+    );
+}
+
+function buildTatChart(){
+
+    /*
+       IMPORTANT:
+       TAT performance is based on the "Outlier"
+       column for the 388 applicable records.
+    */
+
+    const applicable =
+        rows.filter(row =>
+            display(getField(row,"Category")) !== ""
+        );
+
+    const inTat =
+        applicable.filter(row =>
+            norm(getField(row,"Outlier")) === "in tat"
+        ).length;
+
+    const outTat =
+        applicable.filter(row =>
+            norm(getField(row,"Outlier")) === "out tat"
+        ).length;
+
+    const applicableCount =
+        applicable.length;
+
+    const blankTat =
+        rows.length - applicableCount;
+
+    setText(
+        "tatApplicable",
+        formatNumber(applicableCount)
+    );
+
+    setText(
+        "blankTat",
+        formatNumber(blankTat)
+    );
+
+    setText(
+        "categoryApplicable",
+        formatNumber(applicableCount)
+    );
+
+    setText(
+        "blankCategory",
+        formatNumber(blankTat)
+    );
+
+    setText(
+        "footerApplicable",
+        formatNumber(applicableCount)
+    );
+
+    if(tatChart)
+        tatChart.destroy();
+
+    tatChart = new Chart(
+        document.getElementById("tatChart"),
+        {
+            type:"doughnut",
+
+            data:{
+                labels:[
+                    "IN TAT",
+                    "OUT TAT"
+                ],
+
+                datasets:[
+                    {
+                        data:[
+                            inTat,
+                            outTat
+                        ],
+
+                        backgroundColor:[
+                            "#158b34",
+                            "#d80000"
+                        ],
+
+                        borderWidth:0
+                    }
+                ]
+            },
+
+            options:{
+                responsive:true,
+                maintainAspectRatio:false,
+
+                cutout:"62%",
+
+                plugins:{
+                    legend:{
+                        position:"right",
+
+                        labels:{
+                            boxWidth:12,
+                            font:{
+                                size:11,
+                                weight:"bold"
+                            },
+
+                            generateLabels:function(chart){
+
+                                return [
+                                    {
+                                        text:
+                                            "IN TAT  " +
+                                            inTat +
+                                            " (" +
+                                            pct(inTat,applicableCount) +
+                                            ")",
+
+                                        fillStyle:"#158b34"
+                                    },
+
+                                    {
+                                        text:
+                                            "OUT TAT  " +
+                                            outTat +
+                                            " (" +
+                                            pct(outTat,applicableCount) +
+                                            ")",
+
+                                        fillStyle:"#d80000"
+                                    }
+                                ];
+
+                            }
+                        }
+                    },
+
+                    tooltip:{
+                        callbacks:{
+                            label:function(ctx){
+
+                                return (
+                                    ctx.label +
+                                    ": " +
+                                    formatNumber(ctx.raw) +
+                                    " (" +
+                                    pct(
+                                        ctx.raw,
+                                        applicableCount
+                                    ) +
+                                    ")"
+                                );
+
+                            }
+                        }
+                    }
+                }
+            },
+
+            plugins:[
+    {
+        id:"tatCenter",
+
+        beforeDraw(chart){
+
+            const {
+                ctx,
+                chartArea
+            } = chart;
+
+            if(!chartArea) return;
+
+            const x =
+                (chartArea.left +
+                 chartArea.right) / 2;
+
+            const y =
+                (chartArea.top +
+                 chartArea.bottom) / 2;
+
+            ctx.save();
+
+            ctx.textAlign = "center";
+
+            ctx.fillStyle = "#10143c";
+
+            ctx.font =
+                "bold 24px Arial";
+
+            ctx.fillText(
+                formatNumber(applicableCount),
+                x,
+                y - 2
+            );
+
+            ctx.font =
+                "bold 10px Arial";
+
+            ctx.fillText(
+                "APPLICABLE",
+                x,
+                y + 16
+            );
+
+            ctx.fillText(
+                "SHIPMENTS",
+                x,
+                y + 29
+            );
+
+            ctx.restore();
+
+        }
+    }
+]
+        }
+    );
+
+}
+
+
+/* ============================================================
+   AGEING CHART
+============================================================ */
+function buildAgeingChart(){
+
+    const ageingMap = {
+        "0-5": 0,
+        "5-10": 0,
+        "10-15": 0,
+        "15-20": 0,
+        "20-30": 0,
+        "Above 30": 0
+    };
+
+    rows.forEach(row => {
+
+        const age = Number(
+            getField(row,"InTransit Ageing")
+        );
+
+        if(!Number.isFinite(age)) return;
+
+        if(age <= 5)
+            ageingMap["0-5"]++;
+
+        else if(age <= 10)
+            ageingMap["5-10"]++;
+
+        else if(age <= 15)
+            ageingMap["10-15"]++;
+
+        else if(age <= 20)
+            ageingMap["15-20"]++;
+
+        else if(age <= 30)
+            ageingMap["20-30"]++;
+
+        else if(age > 30)
+            ageingMap["Above 30"]++;
+    });
+
+    const labels = [
+        "0 - 5 Days",
+        "5 - 10 Days",
+        "10 - 15 Days",
+        "15 - 20 Days",
+        "20 - 30 Days",
+        "Above 30 Days"
+    ];
+
+    const values = [
+        ageingMap["0-5"],
+        ageingMap["5-10"],
+        ageingMap["10-15"],
+        ageingMap["15-20"],
+        ageingMap["20-30"],
+        ageingMap["Above 30"]
+    ];
+
+    if(ageingChart)
+        ageingChart.destroy();
+
+    ageingChart = new Chart(
+        document.getElementById("ageingChart"),
+        {
+            type:"bar",
+
+            data:{
+                labels:labels,
+
+                datasets:[
+                    {
+                        data:values,
+
+                        backgroundColor:[
+                            "#071b61",
+                            "#cf0000",
+                            "#27788d",
+                            "#168c31",
+                            "#531a7b",
+                            "#e83e8c"
+                        ],
+
+                        borderWidth:0
+                    }
+                ]
+            },
+
+            options:{
+                indexAxis:"y",
+
+                responsive:true,
+                maintainAspectRatio:false,
+
+                layout:{
+                    padding:{
+                        right:90
+                    }
+                },
+
+                plugins:{
+                    legend:{
+                        display:false
+                    }
+                },
+
+                scales:{
+                    x:{
+                        beginAtZero:true,
+
+                        grid:{
+                            display:false
+                        },
+
+                        ticks:{
+                            font:{
+                                size:9
+                            }
+                        },
+
+                        title:{
+                            display:true,
+                            text:"Shipments",
+
+                            font:{
+                                size:10,
+                                weight:"bold"
+                            }
+                        }
+                    },
+
+                    y:{
+                        grid:{
+                            display:false
+                        },
+
+                        ticks:{
+                            font:{
+                                size:9,
+                                weight:"bold"
+                            }
+                        }
+                    }
+                }
+            },
+
+            plugins:[
+                {
+                    id:"ageingLabels",
+
+                    afterDatasetsDraw:function(chart){
+
+                        const ctx = chart.ctx;
+
+                        chart.data.datasets.forEach(function(dataset){
+
+                            const meta =
+                                chart.getDatasetMeta(0);
+
+                            meta.data.forEach(function(bar,index){
+
+                                const value =
+                                    dataset.data[index];
+
+                                ctx.save();
+
+                                ctx.fillStyle = "#111111";
+                                ctx.font = "bold 10px Arial";
+                                ctx.textAlign = "left";
+                                ctx.textBaseline = "middle";
+
+                                ctx.fillText(
+                                    formatNumber(value) +
+                                    " (" +
+                                    pct(value,rows.length) +
+                                    ")",
+                                    bar.x + 7,
+                                    bar.y
+                                );
+
+                                ctx.restore();
+                            });
+                        });
+                    }
+                }
+            ]
+        }
+    );
+}
+
+
+/* ============================================================
+   ZONE TABLE
+============================================================ */
+
+function buildZoneTable(total){
+
+    const map = {};
+
+    rows.forEach(row => {
+
+        let zone =
+            display(getField(row,"Zone"));
+
+        if(!zone)
+            zone = "(Blank)";
+
+        map[zone] =
+            (map[zone] || 0) + 1;
+
+    });
+
+    const preferred = [
+        "South",
+        "North",
+        "West",
+        "East",
+        "(Blank)"
+    ];
+
+    const body =
+        document.getElementById("zoneTable");
+
+    body.innerHTML = "";
+
+    preferred.forEach(zone => {
+
+        if(!(zone in map)) return;
+
+        body.innerHTML += `
+            <tr>
+                <td>${escapeHTML(zone)}</td>
+                <td>${formatNumber(map[zone])}</td>
+                <td>${pct(map[zone],total)}</td>
+            </tr>
+        `;
+
+    });
+
+    body.innerHTML += `
+        <tr>
+            <td>Grand Total</td>
+            <td>${formatNumber(total)}</td>
+            <td>100.00%</td>
+        </tr>
+    `;
+
+}
+
+
+/* ============================================================
+   TRANSPORTER TABLE
+============================================================ */
+
+function buildTransporterTable(total){
+
+    const map = {};
+
+    rows.forEach(row => {
+
+        const original =
+            display(
+                getField(
+                    row,
+                    "Transporter Name"
+                )
+            );
+
+        if(!original) return;
+
+        const name =
+            transporterName(original);
+
+        map[name] =
+            (map[name] || 0) + 1;
+
+    });
+
+    const sorted =
+        Object.entries(map)
+        .sort((a,b) => b[1] - a[1]);
+
+    const body =
+        document.getElementById(
+            "transporterTable"
+        );
+
+    body.innerHTML = "";
+
+    sorted.slice(0,6).forEach(([name,count]) => {
+
+        body.innerHTML += `
+            <tr>
+                <td style="text-align:left;">
+                    ${escapeHTML(name)}
+                </td>
+
+                <td class="bar-cell">
+
+                    <div
+                        class="mini-bar"
+                        style="width:${Math.max(
+                            8,
+                            (count/sorted[0][1])*100
+                        )}%"
+                    ></div>
+
+                    <span class="bar-text">
+                        ${formatNumber(count)}
+                    </span>
+
+                </td>
+
+                <td>
+                    ${pct(count,total)}
+                </td>
+
+            </tr>
+        `;
+
+    });
+
+    body.innerHTML += `
+        <tr>
+            <td>Grand Total</td>
+            <td>${formatNumber(total)}</td>
+            <td>100.00%</td>
+        </tr>
+    `;
+
+}
+
+
+/* ============================================================
+   CATEGORY TABLE
+============================================================ */
+
+function buildCategoryTable(){
+
+    const applicable =
+        rows.filter(row =>
+            display(
+                getField(row,"Category")
+            ) !== ""
+        );
+
+    const map = {};
+
+    applicable.forEach(row => {
+
+        let category =
+            display(
+                getField(row,"Category")
+            );
+
+        if(norm(category) === "local")
+            category = "Local";
+
+        map[category] =
+            (map[category] || 0) + 1;
+
+    });
+
+    const order = [
+        "IGST",
+        "Upcountry-1",
+        "Upcountry-2",
+        "Local"
+    ];
+
+    const body =
+        document.getElementById(
+            "categoryTable"
+        );
+
+    body.innerHTML = "";
+
+    order.forEach(category => {
+
+        if(!(category in map)) return;
+
+        body.innerHTML += `
+            <tr>
+                <td>${escapeHTML(category)}</td>
+                <td>${formatNumber(map[category])}</td>
+                <td>${pct(
+                    map[category],
+                    applicable.length
+                )}</td>
+            </tr>
+        `;
+
+    });
+
+    body.innerHTML += `
+        <tr>
+            <td>Grand Total (Applicable)</td>
+            <td>${formatNumber(applicable.length)}</td>
+            <td>100.00%</td>
+        </tr>
+    `;
+
+}
+
+
+/* ============================================================
+   PINCODE TABLE
+============================================================ */
+
+function buildPincodeTable(total){
+
+    const map = {};
+
+    rows.forEach(row => {
+
+        let pin =
+            display(
+                getField(row,"Pin Code")
+            );
+
+        if(!pin) return;
+
+        /*
+           Preserve leading zeroes and Excel numeric values.
+        */
+
+        pin = String(pin).replace(/\.0$/,"");
+
+        map[pin] =
+            (map[pin] || 0) + 1;
+
+    });
+
+    const sorted =
+        Object.entries(map)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0,10);
+
+    const topTotal =
+        sorted.reduce(
+            (sum,x) => sum + x[1],
+            0
+        );
+
+    const body =
+        document.getElementById(
+            "pincodeTable"
+        );
+
+    body.innerHTML = "";
+
+    sorted.forEach(([pin,count]) => {
+
+        body.innerHTML += `
+            <tr>
+                <td>${escapeHTML(pin)}</td>
+                <td>${formatNumber(count)}</td>
+                <td>${pct(count,total)}</td>
+            </tr>
+        `;
+
+    });
+
+    body.innerHTML += `
+        <tr>
+            <td>Top 10 Total</td>
+            <td>${formatNumber(topTotal)}</td>
+            <td>${pct(topTotal,total)}</td>
+        </tr>
+    `;
+
+}
+
+
+/* ============================================================
+   ACTION REQUIRED TABLE
+============================================================ */
+
+function buildActionTable(total){
+
+    const map = countBy("Updated Status");
+
+    const sorted =
+        Object.entries(map)
+        .sort((a,b) => b[1] - a[1]);
+
+    const body =
+        document.getElementById("actionTable");
+
+    body.innerHTML = "";
+
+    sorted.forEach(([status,count]) => {
+
+        body.innerHTML += `
+            <tr>
+                <td style="text-align:center;">
+                    ${escapeHTML(status)}
+                </td>
+
+                <td style="text-align:center;">
+                    ${formatNumber(count)}
+                </td>
+
+                <td style="text-align:center;">
+                    ${pct(count,total)}
+                </td>
+            </tr>
+        `;
+
+    });
+
+    body.innerHTML += `
+        <tr>
+            <td style="text-align:left;">
+                Grand Total
+            </td>
+
+            <td style="text-align:center;">
+                ${formatNumber(total)}
+            </td>
+
+            <td style="text-align:center;">
+                100.00%
+            </td>
+        </tr>
+    `;
+}
+
+
+/* ============================================================
+   CUSTOMER TABLE
+============================================================ */
+
+function buildCustomerTable(total){
+
+    const map = {};
+
+    rows.forEach(row => {
+
+        let customer =
+            display(
+                getField(row,"Customer Name")
+            );
+
+        if(!customer)
+            customer = "(Blank)";
+
+        map[customer] =
+            (map[customer] || 0) + 1;
+
+    });
+
+    const sorted =
+        Object.entries(map)
+        .sort((a,b) => b[1] - a[1]);
+
+    const top10 =
+        sorted.slice(0,10);
+
+    const topTotal =
+        top10.reduce(
+            (sum,x) => sum + x[1],
+            0
+        );
+
+    const others =
+        total - topTotal;
+
+    const body =
+        document.getElementById(
+            "customerTable"
+        );
+
+    body.innerHTML = "";
+
+    top10.forEach(([name,count]) => {
+
+        body.innerHTML += `
+            <tr>
+                <td>
+                    ${escapeHTML(name)}
+                </td>
+
+                <td>
+                    ${formatNumber(count)}
+                </td>
+
+                <td>
+                    ${pct(count,total)}
+                </td>
+            </tr>
+        `;
+
+    });
+
+    body.innerHTML += `
+        <tr>
+            <td>Others</td>
+            <td>${formatNumber(others)}</td>
+            <td>${pct(others,total)}</td>
+        </tr>
+    `;
+
+    body.innerHTML += `
+        <tr>
+            <td>Grand Total</td>
+            <td>${formatNumber(total)}</td>
+            <td>100.00%</td>
+        </tr>
+    `;
+
+}
+
+
+/* ============================================================
+   UTILITIES
+============================================================ */
+
+function setText(id,value){
+
+    const el =
+        document.getElementById(id);
+
+    if(el)
+        el.textContent = value;
+
+}
+
+
+function escapeHTML(value){
+
+    return String(value)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+
+}
+
+
+/* ============================================================
+   INITIAL EMPTY STATE
+============================================================ */
+
+window.addEventListener("DOMContentLoaded",function(){
+
+    /*
+       Dashboard remains blank until an Excel file
+       is uploaded.
+    */
+
+});
+function downloadDashboardPNG(){
+
+    const dashboard =
+        document.querySelector(".dashboard");
+
+    if(!dashboard){
+        alert("Dashboard not found.");
+        return;
+    }
+
+    html2canvas(dashboard, {
+
+        scale: 4,
+
+        useCORS: true,
+
+        allowTaint: false,
+
+        backgroundColor: "#071b55",
+
+        logging: false,
+
+        imageTimeout: 0,
+
+        width: dashboard.scrollWidth,
+
+        height: dashboard.scrollHeight,
+
+        windowWidth: dashboard.scrollWidth,
+
+        windowHeight: dashboard.scrollHeight
+
+    }).then(canvas => {
+
+        const link =
+            document.createElement("a");
+
+        link.download =
+            "Forward_Courier_Dashboard_HD_" +
+            new Date().toISOString().slice(0,10) +
+            ".png";
+
+        link.href =
+            canvas.toDataURL(
+                "image/png",
+                1.0
+            );
+
+        link.click();
+
+    }).catch(error => {
+
+        console.error(error);
+
+        alert(
+            "Unable to generate the HD PNG. " +
+            "Please try again."
+        );
+
+    });
+}
+</script>
+
+</body>
+</html>
