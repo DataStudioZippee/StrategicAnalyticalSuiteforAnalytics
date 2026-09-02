@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eureka Forbes – Order Status Update & Bifurcation Flow</title>
+
+<style>
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#fff;
+  color:#111827;
+  font-family:Arial,Helvetica,sans-serif;
+}
+.download-bar{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:12px;
+}
+
+.download-bar button{
+    border:none;
+    border-radius:8px;
+    padding:9px 16px;
+    background:#12355f;
+    color:#fff;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,.12);
+}
+
+.download-bar button:hover{
+    background:#0d2b52;
+}
+
+.download-bar button:active{
+    transform:translateY(1px);
+}
+.page{
+  width:1024px;
+  margin:0 auto;
+  padding:18px 22px 24px;
+}
+.title{
+  text-align:center;
+  color:#102e57;
+  font-size:30px;
+  font-weight:800;
+  margin:0 0 12px;
+}
+.step-row{
+  display:grid;
+  grid-template-columns:55px 1fr;
+  column-gap:18px;
+  align-items:center;
+  margin-bottom:7px;
+}
+.step-no{
+  width:40px;height:40px;
+  border-radius:50%;
+  background:#102e57;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:23px;
+  font-weight:800;
+}
+.customer-action-wrap{
+  position:relative;
+  margin-top:24px;
+  padding-top:28px;
+}
+
+.customer-action-wrap .step-label{
+  position:absolute;
+  left:-28px;
+  top:27px;
+  z-index:5;
+}
+
+.customer-action-wrap::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:50%;
+  height:28px;
+  border-left:2px solid #193a63;
+}
+
+.customer-action-wrap::after{
+  content:"↓";
+  position:absolute;
+  top:15px;
+  left:calc(50% - 7px);
+  color:#193a63;
+  font-size:22px;
+  line-height:1;
+}
+.box{
+  border:1.5px solid;
+  border-radius:12px;
+  min-height:78px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  position:relative;
+}
+.box-blue{border-color:#2c80c9;background:#f7fbff}
+.box-green{border-color:#5b986b;background:#f8fcf8}
+.box-yellow{border-color:#e7aa2e;background:#fffaf0}
+.box-purple{border-color:#8067ad;background:#f8f4ff}
+.box-orange{border-color:#ef7e32;background:#fff9f4}
+
+.box h2{font-size:20px;margin:0 0 5px}
+.box p{font-size:15px;margin:0}
+.arrow{
+  height:25px;
+  text-align:center;
+  color:#0c2b51;
+  font-size:25px;
+  line-height:22px;
+}
+.green-text{color:#236335;font-weight:700}
+.orange-text{color:#e85f19;font-weight:700}
+.red-text{color:#d51d1d;font-weight:700}
+
+.table-box{
+  width:88%;
+  margin:10px auto 0;
+  border:1px solid #e4aa2f;
+  border-collapse:collapse;
+  font-size:13px;
+}
+.table-box th{
+  background:#fff0c9;
+  border:1px solid #e4aa2f;
+  padding:6px;
+}
+.table-box td{
+  border:1px solid #e4aa2f;
+  padding:8px;
+}
+
+.branch-wrap{
+  margin-left:55px;
+  position:relative;
+  left:-20px;
+}
+.branch-line{
+  height:28px;
+  position:relative;
+}
+.branch-line:before{
+  content:"";
+  position:absolute;
+  left:16.5%;
+  right:16.5%;
+  top:0;
+  border-top:2px solid #193a63;
+}
+.branch-line:after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:0;
+  height:15px;
+  border-left:2px solid #193a63;
+}
+.three-columns{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:26px;
+  position:relative;
+}
+.branch-column{position:relative}
+.branch-column:before{
+  content:"";
+  position:absolute;
+  top:-28px;
+  left:50%;
+  height:28px;
+  border-left:2px solid #193a63;
+}
+.branch-title{
+  min-height:103px;
+  border:1.5px solid;
+  border-radius:12px;
+  padding:14px 12px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.branch-title.green{border-color:#609b70;background:#f7fcf8}
+.branch-title.blue{border-color:#5c9bd2;background:#f5faff}
+.branch-title.orange{border-color:#ef8c4b;background:#fff9f4}
+.branch-title.orange{
+    justify-content:flex-start;
+    align-items:center;
+}
+
+.branch-title.orange > div:last-child{
+    flex:1;
+    text-align:left;
+    align-self:center;
+}
+
+.branch-title.orange h3,
+.branch-title.orange p{
+    text-align:left;
+    margin-left:0;
+}
+
+.branch-title.orange .branch-count-input{
+    justify-content:flex-start;
+    margin-left:0;
+}
+.branch-title.orange h3{
+    white-space:normal;
+    line-height:1.05;
+}
+.icon{
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:30px;
+}
+.icon-green{color:#27713e}
+.icon-blue{color:#174b8a}
+.icon-orange{color:#ec6c1b}
+.branch-title h3{
+  margin:0 0 5px;
+  font-size:16px;
+}
+.branch-title p{margin:0;font-size:13px}
+.branch-count-input{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    margin:2px 0 5px;
+}
+
+.branch-count-input input{
+    width:90px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    padding:4px 7px;
+    font-size:16px;
+    font-weight:800;
+    text-align:center;
+    background:#fff;
+    color:inherit;
+    outline:none;
+}
+
+.branch-count-input input:focus{
+    border-color:#64748b;
+    box-shadow:0 0 0 2px rgba(100,116,139,.12);
+}
+
+.branch-count-input span{
+    font-size:13px;
+    font-weight:700;
+}
+
+.branch-title.green .branch-count-input{
+    color:#236335;
+}
+
+.branch-title.blue .branch-count-input{
+    color:#174b8a;
+}
+
+.branch-title.orange .branch-count-input{
+    color:#e66019;
+}
+
+.down{
+  text-align:center;
+  height:27px;
+  font-size:24px;
+  color:#193a63;
+}
+
+.mini-grid-4{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+.customer-action-wrap{
+    position:relative;
+    margin-top:28px;
+    padding-top:25px;
+}
+
+.customer-action-wrap .step-label{
+    position:absolute;
+    left:-28px;
+    top:24px;
+    z-index:5;
+}
+
+.customer-action-wrap .customer-action-arrow{
+    position:absolute;
+    top:-2px;
+    left:50%;
+    transform:translateX(-50%);
+    color:#193a63;
+    font-size:22px;
+    line-height:1;
+    z-index:4;
+}
+
+.customer-action-wrap .action-box{
+    width:100%;
+    margin:0;
+}
+.mini{
+  min-height:102px;
+  border:1.5px solid #74a983;
+  border-radius:10px;
+  background:#f8fcf9;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:10px 7px;
+  flex-direction:column;
+}
+.mini .mi{font-size:24px;color:#287340;margin-bottom:5px}
+.mini strong{font-size:12px;line-height:1.2}
+.mini small{font-size:11px}
+.mini-count-input{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    margin:4px 0 2px;
+}
+
+.mini-count-input input{
+    width:58px;
+    border:1px solid #b7d4bf;
+    border-radius:5px;
+    padding:3px 4px;
+    font-size:11px;
+    font-weight:700;
+    text-align:center;
+    background:#fff;
+    color:#236335;
+    outline:none;
+}
+
+.mini-count-input input:focus{
+    border-color:#609b70;
+    box-shadow:0 0 0 2px rgba(96,155,112,.12);
+}
+
+.mini-count-input span{
+    font-size:9px;
+    font-weight:700;
+    color:#236335;
+}
+
+.tat-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.tat{
+  min-height:100px;
+  border:1.5px solid #609bd0;
+  border-radius:10px;
+  background:#f5faff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  text-align:center;
+}
+.tat.red{border-color:#c66b6b;background:#fff7f7}
+.tat .clock{font-size:32px;color:#173f73}
+.tat.red .clock{color:#bd2424}
+.tat strong{font-size:14px;display:block}
+.tat span{font-size:11px}
+
+.ef-list{
+  border:1.5px solid #ef8b49;
+  border-radius:12px;
+  background:#fffaf6;
+  padding:9px 13px;
+}
+.ef-item{
+  padding:11px 0;
+  border-bottom:1px solid #efc9ad;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.ef-item:last-child{border-bottom:0}
+.ef-item .ei{font-size:25px;color:#ed681d;width:34px;text-align:center}
+.ef-item strong{color:#e66019;font-size:13px}
+.ef-item div{font-size:11px}
+.ef-count-input{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    margin-top:4px;
+}
+
+.ef-count-input input{
+    width:58px;
+    border:1px solid #efc9ad;
+    border-radius:5px;
+    padding:3px 5px;
+    font-size:11px;
+    font-weight:700;
+    text-align:center;
+    background:#fff;
+    color:#e66019;
+    outline:none;
+}
+
+.ef-count-input input:focus{
+    border-color:#ef8b49;
+    box-shadow:0 0 0 2px rgba(239,139,73,.12);
+}
+
+.ef-count-input span{
+    font-size:9px;
+    font-weight:700;
+    color:#e66019;
+}
+
+.lower-grid{
+  display:grid;
+  grid-template-columns:1.02fr 1fr;
+  gap:18px;
+  margin-top:16px;
+  align-items:start;
+}
+
+/* Customer Issue continuation */
+.customer-action-wrap{
+  position:relative;
+  margin-top:24px;
+  padding-top:28px;
+}
+
+/* Vertical connector from the Customer Issue sub-statuses */
+.customer-action-wrap::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:50%;
+  height:28px;
+  border-left:2px solid #193a63;
+}
+
+/* Down arrow */
+.customer-action-wrap::after{
+  content:"↓";
+  position:absolute;
+  top:17px;
+  left:calc(50% - 8px);
+  color:#193a63;
+  font-size:22px;
+  line-height:1;
+  background:#fff;
+}
+.action-box{
+  border:1.5px solid #69a177;
+  border-radius:12px;
+  background:#f8fcf9;
+  padding:12px;
+}
+.action-box h3{
+  text-align:center;
+  margin:0 0 4px;
+  font-size:15px;
+}
+.action-box .sub{
+  text-align:center;
+  font-size:11px;
+  margin-bottom:9px;
+}
+.action-row{
+  background:#fff;
+  border:1px solid #b7d4bf;
+  border-radius:7px;
+  margin:7px 0;
+  padding:7px 10px;
+  font-size:12px;
+}
+.action-row .red-text{font-size:11px}
+
+.age-box{
+  border:1.5px solid #8b70b4;
+  border-radius:12px;
+  background:#faf7ff;
+  padding:12px;
+}
+.age-box h3{
+  color:#4e3979;
+  margin:0 0 10px;
+  text-align:center;
+  font-size:15px;
+}
+.age-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+.age{
+  background:#fff;
+  border:1px solid #cfc3e3;
+  border-radius:8px;
+  padding:10px;
+  text-align:center;
+  min-height:77px;
+}
+.age strong{font-size:12px;color:#3f3267}
+.age div{font-size:22px;margin:4px 0}
+.age small{font-size:10px}
+.settled{
+  margin-top:10px;
+  border:1px solid #b6a2d6;
+  border-radius:10px;
+  background:#faf7ff;
+  padding:10px;
+  text-align:center;
+}
+.settled strong{font-size:13px;color:#49346f}
+.settled div{font-size:11px;margin-top:5px}
+
+.info-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-top:17px;
+}
+.info-box{
+  border:1px solid #cbd5df;
+  border-radius:11px;
+  padding:13px;
+}
+.info-box h3{
+  color:#18345c;
+  margin:0 0 10px;
+  font-size:16px;
+}
+.def-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:11px;
+}
+.def{
+  font-size:10.5px;
+  line-height:1.35;
+}
+.def b{font-size:11px}
+.summary table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:11px;
+}
+.summary th{
+  background:#12355f;
+  color:#fff;
+  text-align:left;
+  padding:8px;
+}
+.summary td{
+  padding:8px;
+  border-bottom:1px solid #dbe2ea;
+}
+.summary td:last-child{text-align:right;font-weight:700}
+.summary-input{
+    width:110px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    padding:5px 7px;
+    font-size:14px;
+    font-weight:700;
+    text-align:right;
+    background:#fff;
+    color:#111827;
+    outline:none;
+}
+
+.summary-input:focus{
+    border-color:#12355f;
+    box-shadow:0 0 0 2px rgba(18,53,95,.12);
+}
+
+.summary-courier{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:5px;
+}
+
+.summary-courier-row{
+    display:flex;
+    align-items:center;
+    gap:5px;
+}
+
+.summary-courier-row span{
+    font-size:14px;
+    font-weight:700;
+}
+
+.summary-total-input{
+    width:130px;
+    font-size:15px;
+    font-weight:800;
+}
+.total td{font-size:12px;font-weight:800;background:#fafafa}
+
+.notes{
+  margin-top:15px;
+  border:1.5px dashed #75a27e;
+  border-radius:10px;
+  padding:10px 14px;
+  background:#fbfefb;
+}
+.notes h3{
+  margin:0 0 5px;
+  color:#397044;
+  font-size:14px;
+}
+.notes ul{
+  margin:0;
+  padding-left:18px;
+  font-size:10.5px;
+}
+.footer{
+  text-align:center;
+  font-size:9px;
+  color:#8a94a3;
+  margin-top:10px;
+}
+
+@media print{
+  body{background:#fff}
+  .page{margin:0;width:1024px}
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+    <div class="download-bar">
+    <button id="downloadPngBtn">
+        ⬇ Download Report as PNG
+    </button>
+</div>
+
+<h1 class="title">Eureka Forbes – Order Status Update &amp; Bifurcation Flow</h1>
+
+<!-- STEP 1 -->
+<div class="step-row">
+  <div class="step-no">1</div>
+  <div class="box box-blue">
+    <div>
+      <h2>Download Order Data from SAP</h2>
+      <p>Download total order data from SAP</p>
+    </div>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<!-- STEP 2 -->
+<div class="step-row">
+  <div class="step-no">2</div>
+  <div class="box box-green">
+    <div>
+      <h2>Download Order Status Data from Mail (For All Couriers)</h2>
+      <p>For both National and Local couriers, order status data will be taken from <span class="green-text">Mail only</span></p>
+    </div>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<!-- STEP 3 -->
+<div class="step-row">
+  <div class="step-no">3</div>
+  <div class="box box-yellow" style="display:block;padding:12px 22px">
+    <h2>Update SAP Data with Courier Status</h2>
+    <p>Map and update SAP orders with courier remarks</p>
+
+    <table class="table-box">
+      <tr>
+        <th>Remark – Courier</th>
+        <th>Updated Status</th>
+        <th>Sub Remark</th>
+      </tr>
+      <tr>
+        <td>Remarks as received<br>from courier mail</td>
+        <td>Remarks bifurcated<br>by our team</td>
+        <td>Final remarks based<br>on Updated Status</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<!-- STEP 4 -->
+<div class="step-row">
+  <div class="step-no">4</div>
+  <div class="box box-purple">
+    <div>
+      <h2>Bifurcation Based on Final Remarks</h2>
+      <p>Orders bifurcated into 3 main parts</p>
+    </div>
+  </div>
+</div>
+
+<div class="branch-wrap">
+
+  <div class="branch-line"></div>
+
+  <div class="three-columns">
+
+    <!-- ================================================= -->
+    <!-- CUSTOMER ISSUE -->
+    <!-- ================================================= -->
+
+    <div class="branch-column">
+
+      <div class="branch-title green">
+        <div class="icon icon-green">👥</div>
+        <div>
+          <h3 style="color:#236335">1. Customer Issue</h3>
+
+<div class="branch-count-input">
+    <input type="number" id="customerIssueInput" value="" min="0">
+    <span>Orders</span>
+</div>
+
+<p>Pending due to<br>Customer</p>
+        </div>
+      </div>
+
+      <div class="down">↓</div>
+
+      <!-- STEP 5 : CUSTOMER ISSUE BIFURCATION -->
+      <div class="mini-grid-4">
+
+    <div class="mini">
+    <div class="mi">👤</div>
+
+    <strong>
+        Customer<br>
+        Not Available
+    </strong>
+
+    <div class="mini-count-input">
+        <input type="number" id="customerNotAvailableInput" value="0" min="0">
+        <span>Orders</span>
+    </div>
+</div><div class="mini">
+    <div class="mi">📅</div>
+
+    <strong>Rescheduled</strong>
+
+    <div class="mini-count-input">
+        <input type="number" id="rescheduledInput" value="0" min="0">
+        <span>Orders</span>
+    </div>
+</div>
+<div class="mini">
+    <div class="mi">🏠</div>
+
+    <strong>
+        Customer<br>
+        Address Issue
+    </strong>
+
+    <small class="red-text">(New)</small>
+
+    <div class="mini-count-input">
+        <input type="number" id="customerAddressIssueInput" value="0" min="0">
+        <span>Orders</span>
+    </div>
+</div>
+<div class="mini">
+    <div class="mi">🚫</div>
+
+    <strong>
+        Customer<br>
+        Refusal
+    </strong>
+
+    <small class="red-text">(New)</small>
+
+    <div class="mini-count-input">
+        <input type="number" id="customerRefusalInput" value="0" min="0">
+        <span>Orders</span>
+    </div>
+</div>
+      </div>
+
+      <!-- STEP 9 : ACTIONABLE CUSTOMER ISSUE -->
+      <div class="customer-action-wrap">
+
+        <div class="step-label">
+          <div class="step-no">9</div>
+        </div>
+
+        <div class="customer-action-arrow">↓</div>
+
+        <div class="action-box">
+
+          <h3>Actionable – Customer Issue</h3>
+
+          <div class="sub">
+            Actions we can take
+          </div>
+
+          <div class="action-row">
+            📅 &nbsp; Rescheduled
+          </div>
+
+          <div class="action-row">
+            🚚 &nbsp; Intransit
+            <span class="red-text">
+              (New – Actionable Reason)
+            </span>
+          </div>
+
+          <div class="action-row">
+            ☎ &nbsp; Address Correction by IVR
+            <span class="red-text">
+              (New – Actionable Reason)
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- COURIER ISSUE -->
+    <!-- ================================================= -->
+
+    <div class="branch-column">
+
+      <div class="branch-title blue">
+        <div class="icon icon-blue">🚚</div>
+        <div>
+          <h3 style="color:#174b8a">2. Courier Issue</h3>
+
+<div class="branch-count-input">
+    <input type="number" id="courierIssueInput" value="" min="0">
+    <span>Orders</span>
+</div>
+
+<p>Pending due to<br>Courier Partner</p>
+        </div>
+      </div>
+
+      <div class="down">↓</div>
+
+      <!-- STEP 6 -->
+      <div class="tat-grid">
+
+        <div class="tat">
+          <div class="clock">⏱</div>
+          <div>
+            <strong>IN TAT</strong>
+            <span>Within TAT</span>
+          </div>
+        </div>
+
+        <div class="tat red">
+          <div class="clock">⏱</div>
+          <div>
+            <strong>OUT TAT</strong>
+            <span>Beyond TAT</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- STEP 8 -->
+      <div class="age-box" style="margin-top:16px">
+
+        <h3>OUT TAT – Ageing Based Bifurcation</h3>
+
+        <div class="age-grid">
+
+          <div class="age">
+            <strong>≤ 6 Days Ageing</strong>
+            <div>⌛</div>
+            <small>
+              Wait for courier<br>
+              update
+            </small>
+          </div>
+
+          <div class="age">
+            <strong>&gt; 6 Days Ageing</strong>
+            <div>☎</div>
+            <small>
+              IVR Calling<br>
+              Initiated
+            </small>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="settled">
+
+        <strong>Settled in:</strong>
+
+        <div>
+          • Rescheduled Delivery
+          &nbsp;&nbsp;• RTO
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- EUREKA FORBES PENDENCY -->
+    <!-- ================================================= -->
+
+    <div class="branch-column">
+
+      <div class="branch-title orange">
+
+        <div class="icon icon-orange">🏢</div>
+
+        <div>
+          <h3 class="orange-text">3. Eureka Forbes Pendency</h3>
+
+<div class="branch-count-input">
+    <input type="number" id="efPendencyInput" value="" min="0">
+    <span>Orders</span>
+</div>
+
+<p>Pending at<br>Eureka Forbes end</p>
+        </div>
+
+      </div>
+
+      <div class="down">↓</div>
+
+      <!-- STEP 7 -->
+      <div class="ef-list">
+
+        <div class="ef-item">
+  <div class="ei">↻</div>
+
+  <div>
+    <strong>
+      RTO Received<br>
+      Confirmation
+    </strong>
+
+    <br>
+    EF side
+
+    <div class="ef-count-input">
+      <input type="number" id="rtoReceivedInput" value="0" min="0">
+      <span>Orders</span>
+    </div>
+  </div>
+</div>
+<div class="ef-item">
+  <div class="ei">🚚</div>
+
+  <div>
+    <strong>
+      RTO In Transits<br>
+      Confirmation
+    </strong>
+
+    <br>
+    EF side
+
+    <div class="ef-count-input">
+      <input type="number" id="rtoTransitInput" value="0" min="0">
+      <span>Orders</span>
+    </div>
+  </div>
+</div>
+<div class="ef-item">
+  <div class="ei">⚠</div>
+
+  <div>
+    <strong>
+      Shipment Lost /<br>
+      Damage
+    </strong>
+
+    <br>
+    To be raised with Courier
+
+    <div class="ef-count-input">
+      <input type="number" id="shipmentLostInput" value="0" min="0">
+      <span>Orders</span>
+    </div>
+  </div>
+</div>
+<div class="ef-item">
+  <div class="ei">▤</div>
+
+  <div>
+    <strong>
+      No Way Bill Issue
+    </strong>
+
+    <br>
+    Order Pendency at EF side
+
+    <div class="ef-count-input">
+      <input type="number" id="noWayBillInput" value="0" min="0">
+      <span>Orders</span>
+    </div>
+  </div>
+</div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>  
+<div class="info-grid">
+
+  <div class="info-box">
+    <h3>Key Definitions</h3>
+    <div class="def-grid">
+      <div class="def"><b>👥 Customer Issue:</b> Pending due to customer unavailability, address issue, refusal or rescheduling.</div>
+      <div class="def"><b>☎ IVR Calling:</b> Done for OUT TAT orders with &gt; 6 days ageing to resolve via RTO or rescheduled delivery.</div>
+      <div class="def"><b>🚚 Courier Issue:</b> Pending due to courier partner. Bifurcated into IN TAT and OUT TAT.</div>
+      <div class="def"><b>✉ Data Source:</b> Order status data for both National and Local couriers is taken from Mail only.</div>
+      <div class="def"><b>🏢 EF Pendency:</b> Pending at our end. Includes RTO confirmations, shipment lost/damage, no way bill etc.</div>
+      <div class="def"><b>▤ No Way Bill Issue:</b> Order pendency at EF end until way bill is available and updated.</div>
+    </div>
+  </div>
+
+  <div class="info-box summary">
+    <h3>Summary – High Level View (Current Data)</h3>
+    <table>
+    <tr>
+        <th>Category</th>
+        <th>Orders</th>
+    </tr>
+
+    <tr>
+        <td>👥 Customer Issue</td>
+        <td>
+            <input
+                type="number"
+                id="summaryCustomerIssue"
+                class="summary-input"
+                value="0"
+                min="0"
+            >
+            Orders
+        </td>
+    </tr>
+
+    <tr>
+        <td>🚚 Courier Issue</td>
+        <td>
+            <div class="summary-courier">
+
+                <div class="summary-courier-row">
+                    <span>IN TAT:</span>
+                    <input
+                        type="number"
+                        id="summaryCourierInTat"
+                        class="summary-input"
+                        value="0"
+                        min="0"
+                    >
+                    <span>Orders</span>
+                </div>
+
+                <div class="summary-courier-row">
+                    <span>OUT TAT:</span>
+                    <input
+                        type="number"
+                        id="summaryCourierOutTat"
+                        class="summary-input"
+                        value="0"
+                        min="0"
+                    >
+                    <span>Orders</span>
+                </div>
+
+            </div>
+        </td>
+    </tr>
+
+    <tr>
+        <td>🏢 Eureka Forbes Pendency</td>
+        <td>
+            <input
+                type="number"
+                id="summaryEFPendency"
+                class="summary-input"
+                value="0"
+                min="0"
+            >
+            Orders
+        </td>
+    </tr>
+
+    <tr>
+        <td class="orange-text">↻ RTO (Related)</td>
+        <td>
+            <input
+                type="number"
+                id="summaryRTO"
+                class="summary-input"
+                value="0"
+                min="0"
+            >
+            Orders
+        </td>
+    </tr>
+
+    <tr>
+        <td>⏱ Pending / Others</td>
+        <td>
+            <input
+                type="number"
+                id="summaryPendingOthers"
+                class="summary-input"
+                value="0"
+                min="0"
+            >
+            Orders
+        </td>
+    </tr>
+
+    <tr class="total">
+        <td>Total Orders in Scope</td>
+        <td>
+            <input
+                type="number"
+                id="summaryTotalOrders"
+                class="summary-input summary-total-input"
+                value="0"
+                min="0"
+            >
+            Orders
+        </td>
+    </tr>
+</table>
+  </div>
+
+</div>
+
+<div class="notes">
+  <h3>★ Important Notes</h3>
+  <ul>
+    <li>All status updates for both National &amp; Local couriers are taken from Mail only.</li>
+    <li>OUT TAT &gt; 6 days orders will be called via IVR.</li>
+    <li>EF side pendencies to be resolved and updated in SAP for accurate tracking.</li>
+  </ul>
+</div>
+
+<div class="footer">Eureka Forbes • Order Status Update &amp; Bifurcation Flow</div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+document.getElementById("downloadPngBtn").addEventListener("click", async function () {
+
+    const button = this;
+    const report = document.querySelector(".page");
+    const downloadBar = document.querySelector(".download-bar");
+
+    try {
+
+        button.disabled = true;
+        button.textContent = "Generating PNG...";
+
+        // Hide download button before capture
+        downloadBar.style.display = "none";
+
+        const canvas = await html2canvas(report, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            width: report.scrollWidth,
+            height: report.scrollHeight,
+
+            onclone: function (clonedDocument) {
+
+    clonedDocument
+        .querySelectorAll("input[type='number']")
+        .forEach(function(input) {
+
+            const value = input.value || "";
+
+            // Read the actual rendered style of the input
+            const computed = window.getComputedStyle(input);
+
+            // Create a normal HTML element for PNG rendering
+            const replacement = clonedDocument.createElement("div");
+
+            replacement.textContent = value;
+
+            // Copy the important visual properties
+            replacement.style.width = computed.width;
+            replacement.style.height = computed.height;
+            replacement.style.boxSizing = "border-box";
+            replacement.style.border = computed.border;
+            replacement.style.borderRadius = computed.borderRadius;
+            replacement.style.padding = computed.padding;
+            replacement.style.background = computed.backgroundColor;
+            replacement.style.color = computed.color;
+            replacement.style.fontFamily = computed.fontFamily;
+            replacement.style.fontSize = computed.fontSize;
+            replacement.style.fontWeight = computed.fontWeight;
+            replacement.style.lineHeight = computed.lineHeight;
+            replacement.style.textAlign = computed.textAlign;
+
+            // Make sure the complete number is visible
+            replacement.style.display = "flex";
+            replacement.style.alignItems = "center";
+            replacement.style.justifyContent = "center";
+            replacement.style.whiteSpace = "nowrap";
+            replacement.style.overflow = "visible";
+
+            // For larger numbers, give the replacement enough width
+            if (input.closest(".mini-count-input")) {
+
+                replacement.style.width =
+                    Math.max(58, value.length * 8 + 18) + "px";
+
+            }
+            else if (input.closest(".ef-count-input")) {
+
+                replacement.style.width =
+                    Math.max(58, value.length * 8 + 18) + "px";
+
+            }
+            else if (input.closest(".branch-count-input")) {
+
+                replacement.style.width =
+                    Math.max(90, value.length * 9 + 20) + "px";
+
+            }
+            else if (input.closest(".summary-courier-row")) {
+
+                replacement.style.width =
+                    Math.max(110, value.length * 9 + 20) + "px";
+
+            }
+            else if (input.classList.contains("summary-input")) {
+
+                replacement.style.width =
+                    Math.max(110, value.length * 9 + 20) + "px";
+
+            }
+
+            // Replace the input only inside the cloned document
+            input.parentNode.replaceChild(replacement, input);
+
+        });
+}
+        });
+
+        const link = document.createElement("a");
+
+        link.download = "Eureka_Forbes_Order_Status_Report.png";
+        link.href = canvas.toDataURL("image/png");
+
+        link.click();
+
+    } catch (error) {
+
+        console.error("PNG generation failed:", error);
+        alert("Unable to generate the PNG.");
+
+    } finally {
+
+        // Restore download button on webpage
+        downloadBar.style.display = "flex";
+
+        button.disabled = false;
+        button.textContent = "⬇ Download Report as PNG";
+
+    }
+
+});
+</script>
+</body>
+</html>
