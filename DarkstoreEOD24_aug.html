@@ -760,7 +760,11 @@ html += `
 
     <td><b>${totalProcessed}</b></td>
 
-    <td><b>${(totalD0Pct / storeCount).toFixed(2)}%</b></td>
+    <td><b>${
+    totalProcessed
+        ? ((totalD0Dispatched / totalProcessed) * 100).toFixed(2)
+        : 0
+}%</b></td>
 
     <td><b>${totalD0Dispatched}</b></td>
 
