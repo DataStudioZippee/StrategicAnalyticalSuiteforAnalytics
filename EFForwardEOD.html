@@ -1466,12 +1466,12 @@ function buildTatChart(){
 
     const inTat =
         applicable.filter(row =>
-            norm(getField(row,"Delivered+Intransit In TAT/Out TAT")) === "in tat"
+            norm(getField(row,"TAT Status")) === "in tat"
         ).length;
 
     const outTat =
         applicable.filter(row =>
-            norm(getField(row,"Delivered+Intransit In TAT/Out TAT")) === "out tat"
+            norm(getField(row,"TAT Status")) === "out tat"
         ).length;
 
     const applicableCount =
