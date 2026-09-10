@@ -141,7 +141,13 @@ Download Report
 <script>
 
 let globalPivot = {};
-let statusesList = ["DELIVERED","DELIVERY_ATTEMPTED","PICKUP_COMPLETED","READY"];
+let statusesList = [
+  "DELIVERED",
+  "DELIVERY_ATTEMPTED",
+  "PICKUP_COMPLETED",
+  "READY",
+  "DELIVERY_IN_PROGRESS"
+];
 
 document.getElementById("fileInput").addEventListener("change", function(e){
 
@@ -159,80 +165,229 @@ function processData(data){
   let pivot = {};
   let latestMap = {};
 
-  data.forEach(row=>{
-    let store = (row["Darkstore"]||"").trim();
-if(
-  store !== "zippee_krishna_herbal_jodhpurwh" &&
-  store !== "zippee_krishna_herbal_indorewh"
-) return;
-let creationRaw = (row["Creation Date"] || "").trim();
+  data.forEach(row => {
 
-// Clean Excel format like ="30/04/2026 10:54 AM"
-creationRaw = creationRaw.replace(/^="|"$/g, "");
+    // ==============================
+    // NEW COLUMN MAPPING
+    // ==============================
 
-// Convert to Date
-let parts = creationRaw.split(/[\s/:]/); 
-// [dd, mm, yyyy, hh, min, AM/PM]
+    let warehouse = (row["Warehouse Name"] || "").trim();
+    let store = "";
 
-if(parts.length >= 6){
-  let day = parseInt(parts[0]);
-  let month = parseInt(parts[1]) - 1;
-  let year = parseInt(parts[2]);
-  let hour = parseInt(parts[3]);
-  let minute = parseInt(parts[4]);
-  let ampm = parts[5];
-
-  if(ampm === "PM" && hour !== 12) hour += 12;
-  if(ampm === "AM" && hour === 12) hour = 0;
-
-  let creationDate = new Date(year, month, day, hour, minute);
-
-  let now = new Date();
-
-  let isToday =
-    creationDate.getDate() === now.getDate() &&
-    creationDate.getMonth() === now.getMonth() &&
-    creationDate.getFullYear() === now.getFullYear();
-
-  let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0, 0);
-
-  // ❌ REMOVE if today and after 11 AM
-  if(isToday && creationDate > cutoff) return;
-}
-    let awb = (row["AWB Number"]||"").trim();
-    let attempts = parseInt(row["No. of Attempts"]) || 0;
-
-// Remove rows where attempts > 3
-if(attempts > 3) return;
-
-    if(!awb) return;
-
-    if(!latestMap[awb] || attempts > latestMap[awb].attempts){
-      latestMap[awb] = {attempts,row};
+    // Convert Warehouse Name into the store names
+    if(warehouse.toLowerCase().includes("jodhpur")){
+      store = "zippee_krishna_herbal_jodhpurwh";
     }
+    else if(warehouse.toLowerCase().includes("indore")){
+      store = "zippee_krishna_herbal_indorewh";
+    }
+    else {
+      return;
+    }
+
+// ==============================
+// CREATION DATE + TIME
+// ==============================
+
+let creationDateRaw = (row["Creation Date"] || "").trim();
+let creationTimeRaw = (row["Creation Time"] || "").trim();
+
+creationDateRaw = creationDateRaw.replace(/^="|"$/g, "");
+creationTimeRaw = creationTimeRaw.replace(/^="|"$/g, "");
+
+
+// ==============================
+// DATE + TIME FILTER
+// ==============================
+
+if (creationDateRaw) {
+
+  let dateParts = creationDateRaw.split(/[-\/]/);
+
+  if (dateParts.length === 3) {
+
+    let day = parseInt(dateParts[0]);
+    let month = parseInt(dateParts[1]) - 1;
+    let year = parseInt(dateParts[2]);
+
+    let hour = 0;
+    let minute = 0;
+
+    // Parse Creation Time
+    if (creationTimeRaw) {
+
+      let timeParts = creationTimeRaw
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(/[\s:]/);
+
+      hour = parseInt(timeParts[0]) || 0;
+      minute = parseInt(timeParts[1]) || 0;
+
+      let ampm = (timeParts[2] || "").toUpperCase();
+
+      // Handle AM/PM format if present
+      if (ampm === "PM" && hour !== 12) {
+        hour += 12;
+      }
+
+      if (ampm === "AM" && hour === 12) {
+        hour = 0;
+      }
+    }
+
+    let creationDate = new Date(
+      year,
+      month,
+      day,
+      hour,
+      minute
+    );
+
+    let now = new Date();
+
+    // Remove FUTURE dates
+    if (
+      creationDate.getFullYear() > now.getFullYear() ||
+      (
+        creationDate.getFullYear() === now.getFullYear() &&
+        creationDate.getMonth() > now.getMonth()
+      ) ||
+      (
+        creationDate.getFullYear() === now.getFullYear() &&
+        creationDate.getMonth() === now.getMonth() &&
+        creationDate.getDate() > now.getDate()
+      )
+    ) {
+      return;
+    }
+
+    // Check if Creation Date is TODAY
+    let isToday =
+      creationDate.getDate() === now.getDate() &&
+      creationDate.getMonth() === now.getMonth() &&
+      creationDate.getFullYear() === now.getFullYear();
+
+    // Remove TODAY orders created AFTER 11:00 AM
+    if (isToday) {
+
+      let creationMinutes =
+        (hour * 60) + minute;
+
+      let cutoffMinutes =
+        11 * 60; // 11:00 AM
+
+      if (creationMinutes > cutoffMinutes) {
+        return;
+      }
+    }
+  }
+}
+
+    // ==============================
+    // NEW AWB COLUMN
+    // ==============================
+
+    let awb = (row["Zippee AWB"] || "").trim();
+
+    if(!awb){
+      return;
+    }
+
+    // ==============================
+    // NEW ATTEMPT COLUMN
+    // ==============================
+
+    let attempts =
+      parseInt(row["Total Attempt Count"]) || 0;
+
+    // Remove rows where attempts > 3
+    if(attempts > 3){
+      return;
+    }
+
+    // ==============================
+    // KEEP HIGHEST ATTEMPT PER AWB
+    // ==============================
+
+    if(
+      !latestMap[awb] ||
+      attempts > latestMap[awb].attempts
+    ){
+
+      latestMap[awb] = {
+        attempts: attempts,
+        row: row
+      };
+    }
+
   });
 
-  Object.values(latestMap).forEach(obj=>{
+
+  // ==============================
+  // CREATE PIVOT
+  // ==============================
+
+  Object.values(latestMap).forEach(obj => {
+
     let row = obj.row;
 
-    let store = (row["Darkstore"]||"").trim();
-    let attempts = obj.attempts.toString();
-    let status = (row["Current Status"]||"").trim().toUpperCase();
-    let awb = (row["AWB Number"]||"").trim();
+    let warehouse =
+      (row["Warehouse Name"] || "").trim();
 
-    if(status==="RTO") return;
+    let store = "";
 
-    let key = store+"|"+attempts;
+    if(warehouse.toLowerCase().includes("jodhpur")){
+      store = "zippee_krishna_herbal_jodhpurwh";
+    }
+    else if(warehouse.toLowerCase().includes("indore")){
+      store = "zippee_krishna_herbal_indorewh";
+    }
+    else {
+      return;
+    }
 
-    if(!pivot[key]) pivot[key]={};
-    if(!pivot[key][status]) pivot[key][status]=new Set();
+    let attempts =
+      obj.attempts.toString();
 
+    let status =
+      (row["Current Status"] || "")
+      .trim()
+      .toUpperCase();
+
+    let awb =
+      (row["Zippee AWB"] || "").trim();
+
+    // Exclude RTO
+    if(status === "RTO"){
+      return;
+    }
+
+    let key = store + "|" + attempts;
+
+    if(!pivot[key]){
+      pivot[key] = {};
+    }
+
+    if(!pivot[key][status]){
+      pivot[key][status] = new Set();
+    }
+
+    // Unique AWB count
     pivot[key][status].add(awb);
+
   });
+
+
+  // ==============================
+  // SAVE GLOBAL PIVOT
+  // ==============================
 
   globalPivot = pivot;
 
   createFilter();
+
+  // Default report = READY
   renderTable(["READY"]);
 }
 
