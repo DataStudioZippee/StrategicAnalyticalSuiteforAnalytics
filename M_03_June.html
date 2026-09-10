@@ -729,7 +729,7 @@ const projBuffer = proj.buffer;
 
 const attainmentTextColor =
   parseFloat(orderAttainment) > 100 ? "#000000" : "#000000";
-    const additionalOrders = Math.max(totalOrders - projTill, 0);
+    const additionalOrders = Math.max(totalOrders - projFull, 0);
 
     const deliveryPct = totalOrders
       ? ((delivered / totalOrders) * 100).toFixed(2)
@@ -830,7 +830,7 @@ const attainmentTextColor =
       ${(sumDeepPainPct / storeCount).toFixed(2)}%
     </td>
 
-    <td>${sumAdditionalOrders}</td>
+    <td>${Math.max(sumTotalOrders - sumProjFull, 0)}</td>
 
   `;
 
