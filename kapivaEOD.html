@@ -635,7 +635,7 @@ html += `
     style="width:auto;">
 
 <tr>
-    <th colspan="${darkstores.length + 1}"
+    <th colspan="${darkstores.length + 2}"
     style="
         font-size:22px;
         padding:18px;
@@ -669,6 +669,9 @@ cleanDS = cleanDS
     html += `<td class="yellow"><b>${cleanDS}</b></td>`;
 });
 
+/* Total column header */
+html += `<td class="yellow"><b>Total</b></td>`;
+
 html += `</tr>`;
 
 
@@ -701,6 +704,9 @@ darkstores.forEach(ds => {
 
 });
 
+/* Total Orders - Total column (sum of manual inputs, filled via Generate) */
+html += `<td class="gray" id="totalOrdersSum_${brand.replace(/[^a-zA-Z0-9]/g,'')}"><b>0</b></td>`;
+
 html += `</tr>`;
 
 
@@ -713,6 +719,12 @@ darkstores.forEach(ds => {
     html += `<td>${brandStats[brand][ds].total}</td>`;
 
 });
+
+/* Processed Orders - Total column (sum of processed orders across darkstores) */
+const totalProcessedSum = darkstores.reduce(
+    (sum, ds) => sum + brandStats[brand][ds].total, 0
+);
+html += `<td class="gray"><b>${totalProcessedSum}</b></td>`;
 
 html += `</tr>`;
 
@@ -760,6 +772,9 @@ html += `
 </td>`;
 });
 
+/* D0_Dispatched % - Total column (weighted: total D0_Dispatched / total orders across all darkstores) */
+html += `<td id="d0Pct_${brand.replace(/[^a-zA-Z0-9]/g,'')}_total" class="gray" style="font-weight:700;">0%</td>`;
+
 html += `</tr>`;
 
 
@@ -773,6 +788,12 @@ darkstores.forEach(ds => {
 
     html += `<td>${s.total - s.readyZeroAttempt}</td>`;
 });
+
+/* D0_Dispatched - Total column (sum across darkstores) */
+const totalD0DispatchedSum = darkstores.reduce(
+    (sum, ds) => sum + (brandStats[brand][ds].total - brandStats[brand][ds].readyZeroAttempt), 0
+);
+html += `<td class="gray"><b>${totalD0DispatchedSum}</b></td>`;
 
 html += `</tr>`;
 
@@ -818,6 +839,9 @@ html += `
 </td>`;
 });
 
+/* FASR% - Total column (weighted: total FASR delivered / total orders across all darkstores) */
+html += `<td id="fasrPct_${brand.replace(/[^a-zA-Z0-9]/g,'')}_total" class="gray" style="font-weight:700;">0%</td>`;
+
 html += `</tr>`;
 
 
@@ -830,12 +854,18 @@ darkstores.forEach(ds => {
     html += `<td>${brandStats[brand][ds].cancelled}</td>`;
 });
 
+/* Cancelled - Total column (sum across darkstores) */
+const totalCancelledSum = darkstores.reduce(
+    (sum, ds) => sum + brandStats[brand][ds].cancelled, 0
+);
+html += `<td class="gray"><b>${totalCancelledSum}</b></td>`;
+
 html += `</tr>`;
 
 
 html += `
 <tr>
-    <td colspan="${darkstores.length + 1}"
+    <td colspan="${darkstores.length + 2}"
         style="
             background:#D3D3D3;
             color:#000000;
@@ -866,6 +896,11 @@ function generateBrandReport(brand){
     const darkstores =
         Object.keys(brandStats[brand] || {});
 
+    /* Running totals across all darkstores for this brand */
+    let totalOrdersSum = 0;
+    let totalD0DispatchedSum = 0;
+    let totalFasrDeliveredSum = 0;
+
     darkstores.forEach(ds => {
 
         const dsKey =
@@ -882,6 +917,10 @@ function generateBrandReport(brand){
 
         const s =
             brandStats[brand][ds];
+
+        totalOrdersSum += totalOrders;
+        totalD0DispatchedSum += (s.total - s.readyZeroAttempt);
+        totalFasrDeliveredSum += s.fasrDelivered;
 
 
         /* =========================
@@ -967,6 +1006,67 @@ function generateBrandReport(brand){
         }
 
     });
+
+
+    /* =========================
+       TOTAL COLUMN (across all darkstores)
+    ========================= */
+
+    /* Total Orders */
+    const totalOrdersCell =
+        document.getElementById(`totalOrdersSum_${brandKey}`);
+
+    if(totalOrdersCell){
+        totalOrdersCell.innerHTML = `<b>${totalOrdersSum}</b>`;
+    }
+
+    /* Average D0_Dispatched % = total D0_Dispatched / total orders */
+    const d0PctTotal =
+        totalOrdersSum > 0
+        ? ((totalD0DispatchedSum / totalOrdersSum) * 100).toFixed(0)
+        : 0;
+
+    const d0TotalCell =
+        document.getElementById(`d0Pct_${brandKey}_total`);
+
+    if(d0TotalCell){
+
+        d0TotalCell.innerText = d0PctTotal + "%";
+
+        if(d0PctTotal > 85){
+            d0TotalCell.style.background = "#90EE90";
+        }
+        else if(d0PctTotal < 50){
+            d0TotalCell.style.background = "#FF7F7F";
+        }
+        else{
+            d0TotalCell.style.background = "";
+        }
+    }
+
+    /* Average FASR% = total FASR delivered / total orders */
+    const fasrPctTotal =
+        totalOrdersSum > 0
+        ? ((totalFasrDeliveredSum / totalOrdersSum) * 100).toFixed(0)
+        : 0;
+
+    const fasrTotalCell =
+        document.getElementById(`fasrPct_${brandKey}_total`);
+
+    if(fasrTotalCell){
+
+        fasrTotalCell.innerText = fasrPctTotal + "%";
+
+        if(fasrPctTotal > 75){
+            fasrTotalCell.style.background = "#90EE90";
+        }
+        else if(fasrPctTotal < 50){
+            fasrTotalCell.style.background = "#FF7F7F";
+        }
+        else{
+            fasrTotalCell.style.background = "";
+        }
+    }
 
 }
 function downloadBrandReport(brand){
