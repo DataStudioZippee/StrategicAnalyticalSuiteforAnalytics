@@ -23,7 +23,7 @@ button.alt{background:#eef2f7;color:#243047;margin-left:8px}
 <div class="wrap">
 <div class="card">
 <h1>Bolt→ Blaze Converter</h1>
-<p><b>Blaze is the fixed master template.</b> The output always uses its exact 48 column positions. If Bolt does not contain a field, that Blaze column stays blank.</p>
+<p><b>Blaze is the fixed master template.</b> The output always uses its exact column positions. If Bolt does not contain a field, that Blaze column stays blank.</p>
 
 <div class="box">
 <label><b>Upload Bolt data</b></label><br><br>
@@ -39,19 +39,19 @@ button.alt{background:#eef2f7;color:#243047;margin-left:8px}
 
 <script>
 const TARGET = ["Darkstore", "AWB Number", "Order Number", "Type", "Current Status", "Is Cancelled", "Creation Date", "Marketplace Order Date", "Ideal Delivery Start", "Ideal Delivery End", "Actual Delivery Date Time", "Actual Delivery Date", "Try & Buy", "Customer Name", "Customer Mobile", "Pickup Address", "Pickup Pincode", "Delivery Address", "Delivery Pincode", "Trip ID", "Rider ID", "Rider Name", "Rider Latitude", "Rider Longitude", "No. of Attempts", "Attempt Reason", "Total Quantity", "Weight", "Total Value", "Payment Mode", "Paid by", "Transaction ID", "Brand Name", "Shipment Ready Time", "Shipment Allocation Pending Time", "Shipment Pickup Pending Time", "Shipment Pickup In Progress Time", "Shipment Pickup Completed Time", "Shipment Out For Delivery Time", "Shipment Reached Delivery Time", "Shipment Delivery In Progress Time", "Shipment Delivered Time", "Shipment Delivery Attempted Time", "Shipment RTO Time", "Shipment Cancelled Time", "Shipment Pickup Attempted Time", "Shipment Out for Pickup Time", "Shipment Reached Pickup Time"];
-const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Is Cancelled": null, "Creation Date": "Creation Date", "Marketplace Order Date": "Marketplace Order Date", "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
 
-// Explicit fixed-index mappings requested:
-// Blaze index 7  -> Creation Date        <- Data 1: Creation Date
-// Blaze index 25 -> No. of Attempts      <- Data 1: Total Attempt Count
-// Blaze index 6  -> Is Cancelled         <- blank (Bolthas no such column)
-if (TARGET[6] !== "Creation Date" || TARGET[24] !== "No. of Attempts" || TARGET[5] !== "Is Cancelled") {
+// NOTE: "Is Cancelled" (index 5) and the Rider ID/Rider Name order (indices 20/21)
+// are known open discrepancies vs the real Blaze export and are NOT touched by this
+// update -- this pass only fixes Creation Date/Time, per current instructions.
+
+const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Is Cancelled": null, "Creation Date": ["combine_datetime", "Creation Date", "Creation Time"], "Marketplace Order Date": "Marketplace Order Date", "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
+
+if (TARGET[6] !== "Creation Date" || TARGET[5] !== "Is Cancelled") {
   throw new Error("Target template indices are incorrect.");
 }
-if (MAP["Creation Date"] !== "Creation Date" || MAP["No. of Attempts"] !== "Total Attempt Count" || MAP["Is Cancelled"] !== null) {
+if (!Array.isArray(MAP["Creation Date"]) || MAP["Creation Date"][0] !== "combine_datetime" || MAP["Is Cancelled"] !== null) {
   throw new Error("Required field mappings are incorrect.");
 }
-
 
 function parseCSV(text){
   const rows=[]; let row=[]; let field=''; let inQuotes=false;
@@ -89,6 +89,38 @@ function combine(a,b){
   return a + ' ' + b;
 }
 
+// Bolt gives Creation Date as MM/DD/YYYY and Creation Time as 24-hour HH:mm.
+// Blaze expects them combined into one field, reordered to DD/MM/YYYY,
+// converted to 12-hour h:mm AM/PM, and wrapped as an Excel text-formula: ="..."
+function combineDateTime(dateStr, timeStr){
+  dateStr = (dateStr == null ? '' : String(dateStr)).trim();
+  timeStr = (timeStr == null ? '' : String(timeStr)).trim();
+  if(!dateStr) return '';
+
+  const dParts = dateStr.split('/');
+  if(dParts.length !== 3) return dateStr; // unexpected format, pass through untouched
+
+  let [mm, dd, yyyy] = dParts.map(s => s.trim());
+  mm = mm.padStart(2,'0');
+  dd = dd.padStart(2,'0');
+  const ddmmyyyy = dd + '/' + mm + '/' + yyyy;
+
+  let timePart = '';
+  if(timeStr){
+    const tParts = timeStr.split(':');
+    let h = parseInt(tParts[0], 10);
+    const m = (tParts[1] || '00').padStart(2,'0');
+    if(!isNaN(h)){
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      let h12 = h % 12;
+      if(h12 === 0) h12 = 12;
+      timePart = ' ' + h12 + ':' + m + ' ' + ampm;
+    }
+  }
+
+  return '="' + ddmmyyyy + timePart + '"';
+}
+
 function resetPage(){
   document.getElementById('file').value='';
   const s=document.getElementById('status');
@@ -101,13 +133,13 @@ async function convert(){
   const s=document.getElementById('status');
   if(!file){
     s.className='status bad';
-    s.textContent='Please upload BoltCSV.';
+    s.textContent='Please upload Bolt CSV.';
     return;
   }
 
   try{
     s.className='status';
-    s.textContent='Reading Data 1...';
+    s.textContent='Reading Bolt data...';
 
     const text = await file.text();
     const rows = parseCSV(text);
@@ -120,14 +152,14 @@ async function convert(){
     const required = [];
     Object.values(MAP).forEach(v=>{
       if(typeof v === 'string') required.push(v);
-      else if(Array.isArray(v) && v[0] === 'combine'){
+      else if(Array.isArray(v) && (v[0] === 'combine' || v[0] === 'combine_datetime')){
         required.push(v[1],v[2]);
       }
     });
 
     const missing = [...new Set(required.filter(h => idx[h] === undefined))];
     if(missing.length){
-      throw new Error('These Boltcolumns were not found:\n' + missing.join('\n'));
+      throw new Error('These Bolt columns were not found:\n' + missing.join('\n'));
     }
 
     const value = (row, header) => idx[header] === undefined ? '' : (row[idx[header]] ?? '');
@@ -141,12 +173,14 @@ async function convert(){
       const outRow=TARGET.map(targetHeader=>{
         const rule=MAP[targetHeader];
 
-        // Blaze-only column: keep exact position, blank value.
         if(rule === null) return '';
 
-        // Combined timestamp fields.
         if(Array.isArray(rule) && rule[0] === 'combine'){
           return combine(value(row,rule[1]),value(row,rule[2]));
+        }
+
+        if(Array.isArray(rule) && rule[0] === 'combine_datetime'){
+          return combineDateTime(value(row,rule[1]),value(row,rule[2]));
         }
 
         return value(row,rule);
@@ -161,7 +195,7 @@ async function convert(){
 
     const a=document.createElement('a');
     a.href=url;
-    a.download='Data_1_to_Data_2_EXACT_48_COLUMNS.csv';
+    a.download='Bolt_to_Blaze.csv';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -170,7 +204,7 @@ async function convert(){
     s.className='status good';
     s.textContent='Done.\nRows converted: ' + (output.length-1) +
       '\nOutput columns: ' + TARGET.length +
-      '\nBlaze header positions were preserved exactly.\nMissing Boltfields remain blank.';
+      '\nCreation Date now combines Creation Date + Creation Time -> DD/MM/YYYY h:mm AM/PM.';
   }catch(err){
     s.className='status bad';
     s.textContent='Error: ' + err.message;
