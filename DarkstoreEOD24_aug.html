@@ -549,7 +549,7 @@ data.forEach(row => {
     "zippee_andheri_sdd",
     "zippee_koregaonpark_sdd",
     "zippee_matunga_valkyriesdd",
-    "zippee_kolkata_sdd",
+    "zippee_topsia_valkyriesdd",
     "zippee_manikonda_sdd",
     "zippee_periyamet_sdd",
     "zippee_kalyannagar_sdd",
@@ -718,6 +718,9 @@ totalFasrPct += Number(fasrPct);
 
         if(name==="Matunga Valkyriesdd")
             name="Matunga";
+
+        if(name==="Topsia Valkyriesdd")
+            name="Kolkata";
     }
 
    html += `
@@ -870,6 +873,9 @@ riderStores.forEach(ds => {
 
     if(displayName==="Matunga Valkyriesdd")
         displayName="Matunga";
+
+    if(displayName==="Topsia Valkyriesdd")
+        displayName="Kolkata";
 
     const riderCount = uniqueRiderStats[ds].riderIds.size;
 
