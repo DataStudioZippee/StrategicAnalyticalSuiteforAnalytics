@@ -418,6 +418,8 @@ function handleFile(e){
     reader.readAsArrayBuffer(file);
 }
 
+let brandStats = {};
+
 function processData(data){
 
     let totalOrders = data.length;
@@ -503,8 +505,6 @@ const formattedDate =
             String(maxDate.getMonth()+1).padStart(2,"0") + "/" +
             maxDate.getFullYear()
         );
-const brandStats = {};
-
 data.forEach(row => {
 
     const brand =
@@ -591,20 +591,43 @@ html += `
     align-items:center;
 ">
 
-<button
-    onclick="downloadBrandReport('${brand}')"
-    style="
-        margin-bottom:10px;
-        background:#003f8c;
-        color:white;
-        border:none;
-        padding:10px 18px;
-        border-radius:8px;
-        cursor:pointer;
-        font-weight:700;
-    ">
-    Download ${brand} PNG
-</button>
+<div style="
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+">
+
+    <button
+        onclick="downloadBrandReport('${brand}')"
+        style="
+            background:#003f8c;
+            color:white;
+            border:none;
+            padding:10px 18px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:700;
+        ">
+        Download ${brand} PNG
+    </button>
+
+    <button
+        onclick="generateBrandReport('${brand}')"
+        style="
+            background:#003f8c;
+            color:white;
+            border:none;
+            padding:10px 22px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:700;
+        ">
+        Generate
+    </button>
+
+</div>
 
 <table
     id="report-${brand.replace(/[^a-zA-Z0-9]/g,'')}"
@@ -649,13 +672,46 @@ cleanDS = cleanDS
 html += `</tr>`;
 
 
+/* Total Orders - Manual Input */
+
+html += `<tr><td class="yellow"><b>Total Orders</b></td>`;
+
+darkstores.forEach(ds => {
+
+    const inputId =
+        `totalOrders_${brand.replace(/[^a-zA-Z0-9]/g,'')}_${ds.replace(/[^a-zA-Z0-9]/g,'')}`;
+
+    html += `
+        <td>
+            <input
+    type="number"
+    min="0"
+    id="${inputId}"
+    placeholder="Enter"
+    style="
+        width:100px;
+        padding:7px;
+        text-align:center;
+        border:1px solid #999;
+        border-radius:6px;
+        font-weight:700;
+    "
+>        </td>
+    `;
+
+});
+
+html += `</tr>`;
+
+
 /* Processed */
 
-html += `<tr><td class="yellow"><b>Processed</b></td>`;
+html += `<tr><td class="yellow"><b>Processed Orders</b></td>`;
 
 darkstores.forEach(ds => {
 
     html += `<td>${brandStats[brand][ds].total}</td>`;
+
 });
 
 html += `</tr>`;
@@ -669,9 +725,22 @@ darkstores.forEach(ds => {
 
     const s = brandStats[brand][ds];
 
-    const pct =
-    s.total > 0
-    ? (((s.total - s.readyZeroAttempt) / s.total) * 100).toFixed(0)
+    const totalOrdersInput =
+    document.getElementById(
+        `totalOrders_${brand.replace(/[^a-zA-Z0-9]/g,'')}_${ds.replace(/[^a-zA-Z0-9]/g,'')}`
+    );
+
+const totalOrders =
+    totalOrdersInput && totalOrdersInput.value
+    ? Number(totalOrdersInput.value)
+    : 0;
+
+const d0Dispatched =
+    s.total - s.readyZeroAttempt;
+
+const pct =
+    totalOrders > 0
+    ? ((d0Dispatched / totalOrders) * 100).toFixed(0)
     : 0;
     let bgColor = "";
 
@@ -682,8 +751,11 @@ else if(pct < 50){
     bgColor = "#FF7F7F";   // Red
 }
 
+const d0CellId =
+    `d0Pct_${brand.replace(/[^a-zA-Z0-9]/g,'')}_${ds.replace(/[^a-zA-Z0-9]/g,'')}`;
+
 html += `
-<td style="background:${bgColor};font-weight:700;">
+<td id="${d0CellId}" style="background:${bgColor};font-weight:700;">
     ${pct}%
 </td>`;
 });
@@ -713,10 +785,20 @@ darkstores.forEach(ds => {
 
     const s = brandStats[brand][ds];
 
-    const pct =
-        s.total > 0
-        ? ((s.fasrDelivered / s.total) * 100).toFixed(0)
-        : 0;
+    const totalOrdersInput =
+    document.getElementById(
+        `totalOrders_${brand.replace(/[^a-zA-Z0-9]/g,'')}_${ds.replace(/[^a-zA-Z0-9]/g,'')}`
+    );
+
+const totalOrders =
+    totalOrdersInput && totalOrdersInput.value
+    ? Number(totalOrdersInput.value)
+    : 0;
+
+const pct =
+    totalOrders > 0
+    ? ((s.fasrDelivered / totalOrders) * 100).toFixed(0)
+    : 0;
 
     let bgColor = "";
 
@@ -727,8 +809,11 @@ else if(pct < 50){
     bgColor = "#FF7F7F";   // Red
 }
 
+const fasrCellId =
+    `fasrPct_${brand.replace(/[^a-zA-Z0-9]/g,'')}_${ds.replace(/[^a-zA-Z0-9]/g,'')}`;
+
 html += `
-<td style="background:${bgColor};font-weight:700;">
+<td id="${fasrCellId}" style="background:${bgColor};font-weight:700;">
     ${pct}%
 </td>`;
 });
@@ -746,6 +831,7 @@ darkstores.forEach(ds => {
 });
 
 html += `</tr>`;
+
 
 html += `
 <tr>
@@ -770,6 +856,117 @@ html += `
 
 eodTable.innerHTML = html;
 
+
+}
+function generateBrandReport(brand){
+
+    const brandKey =
+        brand.replace(/[^a-zA-Z0-9]/g,'');
+
+    const darkstores =
+        Object.keys(brandStats[brand] || {});
+
+    darkstores.forEach(ds => {
+
+        const dsKey =
+            ds.replace(/[^a-zA-Z0-9]/g,'');
+
+        const inputId =
+            `totalOrders_${brandKey}_${dsKey}`;
+
+        const totalOrdersInput =
+            document.getElementById(inputId);
+
+        const totalOrders =
+            Number(totalOrdersInput?.value) || 0;
+
+        const s =
+            brandStats[brand][ds];
+
+
+        /* =========================
+           D0 DISPATCHED %
+        ========================= */
+
+        const d0Dispatched =
+            s.total - s.readyZeroAttempt;
+
+        const d0Pct =
+            totalOrders > 0
+            ? ((d0Dispatched / totalOrders) * 100).toFixed(0)
+            : 0;
+
+        const d0Cell =
+            document.getElementById(
+                `d0Pct_${brandKey}_${dsKey}`
+            );
+
+        if(d0Cell){
+
+            d0Cell.innerText =
+                d0Pct + "%";
+
+            if(d0Pct > 85){
+
+                d0Cell.style.background =
+                    "#90EE90";
+
+            }
+            else if(d0Pct < 50){
+
+                d0Cell.style.background =
+                    "#FF7F7F";
+
+            }
+            else{
+
+                d0Cell.style.background =
+                    "";
+
+            }
+        }
+
+
+        /* =========================
+           FASR %
+        ========================= */
+
+        const fasrPct =
+            totalOrders > 0
+            ? ((s.fasrDelivered / totalOrders) * 100).toFixed(0)
+            : 0;
+
+        const fasrCell =
+            document.getElementById(
+                `fasrPct_${brandKey}_${dsKey}`
+            );
+
+        if(fasrCell){
+
+            fasrCell.innerText =
+                fasrPct + "%";
+
+            if(fasrPct > 75){
+
+                fasrCell.style.background =
+                    "#90EE90";
+
+            }
+            else if(fasrPct < 50){
+
+                fasrCell.style.background =
+                    "#FF7F7F";
+
+            }
+            else{
+
+                fasrCell.style.background =
+                    "";
+
+            }
+        }
+
+    });
 
 }
 function downloadBrandReport(brand){
