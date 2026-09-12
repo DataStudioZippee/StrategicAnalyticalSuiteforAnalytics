@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bolt→ Blaze data Converter</title>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif}
+body{margin:0;background:#f4f6fa;color:#172033}
+.wrap{max-width:900px;margin:45px auto;padding:20px}
+.card{background:#fff;border:1px solid #e2e7ef;border-radius:18px;padding:30px;box-shadow:0 10px 30px rgba(20,30,60,.07)}
+h1{margin:0 0 8px;font-size:28px}
+p{color:#667085;line-height:1.5}
+.box{border:2px dashed #cbd5e1;border-radius:14px;padding:20px;margin:22px 0}
+button{border:0;border-radius:10px;padding:12px 18px;background:#1769e0;color:#fff;font-weight:700;cursor:pointer}
+button.alt{background:#eef2f7;color:#243047;margin-left:8px}
+.status{margin-top:18px;background:#f3f6fa;padding:13px 15px;border-radius:10px;white-space:pre-wrap}
+.good{color:#137333}.bad{color:#b42318}
+.badge{display:inline-block;background:#eef4ff;color:#175cd3;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:700;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>Bolt→ Blaze Converter</h1>
+<p><b>Blaze is the fixed master template.</b> The output always uses its exact 48 column positions. If Bolt does not contain a field, that Blaze column stays blank.</p>
+
+<div class="box">
+<label><b>Upload Bolt data</b></label><br><br>
+<input id="file" type="file" accept=".csv">
+</div>
+
+<button onclick="convert()">Convert & Download</button>
+<button class="alt" onclick="resetPage()">Reset</button>
+
+<div id="status" class="status">Ready.</div>
+</div>
+</div>
+
+<script>
+const TARGET = ["Darkstore", "AWB Number", "Order Number", "Type", "Current Status", "Is Cancelled", "Creation Date", "Marketplace Order Date", "Ideal Delivery Start", "Ideal Delivery End", "Actual Delivery Date Time", "Actual Delivery Date", "Try & Buy", "Customer Name", "Customer Mobile", "Pickup Address", "Pickup Pincode", "Delivery Address", "Delivery Pincode", "Trip ID", "Rider ID", "Rider Name", "Rider Latitude", "Rider Longitude", "No. of Attempts", "Attempt Reason", "Total Quantity", "Weight", "Total Value", "Payment Mode", "Paid by", "Transaction ID", "Brand Name", "Shipment Ready Time", "Shipment Allocation Pending Time", "Shipment Pickup Pending Time", "Shipment Pickup In Progress Time", "Shipment Pickup Completed Time", "Shipment Out For Delivery Time", "Shipment Reached Delivery Time", "Shipment Delivery In Progress Time", "Shipment Delivered Time", "Shipment Delivery Attempted Time", "Shipment RTO Time", "Shipment Cancelled Time", "Shipment Pickup Attempted Time", "Shipment Out for Pickup Time", "Shipment Reached Pickup Time"];
+const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Is Cancelled": null, "Creation Date": "Creation Date", "Marketplace Order Date": "Marketplace Order Date", "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
+
+// Explicit fixed-index mappings requested:
+// Blaze index 7  -> Creation Date        <- Data 1: Creation Date
+// Blaze index 25 -> No. of Attempts      <- Data 1: Total Attempt Count
+// Blaze index 6  -> Is Cancelled         <- blank (Bolthas no such column)
+if (TARGET[6] !== "Creation Date" || TARGET[24] !== "No. of Attempts" || TARGET[5] !== "Is Cancelled") {
+  throw new Error("Target template indices are incorrect.");
+}
+if (MAP["Creation Date"] !== "Creation Date" || MAP["No. of Attempts"] !== "Total Attempt Count" || MAP["Is Cancelled"] !== null) {
+  throw new Error("Required field mappings are incorrect.");
+}
+
+
+function parseCSV(text){
+  const rows=[]; let row=[]; let field=''; let inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(c === '"'){
+      if(inQuotes && n === '"'){ field += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if(c === ',' && !inQuotes){
+      row.push(field); field='';
+    } else if((c === '\r' || c === '\n') && !inQuotes){
+      if(c === '\r' && n === '\n') i++;
+      row.push(field); field='';
+      if(row.some(v => v !== '')) rows.push(row);
+      row=[];
+    } else {
+      field += c;
+    }
+  }
+  if(field !== '' || row.length){ row.push(field); }
+  if(row.some(v => v !== '')) rows.push(row);
+  return rows;
+}
+
+function escapeCSV(v){
+  v = v == null ? '' : String(v);
+  return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+}
+
+function combine(a,b){
+  a = a == null ? '' : String(a).trim();
+  b = b == null ? '' : String(b).trim();
+  if(!a) return b;
+  if(!b) return a;
+  return a + ' ' + b;
+}
+
+function resetPage(){
+  document.getElementById('file').value='';
+  const s=document.getElementById('status');
+  s.className='status';
+  s.textContent='Ready.';
+}
+
+async function convert(){
+  const file=document.getElementById('file').files[0];
+  const s=document.getElementById('status');
+  if(!file){
+    s.className='status bad';
+    s.textContent='Please upload BoltCSV.';
+    return;
+  }
+
+  try{
+    s.className='status';
+    s.textContent='Reading Data 1...';
+
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if(rows.length < 1) throw new Error('CSV is empty.');
+
+    const headers = rows[0].map((h,i) => (i===0 ? h.replace(/^\uFEFF/,'') : h).trim());
+    const idx = {};
+    headers.forEach((h,i) => { idx[h] = i; });
+
+    const required = [];
+    Object.values(MAP).forEach(v=>{
+      if(typeof v === 'string') required.push(v);
+      else if(Array.isArray(v) && v[0] === 'combine'){
+        required.push(v[1],v[2]);
+      }
+    });
+
+    const missing = [...new Set(required.filter(h => idx[h] === undefined))];
+    if(missing.length){
+      throw new Error('These Boltcolumns were not found:\n' + missing.join('\n'));
+    }
+
+    const value = (row, header) => idx[header] === undefined ? '' : (row[idx[header]] ?? '');
+
+    const output=[TARGET];
+
+    for(let r=1;r<rows.length;r++){
+      const row=rows[r];
+      if(!row.some(v=>String(v).trim() !== '')) continue;
+
+      const outRow=TARGET.map(targetHeader=>{
+        const rule=MAP[targetHeader];
+
+        // Blaze-only column: keep exact position, blank value.
+        if(rule === null) return '';
+
+        // Combined timestamp fields.
+        if(Array.isArray(rule) && rule[0] === 'combine'){
+          return combine(value(row,rule[1]),value(row,rule[2]));
+        }
+
+        return value(row,rule);
+      });
+
+      output.push(outRow);
+    }
+
+    const csv = output.map(row=>row.map(escapeCSV).join(',')).join('\r\n');
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='Data_1_to_Data_2_EXACT_48_COLUMNS.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    s.className='status good';
+    s.textContent='Done.\nRows converted: ' + (output.length-1) +
+      '\nOutput columns: ' + TARGET.length +
+      '\nBlaze header positions were preserved exactly.\nMissing Boltfields remain blank.';
+  }catch(err){
+    s.className='status bad';
+    s.textContent='Error: ' + err.message;
+  }
+}
+</script>
+</body>
+</html>
