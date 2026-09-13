@@ -288,9 +288,9 @@ th{background:#e6e6e6;}
 <tr class="row-yellow">
     <td>12</td>
     <td class="left">Actual Forward Rider</td>
-    <td><input type="number" id="gRiders" style="width:60px;text-align:center;"></td>
-    <td><input type="number" id="mRiders" style="width:60px;text-align:center;"></td>
-    <td><input type="number" id="vRiders" style="width:60px;text-align:center;"></td>
+    <td id="gRiders">--</td>
+    <td id="mRiders">--</td>
+    <td id="vRiders">--</td>
 </tr>
 <tr class="row-yellow">
     <td>12.1</td>
@@ -368,10 +368,49 @@ const DELAY_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZt
 
 function formatDate(d){
     return d.toLocaleDateString('en-GB',{
-        day:"2-digit",
+        day:"numeric",
         month:"short"
     }).replace(" ","-");
 }
+
+function findDateRow(data, today){
+
+    const todayDate = new Date();
+
+    return data.find(r => {
+
+        const sheetDate = String(r.Date || "").trim();
+
+        if (!sheetDate) return false;
+
+        // Handles dates like 1-Sep or 01-Sep
+        const shortMatch = sheetDate.match(/^(\d{1,2})-([A-Za-z]{3})$/);
+
+        if (shortMatch) {
+            const day = parseInt(shortMatch[1], 10);
+            const month = new Date(`${shortMatch[2]} 1, 2000`).getMonth();
+
+            return day === todayDate.getDate() &&
+                   month === todayDate.getMonth();
+        }
+
+        // Handles dates like 9/1/2026 or 09/01/2026
+        const dateMatch = sheetDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+        if (dateMatch) {
+            const month = parseInt(dateMatch[1], 10) - 1;
+            const day = parseInt(dateMatch[2], 10);
+            const year = parseInt(dateMatch[3], 10);
+
+            return day === todayDate.getDate() &&
+                   month === todayDate.getMonth() &&
+                   year === todayDate.getFullYear();
+        }
+
+        return false;
+    }) || {};
+}
+
 
 function updateDateTime(){
     const d = new Date();
@@ -435,7 +474,7 @@ async function generateReport(){
     fetchSheet(SLA_URL),
     fetchSheet(DELAY_URL)
 ]);
-    const orderRow = orderData.find(r => r.Date === today) || {};
+    const orderRow = findDateRow(orderData, today);
 
 document.getElementById("gProjOrder").innerText =
     orderRow["GHATKOPAR"] || "--";
@@ -446,7 +485,7 @@ document.getElementById("mProjOrder").innerText =
 document.getElementById("vProjOrder").innerText =
     orderRow["VASHI"] || "--";
 
-    const riderRow = riderData.find(r => r.Date === today) || {};
+    const riderRow = findDateRow(riderData, today);
 
 document.getElementById("gProjRider").innerText =
     riderRow["Ghatkopar"] || "--";
@@ -466,7 +505,7 @@ document.getElementById("gProjOmniRider").value = 2;
 document.getElementById("mProjOmniRider").value = 3;
 document.getElementById("vProjOmniRider").value = 1;
 
-    const slaRow = slaData.find(r => r.Date === today) || {};
+    const slaRow = findDateRow(slaData, today);
 
 document.getElementById("gSLA").innerText =
     slaRow["Target"] || "--";
@@ -476,7 +515,7 @@ document.getElementById("mSLA").innerText =
 
 document.getElementById("vSLA").innerText =
     slaRow["Target"] || "--";
-    const delayRow = delayData.find(r => r.Date === today) || {};
+    const delayRow = findDateRow(delayData, today);
 
 document.getElementById("gDelay").innerText =
     delayRow["Target"] || "--";
@@ -540,7 +579,10 @@ let storePickup = {
     Vashi: 0
 };
 
-let storeForwardRiders = {
+// Unique Rider ID sets, counted only for Movement Type === "FORWARD" rows.
+// This backs the "Actual Forward Rider" KPI (Row 12), which used to be
+// entered manually and is now auto-calculated from the uploaded file.
+let storeForwardRiderSet = {
     Ghatkopar: new Set(),
     Malad: new Set(),
     Vashi: new Set()
@@ -642,15 +684,6 @@ let orderId = (row["Reference ID"] || "")
     .toString()
     .trim()
     .toLowerCase();
-
-// Actual Forward Rider (unique riders on FORWARD movement orders)
-const movementType = String(row["Movement Type"] || "").trim().toUpperCase();
-const riderIdRaw = String(row["Rider ID"] || "").trim();
-
-if (movementType === "FORWARD" && riderIdRaw !== "") {
-    storeForwardRiders[detected].add(riderIdRaw);
-}
-
     // Pickup Orders (Delivered + RTO Delivered only)
 if (
     orderId.startsWith("return") &&
@@ -666,6 +699,16 @@ const isActualOrder =
     !orderId.startsWith("f-") &&
     !orderId.endsWith("-pd") &&
     !orderId.startsWith("rtv-");
+
+// -------------------------
+// ACTUAL FORWARD RIDER (unique Rider ID, Movement Type = FORWARD)
+// -------------------------
+const movementType = String(row["Movement Type"] || "").trim().toUpperCase();
+const riderIdRaw = String(row["Rider ID"] || "").trim();
+
+if (movementType === "FORWARD" && riderIdRaw !== "") {
+    storeForwardRiderSet[detected].add(riderIdRaw);
+}
 
 // Delivered Orders should be counted only from Actual Orders
 if (status === "DELIVERED") {
@@ -1175,11 +1218,6 @@ else {
         });
     }
 
-    // Actual Forward Rider = unique Rider IDs seen on FORWARD movement orders
-    document.getElementById("gRiders").value = storeForwardRiders.Ghatkopar.size;
-    document.getElementById("mRiders").value = storeForwardRiders.Malad.size;
-    document.getElementById("vRiders").value = storeForwardRiders.Vashi.size;
-
     document.getElementById("gOrders").innerText = storeOrders.Ghatkopar;
     document.getElementById("mOrders").innerText = storeOrders.Malad;
     document.getElementById("vOrders").innerText = storeOrders.Vashi;
@@ -1208,6 +1246,11 @@ document.getElementById("mDeepPain").innerText =
     storeDeepPain.Malad;
 document.getElementById("vDeepPain").innerText =
     storeDeepPain.Vashi;
+
+    // Actual Forward Rider = unique Rider IDs seen on Movement Type = FORWARD rows
+    document.getElementById("gRiders").innerText = storeForwardRiderSet.Ghatkopar.size;
+    document.getElementById("mRiders").innerText = storeForwardRiderSet.Malad.size;
+    document.getElementById("vRiders").innerText = storeForwardRiderSet.Vashi.size;
 
     document.querySelectorAll("table tr").forEach(row=>{
         let label=row.cells[1]?.innerText;
@@ -1377,9 +1420,9 @@ margin-bottom:8px;
         return val.toFixed(0) + "%";
     }
 
-    let gActualRider = parseFloat(document.getElementById("gRiders").value) || 0;
-let mActualRider = parseFloat(document.getElementById("mRiders").value) || 0;
-let vActualRider = parseFloat(document.getElementById("vRiders").value) || 0;
+    let gActualRider = parseFloat(document.getElementById("gRiders").innerText) || 0;
+let mActualRider = parseFloat(document.getElementById("mRiders").innerText) || 0;
+let vActualRider = parseFloat(document.getElementById("vRiders").innerText) || 0;
 
     let gProjRider = parseFloat(document.getElementById("gProjRider").innerText);
     let mProjRider = parseFloat(document.getElementById("mProjRider").innerText);
@@ -1426,7 +1469,6 @@ function downloadReport() {
 
     // Hide rider input boxes
     const inputs = document.querySelectorAll(
-"#gRiders,#mRiders,#vRiders," +
 "#gProjPickupRider,#mProjPickupRider,#vProjPickupRider," +
 "#gPickupRider,#mPickupRider,#vPickupRider," +
 "#gProjOmniRider,#mProjOmniRider,#vProjOmniRider," +
