@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<title>Zippee Cash Order Filter</title>
+<style>
+:root{
+    --zippee-primary:#00305E;
+    --zippee-secondary:#0078D4;
+    --text-dark:#1d2a38;
+    --card-bg:rgba(255,255,255,.15);
+}
+body.dark{
+    --zippee-primary:#dce9ff;
+    --text-dark:#f5f5f5;
+    --card-bg:rgba(0,0,0,.35);
+    background:#0b1320 !important;
+}
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:"Segoe UI",sans-serif;
+    background:linear-gradient(135deg,#dcecff,#f5f9ff 45%,#d8ecff);
+    min-height:100vh;
+    overflow-x:hidden;
+}
+body::before{
+    content:""; position:fixed; inset:0;
+    background:rgba(255,255,255,.25);
+    z-index:-1;
+}
+.header-main{
+    background:rgba(0,48,94,.92);
+    color:white; position:fixed; top:0; width:100%;
+    padding:10px 8px; display:flex; justify-content:center;
+    align-items:center; gap:10px; z-index:20;
+}
+.header-logo{height:36px}
+h1{margin:0;font-size:22px}
+.container{
+    margin:100px auto 70px auto; width:92%; max-width:1100px;
+    padding:26px 22px; border-radius:18px;
+    background:var(--card-bg); backdrop-filter:blur(10px);
+    box-shadow:0 8px 30px rgba(0,0,0,.2); color:var(--text-dark);
+}
+.hero{text-align:center;margin-bottom:18px}
+.hero h2{margin:4px 0;font-size:25px;color:var(--zippee-primary)}
+.hero p{margin:5px 0 15px}
+.upload-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    margin-bottom:10px
+}
+.upload-box{
+    border:2px dashed #0078D4; border-radius:16px;
+    padding:28px 15px; background:rgba(255,255,255,.48);
+    text-align:center; cursor:pointer; transition:.2s;
+}
+.upload-box:hover{transform:translateY(-2px);background:rgba(255,255,255,.65)}
+.upload-box input{display:none}
+.upload-icon{font-size:34px}
+.file-name{font-weight:700;margin-top:8px}
+.button-group{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:18px 0}
+.tool-button{
+    border:none; outline:none; background:linear-gradient(135deg,#0A66C2,#0078FF);
+    color:white; padding:12px 18px; border-radius:10px; font-size:15px;
+    font-weight:700; min-width:210px; cursor:pointer; transition:.25s;
+}
+.tool-button:hover{transform:translateY(-3px) scale(1.01)}
+.tool-button.secondary{background:#fff;color:#00305E;border:1px solid #b9d7f4}
+.tool-button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.steps{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;
+}
+.step{
+    background:rgba(255,255,255,.55);border-radius:12px;padding:13px;
+    box-shadow:0 4px 12px rgba(0,0,0,.12);font-size:13px;
+}
+.step b{display:block;color:#00305E;margin-bottom:5px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+.kpi{
+    background:rgba(255,255,255,.62);border-radius:14px;padding:16px;text-align:center;
+    box-shadow:0 5px 15px rgba(0,0,0,.13)
+}
+.kpi .value{font-size:25px;font-weight:800;color:#00305E}
+.kpi .label{font-size:12px;margin-top:4px}
+.status{text-align:center;font-weight:700;margin:12px}
+.table-wrap{overflow:auto;border-radius:12px;background:rgba(255,255,255,.7);max-height:430px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:8px 10px;border-bottom:1px solid #d8e2ec;white-space:nowrap;text-align:left}
+th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
+.hidden{display:none}
+.note{
+    background:rgba(0,120,212,.10);padding:11px 14px;border-radius:10px;
+    font-size:13px;margin-top:12px
+}
+.toggle-dark{
+    position:fixed;top:10px;right:15px;background:white;border:0;
+    border-radius:50px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:50;
+}
+.ticker-bar{
+    position:fixed;bottom:0;width:100%;background:rgba(0,48,94,.94);
+    color:white;padding:7px 0;overflow:hidden;z-index:5;font-size:12px
+}
+.ticker-content{white-space:nowrap;display:inline-block;padding-left:100%;animation:marq 35s linear infinite}
+@keyframes marq{to{transform:translateX(-100%)}}
+.loader-screen{
+    position:fixed;inset:0;background:#001c38;color:white;display:none;
+    flex-direction:column;justify-content:center;align-items:center;z-index:999
+}
+.spinner{width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:700px){
+    .upload-grid,.steps,.kpis{grid-template-columns:1fr 1fr}
+}
+
+@media(max-width:500px){
+    .upload-grid,.steps,.kpis{grid-template-columns:1fr}
+    .container{width:96%;padding:20px 12px}
+}
+</style>
+</head>
+<body>
+<button class="toggle-dark" onclick="document.body.classList.toggle('dark')">☾ Dark</button>
+
+<header class="header-main">
+    <div style="font-size:26px">⚡</div>
+    <h1>Zippee Cash Order Filter</h1>
+</header>
+
+<main class="container">
+    <section class="hero">
+        <h2>Cash Collection Report</h2>
+        <p>Upload the raw CSV and automatically generate cash-order data from the 1st of the month through D-1.</p>
+    </section>
+
+<div class="upload-grid">
+
+    <label class="upload-box" for="csvFile">
+        <div class="upload-icon">📂</div>
+        <div><b>Upload Order Data</b></div>
+        <div style="margin-top:4px;font-size:13px">Raw cash-order report</div>
+        <div class="file-name" id="fileName">No file selected</div>
+        <input id="csvFile" type="file" accept=".csv,text/csv">
+    </label>
+
+    <label class="upload-box" for="settlementFile">
+        <div class="upload-icon">💳</div>
+        <div><b>Upload Rider Data</b></div>
+        <div style="margin-top:4px;font-size:13px">Order Level Worker COD Report</div>
+        <div class="file-name" id="settlementFileName">No file selected</div>
+        <input id="settlementFile" type="file" accept=".csv,text/csv">
+    </label>
+
+    <label class="upload-box" for="recoFile">
+        <div class="upload-icon">📊</div>
+        <div><b>Upload Reco Sheet</b></div>
+        <div style="margin-top:4px;font-size:13px">Myntra Reco Sheet — Cash + Static QR</div>
+        <div class="file-name" id="recoFileName">No file selected</div>
+        <input id="recoFile"
+       type="file"
+       accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+    </label>
+
+</div>
+
+    <div class="steps">
+        <div class="step"><b>1. Order Date</b>1st of month → D-1</div>
+        <div class="step"><b>2. Order Status</b>Delivered only</div>
+        <div class="step"><b>3. Cash Collected</b>Remove 0</div>
+        <div class="step"><b>4. Payment Mode</b>Cash only</div>
+    </div>
+
+    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 is not filtered and is used to create <b>Order ID → Cash + Static QR</b>.</div>
+
+    <div class="button-group">
+        <button class="tool-button" id="processBtn" disabled>⚙️ Process Data</button>
+        <button class="tool-button secondary" id="downloadBtn" disabled>⬇️ Download Filtered CSV</button>
+    </div>
+
+    <div id="status" class="status"></div>
+
+            <section id="orderSummary" class="hidden">
+            <h3>Order Number vs Cash Collected</h3>
+            <div class="table-wrap">
+                <table id="summaryTable"></table>
+            </div>
+        </section>
+        <section id="recoSummary" class="hidden">
+    <h3>Input 3: Order ID vs Cash + Static QR</h3>
+
+    <div class="note">
+        Cash Collected = Cash + Static QR
+    </div>
+
+    <div class="table-wrap">
+        <table id="recoSummaryTable"></table>
+    </div>
+</section>
+
+<section id="mismatchSummary" class="hidden">
+    <h3>Cash Collection Mismatch</h3>
+
+    <div class="note">
+        Only orders where Input 1 Cash Collected does not match Input 3 Cash + Static QR are shown.
+    </div>
+
+    <div class="table-wrap">
+        <table id="mismatchSummaryTable"></table>
+    </div>
+</section>
+
+<section id="results" class="hidden">
+        <div class="kpis">
+            <div class="kpi"><div class="value" id="d1Date">—</div><div class="label">Date Range</div></div>
+            <div class="kpi"><div class="value" id="inputCount">0</div><div class="label">Input Orders</div></div>
+            <div class="kpi"><div class="value" id="outputCount">0</div><div class="label">Filtered Orders</div></div>
+        </div>
+
+        <div class="note" id="logicText"></div>
+
+        <h3>Filtered Output Preview</h3>
+        <div class="table-wrap">
+            <table id="previewTable"></table>
+        </div>
+    </section>
+</main>
+
+<div class="ticker-bar">
+    <div class="ticker-content">Zippee • 1st of Month → D-1 → Delivered → Cash Collected ≠ 0 → Payment Mode = Cash • Data is processed locally in your browser.</div>
+</div>
+
+<div class="loader-screen" id="loader">
+    <div class="spinner"></div>
+    <b>Processing data...</b>
+</div>
+
+<script>
+let rows = [];
+let headers = [];
+let filtered = [];
+let csvText = "";
+
+let settlementRows = [];
+let settlementHeaders = [];
+let settlementCsvText = "";
+
+let recoRows = [];
+
+const fileInput = document.getElementById("csvFile");
+const fileName = document.getElementById("fileName");
+
+const settlementFileInput = document.getElementById("settlementFile");
+const settlementFileName = document.getElementById("settlementFileName");
+
+const recoFileInput = document.getElementById("recoFile");
+const recoFileName = document.getElementById("recoFileName");
+
+const processBtn = document.getElementById("processBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+
+function updateProcessState(){
+    processBtn.disabled = !(csvText && settlementCsvText && recoRows.length);
+}
+
+fileInput.addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    fileName.textContent = file.name;
+    csvText = await file.text();
+    document.getElementById("status").textContent = "Input 1 loaded. Now upload Input 2.";
+    document.getElementById("results").classList.add("hidden");
+    updateProcessState();
+});
+
+settlementFileInput.addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    settlementFileName.textContent = file.name;
+    settlementCsvText = await file.text();
+    document.getElementById("status").textContent = "Input 2 loaded. Both files are ready to process.";
+    document.getElementById("results").classList.add("hidden");
+    updateProcessState();
+});
+
+function bindDrop(labelSelector, input, nameEl, successText){
+    const box = document.querySelector(labelSelector);
+    box.addEventListener("dragover", e => e.preventDefault());
+    box.addEventListener("drop", async e => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (!file || !file.name.toLowerCase().endsWith(".csv")) return;
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        nameEl.textContent = file.name;
+        if (input === fileInput) csvText = await file.text();
+        else settlementCsvText = await file.text();
+        document.getElementById("status").textContent = successText;
+        document.getElementById("results").classList.add("hidden");
+        updateProcessState();
+    });
+}
+
+bindDrop('label[for="csvFile"]', fileInput, fileName, "Input 1 loaded. Now upload Input 2.");
+bindDrop('label[for="settlementFile"]', settlementFileInput, settlementFileName, "Input 2 loaded. Both files are ready to process.");
+const recoDropBox = document.querySelector('label[for="recoFile"]');
+
+recoDropBox.addEventListener("dragover", e => {
+    e.preventDefault();
+});
+
+recoDropBox.addEventListener("drop", async e => {
+    e.preventDefault();
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    recoFileInput.files = dt.files;
+
+    recoFileInput.dispatchEvent(
+        new Event("change", { bubbles: true })
+    );
+});
+
+recoFileInput.addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    recoFileName.textContent = file.name;
+    recoRows = [];
+
+    try {
+        if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            throw new Error("Please upload an Excel file (.xlsx or .xls).");
+        }
+
+        if (typeof XLSX === "undefined") {
+            throw new Error("Excel reader library could not be loaded.");
+        }
+
+        const buffer = await file.arrayBuffer();
+
+        const workbook = XLSX.read(buffer, {
+            type: "array",
+            cellDates: true
+        });
+
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            throw new Error("No worksheet found in Input 3.");
+        }
+
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+const rawRows = XLSX.utils.sheet_to_json(worksheet, {
+            defval: "",
+            raw: false
+        });
+
+        if (!rawRows.length) {
+            throw new Error("Input 3 contains no data rows.");
+        }
+
+        // Clean column names
+        const cleanedRows = rawRows.map(row => {
+            const obj = {};
+
+            Object.keys(row).forEach(key => {
+                const cleanKey = String(key)
+                    .replace(/\u00A0/g, " ")
+                    .trim()
+                    .replace(/\s+/g, " ");
+
+                obj[cleanKey] = row[key];
+            });
+
+            return obj;
+        });
+
+        const availableHeaders = Object.keys(cleanedRows[0]);
+
+        function findHeader(target) {
+            const targetClean = target
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, " ");
+
+            return availableHeaders.find(h =>
+                h.toLowerCase()
+                    .trim()
+                    .replace(/\s+/g, " ") === targetClean
+            );
+        }
+
+        const orderIdHeader = findHeader("Order ID");
+        const cashHeader = findHeader("Cash");
+        const qrHeader = findHeader("Static QR");
+
+        const missing = [];
+
+        if (!orderIdHeader) missing.push("Order ID");
+        if (!cashHeader) missing.push("Cash");
+        if (!qrHeader) missing.push("Static QR");
+
+        if (missing.length) {
+            throw new Error(
+                "Input 3 missing: " +
+                missing.join(", ") +
+                ". Found columns: " +
+                availableHeaders.join(", ")
+            );
+        }
+
+        // Convert to the exact names used by the rest of the website
+        recoRows = cleanedRows.map(row => ({
+            "Order ID": row[orderIdHeader],
+            "Cash": row[cashHeader],
+            "Static QR": row[qrHeader]
+        }));
+
+        document.getElementById("status").textContent =
+            `Input 3 loaded successfully: ${recoRows.length.toLocaleString("en-IN")} rows.`;
+
+        document.getElementById("results").classList.add("hidden");
+
+        updateProcessState();
+
+    } catch (err) {
+        recoRows = [];
+
+        document.getElementById("status").textContent =
+            "Error loading Input 3: " + err.message;
+
+        updateProcessState();
+    }
+});
+function parseCSV(text) {
+    const out=[]; let row=[], cell="", quoted=false;
+    for(let i=0;i<text.length;i++){
+        const c=text[i], n=text[i+1];
+        if(c === '"' && quoted && n === '"'){cell+='"';i++;continue;}
+        if(c === '"'){quoted=!quoted;continue;}
+        if(c === ',' && !quoted){row.push(cell);cell="";continue;}
+        if((c === '\n' || c === '\r') && !quoted){
+            if(c === '\r' && n === '\n') i++;
+            row.push(cell); cell="";
+            if(row.some(x=>x!=="")) out.push(row);
+            row=[]; continue;
+        }
+        cell+=c;
+    }
+    if(cell!=="" || row.length){row.push(cell);out.push(row);}
+    return out;
+}
+function csvEscape(v){
+    v = v == null ? "" : String(v);
+    return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+}
+function normalize(v){ return String(v ?? "").trim().toLowerCase(); }
+
+function parseDateOnly(v){
+    if(!v) return null;
+    const s=String(v).trim();
+    let m=s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if(m) return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    m=s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if(m) return new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
+    const d=new Date(s);
+    return isNaN(d) ? null : new Date(d.getFullYear(),d.getMonth(),d.getDate());
+}
+function fmtDate(d){
+    return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
+}
+
+processBtn.addEventListener("click", () => {
+    document.getElementById("loader").style.display="flex";
+    setTimeout(() => {
+        try{
+            // -------------------- INPUT 1 --------------------
+            const parsed=parseCSV(csvText);
+            if(parsed.length<2) throw new Error("Input 1 CSV appears to be empty.");
+
+            headers=parsed[0].map(x=>x.trim());
+            const index={};
+            headers.forEach((h,i)=>index[h]=i);
+
+            const required=["Order Date","Order Status","Cash Collected","Payment Mode","Order Number"];
+            const missing=required.filter(h=>index[h]===undefined);
+            if(missing.length) throw new Error("Input 1 missing required column(s): "+missing.join(", "));
+
+            rows=parsed.slice(1).map(r=>{
+                const obj={};
+                headers.forEach((h,i)=>obj[h]=r[i] ?? "");
+                return obj;
+            });
+
+            const today=new Date();
+            today.setHours(0,0,0,0);
+            const d1=new Date(today);
+            d1.setDate(d1.getDate()-1);
+            const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
+
+            // Existing Input 1 filtering logic remains unchanged.
+            let baseFiltered=rows.filter(r=>{
+                const od=parseDateOnly(r["Order Date"]);
+                const status=normalize(r["Order Status"]);
+                const payment=normalize(r["Payment Mode"]);
+                const cash=String(r["Cash Collected"] ?? "").trim().replace(/,/g,"");
+                const cashNum=Number(cash);
+
+                return od
+                    && od.getTime()>=monthStart.getTime()
+                    && od.getTime()<=d1.getTime()
+                    && status==="delivered"
+                    && Number.isFinite(cashNum) && cashNum!==0
+                    && payment==="cash";
+            });
+
+            // -------------------- INPUT 2 --------------------
+            const settlementParsed=parseCSV(settlementCsvText);
+            if(settlementParsed.length<2) throw new Error("Input 2 CSV appears to be empty.");
+
+            settlementHeaders=settlementParsed[0].map(x=>x.trim());
+            const sIndex={};
+            settlementHeaders.forEach((h,i)=>sIndex[h]=i);
+
+            const settlementRequired=["Order number","Settlement Mode"];
+            const settlementMissing=settlementRequired.filter(h=>sIndex[h]===undefined);
+            if(settlementMissing.length) throw new Error("Input 2 missing required column(s): "+settlementMissing.join(", "));
+
+            settlementRows=settlementParsed.slice(1).map(r=>({
+                orderNumber:r[sIndex["Order number"]] ?? "",
+                settlementMode:r[sIndex["Settlement Mode"]] ?? ""
+            }));
+
+            // Map Order Number -> Settlement Mode. Input 2 itself is not filtered.
+            const settlementMap=new Map();
+            settlementRows.forEach(r=>{
+                const key=normalize(r.orderNumber);
+                if(key) settlementMap.set(key, String(r.settlementMode ?? "").trim());
+            });
+
+            // Match Input 1 to Input 2, add Settlement Mode, and remove Razorpay rows.
+            filtered=[];
+            baseFiltered.forEach(r=>{
+                const key=normalize(r["Order Number"]);
+                const hasMatch=settlementMap.has(key);
+                const matchedMode=hasMatch ? settlementMap.get(key) : "Cash";
+                const modeForOutput=matchedMode || (hasMatch ? "" : "Cash");
+
+                // Exclude Cash_Collected_Razorpay after matching.
+                if(normalize(modeForOutput)==="cash_collected_razorpay") return;
+
+                const out={...r};
+                out["Settlement Mode"]=modeForOutput;
+                filtered.push(out);
+            });
+
+            // Put the new column at the end of Input 1.
+            const outputHeaders=headers.includes("Settlement Mode")
+                ? headers
+                : [...headers,"Settlement Mode"];
+            headers=outputHeaders;
+
+            // -------------------- INPUT 3 --------------------
+            // Input 3 columns: C = Order ID, F = Cash, G = Static QR.
+            // Build Order ID -> (Cash + Static QR), summing duplicate Order IDs.
+            const recoSummary = new Map();
+
+            recoRows.forEach(r => {
+                const orderId = String(r["Order ID"] ?? "").trim();
+                if (!orderId) return;
+
+                const cashRaw = String(r["Cash"] ?? "").trim().replace(/,/g, "");
+                const qrRaw = String(r["Static QR"] ?? "").trim().replace(/,/g, "");
+                const cash = Number(cashRaw);
+                const qr = Number(qrRaw);
+                const cashValue = Number.isFinite(cash) ? cash : 0;
+                const qrValue = Number.isFinite(qr) ? qr : 0;
+                const total = cashValue + qrValue;
+
+                recoSummary.set(orderId, (recoSummary.get(orderId) || 0) + total);
+            });
+
+            document.getElementById("d1Date").textContent=fmtDate(monthStart)+" → "+fmtDate(d1);
+            document.getElementById("inputCount").textContent=rows.length.toLocaleString("en-IN");
+            document.getElementById("outputCount").textContent=filtered.length.toLocaleString("en-IN");
+            document.getElementById("logicText").textContent =
+                `Applied: 1st of month to D-1 → Delivered → Cash Collected ≠ 0 → Payment Mode = Cash → Match Input 2 Order Number → Remove Cash_Collected_Razorpay → Unmatched = Cash → Input 3 = Cash + Static QR`;
+            document.getElementById("status").textContent =
+                `Processing complete. ${filtered.length.toLocaleString("en-IN")} orders are ready in the final output.`;
+
+            renderPreview();
+            renderOrderSummary();
+            renderRecoPivot(recoSummary);
+            renderMismatchTable(recoSummary);
+            downloadBtn.disabled=filtered.length===0;
+            document.getElementById("results").classList.remove("hidden");
+        }catch(err){
+            document.getElementById("status").textContent="Error: "+err.message;
+            downloadBtn.disabled=true;
+        }finally{
+            document.getElementById("loader").style.display="none";
+        }
+    },80);
+});
+
+function renderOrderSummary(){
+    const table = document.getElementById("summaryTable");
+    const summary = new Map();
+
+    filtered.forEach(r => {
+        const orderNumber = String(r["Order Number"] ?? "").trim();
+        if (!orderNumber) return;
+
+        const rawCash = String(r["Cash Collected"] ?? "")
+            .trim()
+            .replace(/,/g, "");
+        const cash = Number(rawCash);
+        const amount = Number.isFinite(cash) ? cash : 0;
+
+        summary.set(orderNumber, (summary.get(orderNumber) || 0) + amount);
+    });
+
+    let html = `<thead><tr><th>Order Number</th><th>Cash Collected</th></tr></thead><tbody>`;
+    summary.forEach((amount, orderNumber) => {
+        html += `<tr><td>${escapeHTML(orderNumber)}</td><td>${amount.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>`;
+    });
+    html += "</tbody>";
+    table.innerHTML = html;
+    document.getElementById("orderSummary").classList.remove("hidden");
+}
+function renderRecoPivot(summary){
+
+    const table = document.getElementById("recoSummaryTable");
+
+    let html = `
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Cash + Static QR</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    summary.forEach((amount, orderId) => {
+
+        html += `
+            <tr>
+                <td>${escapeHTML(orderId)}</td>
+                <td>${amount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}</td>
+            </tr>
+        `;
+
+    });
+
+    html += "</tbody>";
+
+    table.innerHTML = html;
+
+    document.getElementById("recoSummary").classList.remove("hidden");
+}
+
+function renderMismatchTable(recoSummary){
+    const table = document.getElementById("mismatchSummaryTable");
+    const mismatchRows = [];
+
+    // Build Input 1 summary: Order Number -> total Cash Collected
+    const input1Summary = new Map();
+
+    filtered.forEach(r => {
+        const orderNumber = String(r["Order Number"] ?? "").trim();
+        if (!orderNumber) return;
+
+        const rawCash = String(r["Cash Collected"] ?? "")
+            .trim()
+            .replace(/,/g, "");
+
+        const cash = Number(rawCash);
+        const amount = Number.isFinite(cash) ? cash : 0;
+
+        const key = normalize(orderNumber);
+
+        input1Summary.set(
+            key,
+            (input1Summary.get(key) || 0) + amount
+        );
+    });
+
+    // Compare only the Order Numbers present in Input 1 summary.
+    input1Summary.forEach((input1Amount, key) => {
+        const originalOrderNumber = filtered.find(
+            r => normalize(r["Order Number"]) === key
+        )?.["Order Number"] ?? key;
+
+        const hasInput3Match = recoSummary.has(originalOrderNumber)
+            || Array.from(recoSummary.keys()).some(
+                orderId => normalize(orderId) === key
+            );
+
+        let input3Amount = 0;
+
+        if (hasInput3Match) {
+            const matchedOrderId = Array.from(recoSummary.keys()).find(
+                orderId => normalize(orderId) === key
+            );
+            input3Amount = recoSummary.get(matchedOrderId) || 0;
+        }
+
+        // Round to 2 decimals to avoid floating-point precision issues.
+        const left = Math.round(input1Amount * 100) / 100;
+        const right = Math.round(input3Amount * 100) / 100;
+
+        // Show only mismatches.
+        if (left !== right) {
+            mismatchRows.push({
+                orderNumber: originalOrderNumber,
+                input1Cash: left,
+                input3Cash: right,
+                difference: Math.round((left - right) * 100) / 100,
+                input3Status: hasInput3Match ? "Matched Order ID" : "No Order ID Match"
+            });
+        }
+    });
+
+    let tableHTML = `
+        <thead>
+            <tr>
+                <th>Order Number</th>
+                <th>Input 1 Cash Collected</th>
+                <th>Input 3 Cash + Static QR</th>
+                <th>Difference</th>
+                <th>Input 3 Match</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    mismatchRows.forEach(row => {
+        tableHTML += `
+            <tr>
+                <td>${escapeHTML(row.orderNumber)}</td>
+                <td>${row.input1Cash.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}</td>
+                <td>${row.input3Cash.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}</td>
+                <td>${row.difference.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}</td>
+                <td>${escapeHTML(row.input3Status)}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += "</tbody>";
+    table.innerHTML = tableHTML;
+    document.getElementById("mismatchSummary").classList.remove("hidden");
+}
+
+function renderPreview(){
+    const table=document.getElementById("previewTable");
+    const previewHeaders=["Order Number","Order Date","Order Time","(Rider Name)","Store Name","Order Status","Cash Collected","Payment Mode","Settlement Mode"];
+    const cols=previewHeaders.filter(h=>headers.includes(h));
+    let html="<thead><tr>"+cols.map(h=>`<th>${escapeHTML(h)}</th>`).join("")+"</tr></thead><tbody>";
+    filtered.slice(0,100).forEach(r=>{
+        html+="<tr>"+cols.map(h=>`<td>${escapeHTML(r[h])}</td>`).join("")+"</tr>";
+    });
+    html+="</tbody>";
+    table.innerHTML=html;
+}
+function escapeHTML(v){
+    return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+
+downloadBtn.addEventListener("click",()=>{
+    if(!filtered.length) return;
+    const lines=[headers.map(csvEscape).join(",")];
+    filtered.forEach(r=>lines.push(headers.map(h=>csvEscape(r[h])).join(",")));
+    const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=`Zippee_Cash_MTD_${document.getElementById("d1Date").textContent.replaceAll("-","").replaceAll(" ","")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
