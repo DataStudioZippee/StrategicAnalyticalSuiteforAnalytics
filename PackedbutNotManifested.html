@@ -538,10 +538,6 @@ footer{
             <label for="reportTitleInput" style="font-size:13px;color:#33425a;">Report title:</label>
             <input type="text" id="reportTitleInput" value="Hyue &lt;&gt; Packed But Not Manifested" oninput="document.getElementById('reportBannerText').textContent = this.value">
         </div>
-        <div class="caution-row">
-            <label for="reportCautionInput" style="font-size:13px;color:#33425a;">Caution note:</label>
-            <input type="text" id="reportCautionInput" value="Caution: Includes only orders with an AWB assigned that have not yet been added to a manifest" oninput="document.getElementById('reportCautionText').textContent = this.value">
-        </div>
 
         <div id="reportCard">
             <div class="report-banner" id="reportBannerText">Hyue &lt;&gt; Packed But Not Manifested</div>
@@ -549,7 +545,7 @@ footer{
                 <thead><tr id="pivotHead"></tr></thead>
                 <tbody id="pivotBody"></tbody>
             </table>
-            <div class="report-caution" id="reportCautionText">Caution: Includes only orders with an AWB assigned that have not yet been added to a manifest</div>
+            
             <div class="report-watermark">Powered By SASA Automation</div>
         </div>
 
