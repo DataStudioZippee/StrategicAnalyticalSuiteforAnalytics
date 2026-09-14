@@ -541,7 +541,7 @@ footer{
             <label for="reportTitleInput" style="font-size:13px;color:#33425a;">Report title:</label>
             <input type="text" id="reportTitleInput" value="Hyue &lt;&gt; Shopify Packing Pendancy" oninput="document.getElementById('reportBannerText').textContent = this.value">
         </div>
-        
+       
         <div id="reportCard">
             <div class="report-banner" id="reportBannerText">Hyue &lt;&gt; Shopify Packing Pendancy</div>
             <table class="report-table" id="pivotTable">
@@ -683,12 +683,17 @@ async function loadFiles(){
 /* ---------- PENDING ORDER CHECK ---------- */
 function checkPendingOrders(){
     const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
+    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
     const modalEl = document.getElementById('pendingAlert');
     if(!statusCol){
         modalEl.classList.remove('show');
         return;
     }
-    const hasPending = RAW_ROWS.some(r => (r[statusCol] || '').toString().trim().toLowerCase() === 'pending');
+    // Apply the Shopify filter first, then check for Pending within that subset
+    const scoped = channelCol
+        ? RAW_ROWS.filter(r => (r[channelCol] || '').toString().trim().toLowerCase() === 'shopify')
+        : RAW_ROWS;
+    const hasPending = scoped.some(r => (r[statusCol] || '').toString().trim().toLowerCase() === 'pending');
     if(hasPending){
         modalEl.classList.add('show');
     } else {
