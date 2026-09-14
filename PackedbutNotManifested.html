@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zippee | Packed But Not Manifested</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/**/
+
+.table-wrapper{
+    width:100%;
+    overflow-x:auto;
+    margin-top:15px;
+}
+
+.clean-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+}
+
+.clean-table th{
+    background:#ff9800;
+    color:#000;
+    padding:8px;
+    white-space:nowrap;
+}
+
+.clean-table td{
+    padding:6px;
+    text-align:center;
+    white-space:nowrap;
+}
+
+.summary-input{
+    width:65px;
+    padding:4px;
+    text-align:center;
+    border:1px solid #ccc;
+    border-radius:5px;
+}
+
+/* ================= GLOBAL ================= */
+body{
+    margin:0;
+    font-family:"Segoe UI", Arial;
+    background:url('sasa.png') center/cover fixed no-repeat;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,0.25);
+    backdrop-filter:blur(6px);
+    z-index:-1;
+}
+
+/* ================= HEADER ================= */
+.zippee-header{
+    width:100%;
+    background:linear-gradient(90deg,#003f8c,#0059b3);
+    color:white;
+    padding:16px 32px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.zippee-header h1{
+    margin:0;
+    font-size:22px;
+}
+
+/* ================= MAIN CONTAINER ================= */
+.main-container{
+    width:100%;
+    max-width:2000px;
+    padding:20px;
+}
+
+/* ================= SECTION CARD ================= */
+.section-card{
+    background: rgba(255,255,255,0.92);
+    border-radius:14px;
+    padding:18px 20px 22px;
+    margin:26px auto;
+    box-shadow:0 12px 30px rgba(0,0,0,0.12);
+    max-width: 1800px;
+    width: 98%;
+}
+
+.section-title{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:14px;
+    color:#0b1f3b;
+}
+
+/* ================= CONTROLS ================= */
+.controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:20px;
+}
+
+.controls button{
+    background:linear-gradient(135deg,#0A66C2,#0078FF);
+    border:none;
+    border-radius:10px;
+    padding:10px 16px;
+    color:white;
+    cursor:pointer;
+    font-weight:700;
+}
+.controls button.secondary{
+    background:linear-gradient(135deg,#6b7280,#4b5563);
+}
+.controls button.active{
+    outline:3px solid #ffb703;
+}
+
+/* ================= SEARCH ================= */
+.search-section{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+/* ================= TABLE ================= */
+.clean-table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    font-size:14px;
+}
+
+.clean-table thead th{
+    background:#0b4ea2;
+    color:white;
+    padding:10px 12px;
+    font-weight:600;
+}
+
+.clean-table tbody td{
+    padding:9px 12px;
+    border-bottom:1px solid #e3e6ec;
+}
+
+.clean-table tbody tr:hover{
+    background:#f6f9ff;
+}
+
+.clean-table th:first-child,
+.clean-table td:first-child{
+    text-align:left;
+}
+
+.clean-table th:not(:first-child),
+.clean-table td:not(:first-child){
+    text-align:center;
+}
+
+.clean-table .total-row td{
+    background:#b7c9e8;
+    font-weight:700;
+    border-top:2px solid #0b4ea2;
+}
+
+/* ================= FOOTER ================= */
+footer{
+    margin:30px 0 10px;
+    font-size:13px;
+    opacity:0.8;
+    text-align:center;
+}
+.disclaimer{
+    text-align:center;
+    font-size:13px;
+    margin:10px 0 15px;
+    color:#b91c1c;
+    font-weight:600;
+}
+
+/* ============ EXTRA (page-specific, additive only) ============ */
+.upload-zone{
+    border:2px dashed #0b4ea2;
+    border-radius:14px;
+    padding:28px;
+    text-align:center;
+    cursor:pointer;
+    background:#f4f8ff;
+    transition:background .15s;
+}
+.upload-zone:hover, .upload-zone.drag{
+    background:#e8f0fe;
+}
+.upload-zone input{ display:none; }
+.file-list{
+    margin-top:14px;
+    font-size:13px;
+    color:#33425a;
+}
+.file-chip{
+    display:inline-block;
+    background:#eef2fb;
+    border:1px solid #cfd9ec;
+    border-radius:20px;
+    padding:5px 12px;
+    margin:4px 4px 0 0;
+    font-size:12px;
+}
+.file-chip .rm{
+    cursor:pointer;
+    color:#b91c1c;
+    font-weight:700;
+    margin-left:8px;
+}
+.config-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:16px;
+    margin:18px 0;
+}
+.config-block{
+    background:#f9fafc;
+    border:1px solid #e3e6ec;
+    border-radius:10px;
+    padding:12px 14px;
+}
+.config-block h4{
+    margin:0 0 8px;
+    font-size:13px;
+    color:#0b1f3b;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+}
+.chk-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    margin:4px 0;
+}
+.stat-strip{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:22px;
+}
+.stat-box{
+    background:#0b1f3b;
+    color:#fff;
+    border-radius:12px;
+    padding:14px 22px;
+    min-width:150px;
+    text-align:center;
+}
+.stat-box .num{
+    font-size:26px;
+    font-weight:800;
+    line-height:1.1;
+}
+.stat-box .lbl{
+    font-size:12px;
+    opacity:0.75;
+    margin-top:4px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+}
+.search-section input[type="text"]{
+    padding:10px 14px;
+    border:1px solid #cfd6e2;
+    border-radius:10px;
+    min-width:260px;
+    font-size:14px;
+}
+.badge{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+}
+.badge.assigned{ background:#fde6c8; color:#8a4a00; }
+.badge.confirmed{ background:#d6ebd9; color:#1c6b2a; }
+.badge.other{ background:#e5e7eb; color:#374151; }
+.row-count{
+    text-align:center;
+    font-size:13px;
+    color:#5a6472;
+    margin-top:10px;
+}
+.logic-box{
+    background:#f4f7fc;
+    border-left:4px solid #0b4ea2;
+    border-radius:8px;
+    padding:12px 16px;
+    font-size:13px;
+    color:#33425a;
+    margin-bottom:18px;
+    line-height:1.6;
+}
+.logic-box code{
+    background:#e7edf8;
+    padding:1px 6px;
+    border-radius:4px;
+}
+.empty-state{
+    text-align:center;
+    color:#7a8494;
+    padding:30px;
+    font-size:14px;
+}
+.status-pill{
+    font-size:12px;
+    color:#0b4ea2;
+    font-weight:700;
+}
+.pending-modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(20,20,20,0.55);
+    z-index:1000;
+    align-items:center;
+    justify-content:center;
+}
+.pending-modal-overlay.show{
+    display:flex;
+}
+.pending-modal{
+    background:#fff;
+    border-radius:14px;
+    max-width:460px;
+    width:90%;
+    padding:26px 28px 22px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+    border-top:6px solid #D64545;
+}
+.pending-modal .icon{
+    font-size:36px;
+    margin-bottom:10px;
+}
+.pending-modal h3{
+    margin:0 0 10px;
+    color:#7A1414;
+    font-size:17px;
+}
+.pending-modal p{
+    margin:0 0 20px;
+    color:#4a4a4a;
+    font-size:14px;
+    line-height:1.5;
+}
+.pending-modal button{
+    background:linear-gradient(135deg,#D64545,#B32C2C);
+    border:none;
+    color:#fff;
+    font-weight:700;
+    padding:10px 22px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:14px;
+}
+
+/* ============ REPORT CARD (matches the reference screenshot) ============ */
+.report-title-row{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+}
+.report-title-row input{
+    text-align:center;
+    font-size:13px;
+    padding:6px 10px;
+    border:1px solid #cfd6e2;
+    border-radius:8px;
+    width:340px;
+}
+#reportCard{
+    width:100%;
+    max-width:720px;
+    margin:0 auto;
+    border:1px solid #9aa5b1;
+    background:#ffffff;
+    font-family:"Segoe UI", Arial, sans-serif;
+}
+.report-banner{
+    background:#4FC3E8;
+    color:#000;
+    font-weight:800;
+    font-size:24px;
+    text-align:center;
+    padding:14px 10px;
+    border-bottom:1px solid #9aa5b1;
+}
+.report-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:15px;
+}
+.report-table th{
+    text-align:center;
+    font-weight:700;
+    padding:8px 12px;
+    border:1px solid #9aa5b1;
+    background:#fff;
+}
+.report-table td{
+    padding:7px 12px;
+    border:1px solid #9aa5b1;
+    text-align:center;
+}
+.report-table td:first-child{
+    text-align:center;
+    font-weight:400;
+}
+.report-table tr.grand-row td{
+    font-weight:700;
+}
+.report-watermark{
+    text-align:center;
+    padding:10px;
+    font-size:14px;
+    color:#000;
+    border-top:1px solid #9aa5b1;
+    background:#fff;
+}
+.report-caution{
+    text-align:center;
+    padding:9px 14px;
+    font-size:13px;
+    font-weight:700;
+    color:#7a3b00;
+    background:#FFF3CD;
+    border-top:1px solid #9aa5b1;
+}
+.caution-row{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    margin-top:10px;
+}
+.caution-row input{
+    text-align:center;
+    font-size:13px;
+    padding:6px 10px;
+    border:1px solid #cfd6e2;
+    border-radius:8px;
+    width:440px;
+}
+</style>
+</head>
+<body>
+
+<div class="zippee-header">
+    <h1>Zippee &middot; Packed But Not Manifested</h1>
+    <div id="rangeLabel" style="font-size:13px;opacity:0.9;"></div>
+</div>
+
+<div class="pending-modal-overlay" id="pendingAlert">
+    <div class="pending-modal">
+        <div class="icon">&#9888;&#65039;</div>
+        <h3>Pending Orders Found</h3>
+        <p>Pending order are available in the data, The User need to create a separate report</p>
+        <button onclick="closePendingModal()">OK, Got it</button>
+    </div>
+</div>
+
+<div class="main-container">
+
+    <div class="section-card">
+        <div class="section-title">1. Upload Data</div>
+        <div class="upload-zone" id="dropZone">
+            <div id="dzLabel">Drag & drop one or more <b>.csv</b> or <b>.zip</b> export files here, or click to browse</div>
+            <input type="file" id="fileInput" multiple accept=".csv,.zip">
+        </div>
+        <div class="file-list" id="fileList"></div>
+        <div class="controls" style="margin-top:16px;">
+            <button onclick="loadFiles()">Process Files</button>
+            <button class="secondary" onclick="clearAll()">Clear All</button>
+        </div>
+        <div class="status-pill" id="statusPill"></div>
+    </div>
+
+    <div class="section-card" id="configCard" style="display:none;">
+        <div class="section-title">2. Report Filters</div>
+        <div class="logic-box">
+            Logic: filter to the selected channel(s), keep rows where <code>Manifest ID</code> is blank
+            (i.e. just the placeholder <code>`</code>) and <code>AWB No</code> is present &mdash; meaning the
+            order has a shipping label but hasn't been added to a manifest yet ("packed but not manifested") &mdash;
+            then pivot by day &times; Order Status, counting AWB No.
+        </div>
+        <div class="config-grid">
+            <div class="config-block">
+                <h4>Channel (MP Name)</h4>
+                <div id="channelChecks"></div>
+            </div>
+            <div class="config-block">
+                <h4>Order Status</h4>
+                <div id="statusChecks"></div>
+            </div>
+            <div class="config-block">
+                <h4>Other Filters</h4>
+                <div class="chk-row"><input type="checkbox" id="manifestBlankToggle" checked><label for="manifestBlankToggle">Manifest ID is blank (`)</label></div>
+                <div class="chk-row"><input type="checkbox" id="awbPresentToggle" checked><label for="awbPresentToggle">AWB No is present (packed)</label></div>
+            </div>
+        </div>
+        <div class="controls">
+            <button onclick="generateReport()">Generate Report</button>
+        </div>
+    </div>
+
+    <div class="section-card" id="pivotCard" style="display:none;">
+        <div class="section-title">3. Pivot Summary</div>
+        <div class="stat-strip" id="statStrip"></div>
+
+        <div class="report-title-row">
+            <label for="reportTitleInput" style="font-size:13px;color:#33425a;">Report title:</label>
+            <input type="text" id="reportTitleInput" value="Hyue &lt;&gt; Packed But Not Manifested" oninput="document.getElementById('reportBannerText').textContent = this.value">
+        </div>
+        <div class="caution-row">
+            <label for="reportCautionInput" style="font-size:13px;color:#33425a;">Caution note:</label>
+            <input type="text" id="reportCautionInput" value="Caution: Includes only orders with an AWB assigned that have not yet been added to a manifest" oninput="document.getElementById('reportCautionText').textContent = this.value">
+        </div>
+
+        <div id="reportCard">
+            <div class="report-banner" id="reportBannerText">Hyue &lt;&gt; Packed But Not Manifested</div>
+            <table class="report-table" id="pivotTable">
+                <thead><tr id="pivotHead"></tr></thead>
+                <tbody id="pivotBody"></tbody>
+            </table>
+            <div class="report-caution" id="reportCautionText">Caution: Includes only orders with an AWB assigned that have not yet been added to a manifest</div>
+            <div class="report-watermark">Powered By SASA Automation</div>
+        </div>
+
+        <div class="controls" style="margin-top:18px;">
+            <button onclick="downloadPivotPNG()">Download Report as PNG</button>
+        </div>
+    </div>
+
+    <div class="section-card" id="detailCard" style="display:none;">
+        <div class="section-title">Matching Orders</div>
+
+        <div class="controls" id="dayButtons"></div>
+
+        <div class="search-section">
+            <input type="text" id="searchBox" placeholder="Search Reference Code, Product, City, State..." oninput="renderDetail()">
+            <span>Min rows:</span>
+            <input type="number" class="summary-input" id="minRows" value="0" min="0" oninput="renderDetail()">
+        </div>
+
+        <div class="table-wrapper">
+            <table class="clean-table" id="detailTable">
+                <thead>
+                    <tr>
+                        <th>Ref Code</th>
+                        <th>Suborder No</th>
+                        <th>AWB No</th>
+                        <th>Manifest ID</th>
+                        <th>Order Status</th>
+                        <th>Day</th>
+                        <th>Import Date</th>
+                        <th>Product Name</th>
+                        <th>City</th>
+                        <th>State</th>
+                    </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+            </table>
+        </div>
+        <div class="row-count" id="rowCount"></div>
+        <div class="controls">
+            <button onclick="exportCSV()">Export CSV</button>
+        </div>
+    </div>
+
+    <div class="disclaimer">This report recomputes entirely in your browser from the files you upload — nothing is sent anywhere.</div>
+    <footer>Zippee Order Status Tracker &middot; Internal use only</footer>
+</div>
+
+<script>
+let RAW_ROWS = [];       // all parsed rows from all uploaded files, as objects
+let HEADERS = [];        // detected headers
+let RECORDS = [];        // final filtered+pivoted records
+let selectedFiles = [];
+let dayFilter = 'all';
+let statusFilter = 'all';
+
+/* ---------- FILE HANDLING ---------- */
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', ()=> fileInput.click());
+dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e=>{
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e=> addFiles(e.target.files));
+
+function addFiles(fileListObj){
+    for(const f of fileListObj) selectedFiles.push(f);
+    renderFileList();
+}
+function removeFile(idx){
+    selectedFiles.splice(idx,1);
+    renderFileList();
+}
+function renderFileList(){
+    const el = document.getElementById('fileList');
+    el.innerHTML = selectedFiles.map((f,i)=>
+        `<span class="file-chip">${f.name} <span class="rm" onclick="removeFile(${i})">&times;</span></span>`
+    ).join('');
+}
+function clearAll(){
+    selectedFiles = [];
+    RAW_ROWS = [];
+    RECORDS = [];
+    renderFileList();
+    document.getElementById('configCard').style.display='none';
+    document.getElementById('pivotCard').style.display='none';
+    document.getElementById('detailCard').style.display='none';
+    document.getElementById('statusPill').textContent='';
+    document.getElementById('rangeLabel').textContent='';
+    document.getElementById('pendingAlert').classList.remove('show');
+}
+
+async function loadFiles(){
+    if(!selectedFiles.length){
+        document.getElementById('statusPill').textContent = 'Add at least one .csv or .zip file first.';
+        return;
+    }
+    document.getElementById('statusPill').textContent = 'Parsing files...';
+    RAW_ROWS = [];
+    for(const file of selectedFiles){
+        if(file.name.toLowerCase().endsWith('.zip')){
+            const zip = await JSZip.loadAsync(file);
+            for(const name of Object.keys(zip.files)){
+                if(name.toLowerCase().endsWith('.csv')){
+                    const text = await zip.files[name].async('string');
+                    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+                    RAW_ROWS.push(...parsed.data);
+                }
+            }
+        } else {
+            const text = await file.text();
+            const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+            RAW_ROWS.push(...parsed.data);
+        }
+    }
+    if(!RAW_ROWS.length){
+        document.getElementById('statusPill').textContent = 'No rows found in the uploaded files.';
+        return;
+    }
+    HEADERS = Object.keys(RAW_ROWS[0]);
+    document.getElementById('statusPill').textContent = `Loaded ${RAW_ROWS.length} rows from ${selectedFiles.length} file(s).`;
+    checkPendingOrders();
+    buildConfigUI();
+    document.getElementById('configCard').style.display='block';
+    document.getElementById('configCard').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- PENDING ORDER CHECK ---------- */
+function checkPendingOrders(){
+    const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
+    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
+    const modalEl = document.getElementById('pendingAlert');
+    if(!statusCol){
+        modalEl.classList.remove('show');
+        return;
+    }
+    // Apply the Shopify filter first, then check for Pending within that subset
+    const scoped = channelCol
+        ? RAW_ROWS.filter(r => (r[channelCol] || '').toString().trim().toLowerCase() === 'shopify')
+        : RAW_ROWS;
+    const hasPending = scoped.some(r => (r[statusCol] || '').toString().trim().toLowerCase() === 'pending');
+    if(hasPending){
+        modalEl.classList.add('show');
+    } else {
+        modalEl.classList.remove('show');
+    }
+}
+function closePendingModal(){
+    document.getElementById('pendingAlert').classList.remove('show');
+}
+
+/* ---------- CONFIG UI ---------- */
+function buildConfigUI(){
+    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
+    const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
+
+    if(channelCol){
+        const vals = [...new Set(RAW_ROWS.map(r=>r[channelCol]).filter(v=>v))].sort();
+        document.getElementById('channelChecks').innerHTML = vals.map(v=>{
+            const checked = v === 'Shopify' ? 'checked' : '';
+            return `<div class="chk-row"><input type="checkbox" class="chan-chk" value="${v}" ${checked}><label>${v}</label></div>`;
+        }).join('');
+    } else {
+        document.getElementById('channelChecks').innerHTML = '<div style="font-size:12px;color:#888;">No "MP Name" column found</div>';
+    }
+
+    if(statusCol){
+        const vals = [...new Set(RAW_ROWS.map(r=>r[statusCol]).filter(v=>v))].sort();
+        document.getElementById('statusChecks').innerHTML = vals.map(v=>{
+            return `<div class="chk-row"><input type="checkbox" class="stat-chk" value="${v}" checked><label>${v}</label></div>`;
+        }).join('');
+    } else {
+        document.getElementById('statusChecks').innerHTML = '<div style="font-size:12px;color:#888;">No "Order Status" column found</div>';
+    }
+}
+
+/* ---------- REPORT GENERATION ---------- */
+function generateReport(){
+    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
+    const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
+    const manifestCol = HEADERS.includes('Manifest ID') ? 'Manifest ID' : null;
+    const awbCol = HEADERS.includes('AWB No') ? 'AWB No' : null;
+    const dateCol = HEADERS.includes('Import Date') ? 'Import Date' : (HEADERS.includes('Order Date') ? 'Order Date' : null);
+
+    const selectedChannels = [...document.querySelectorAll('.chan-chk:checked')].map(c=>c.value);
+    const selectedStatuses = [...document.querySelectorAll('.stat-chk:checked')].map(c=>c.value);
+    const manifestBlankOn = document.getElementById('manifestBlankToggle').checked;
+    const awbPresentOn = document.getElementById('awbPresentToggle').checked;
+
+    let rows = RAW_ROWS;
+
+    if(channelCol && selectedChannels.length){
+        rows = rows.filter(r => selectedChannels.includes(r[channelCol]));
+    }
+
+    function isBlankManifest(v){
+        if(v === undefined || v === null) return true;
+        const s = v.toString().trim();
+        return s === '' || s === '`';
+    }
+    function isPresent(v){
+        return v !== undefined && v !== null && v.toString().trim() !== '';
+    }
+
+    if(manifestBlankOn && manifestCol){
+        rows = rows.filter(r => isBlankManifest(r[manifestCol]));
+    }
+    if(awbPresentOn && awbCol){
+        rows = rows.filter(r => isPresent(r[awbCol]));
+    }
+    if(statusCol && selectedStatuses.length){
+        rows = rows.filter(r => selectedStatuses.includes(r[statusCol]));
+    }
+
+    rows = rows.map(r=>{
+        let day = '';
+        if(dateCol && r[dateCol]){
+            const d = new Date(r[dateCol].replace(' ','T'));
+            if(!isNaN(d)){
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                day = String(d.getDate()).padStart(2,'0') + '-' + months[d.getMonth()];
+            }
+        }
+        return {
+            'Reference Code': r['Reference Code'] || '',
+            'Suborder No': r['Suborder No'] || '',
+            'AWB No': r[awbCol] || '',
+            'Manifest ID': r[manifestCol] || '',
+            'Order Status': r[statusCol] || '',
+            'Day': day,
+            'Import Date': r[dateCol] || '',
+            'Product Name': r['Product Name'] || '',
+            'Category': r['Category'] || '',
+            'Shipping City': r['Shipping City'] || '',
+            'Shipping State': r['Shipping State'] || '',
+            '_sortDate': dateCol && r[dateCol] ? new Date(r[dateCol].replace(' ','T')) : null
+        };
+    }).filter(r => r.Day);
+
+    RECORDS = rows;
+    dayFilter = 'all';
+    statusFilter = 'all';
+    buildPivot();
+    buildDayButtons();
+    renderDetail();
+    document.getElementById('pivotCard').style.display='block';
+    document.getElementById('detailCard').style.display='block';
+    document.getElementById('pivotCard').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- PIVOT ---------- */
+function buildPivot(){
+    if(!RECORDS.length){
+        document.getElementById('pivotHead').innerHTML = '';
+        document.getElementById('pivotBody').innerHTML = '<tr><td class="empty-state">No rows match the current filters.</td></tr>';
+        document.getElementById('statStrip').innerHTML = '';
+        return;
+    }
+    const days = [...new Set(RECORDS.map(r=>r.Day))].sort((a,b)=>{
+        const rowA = RECORDS.find(r=>r.Day===a)._sortDate;
+        const rowB = RECORDS.find(r=>r.Day===b)._sortDate;
+        return (rowA||0) - (rowB||0);
+    });
+    const statuses = [...new Set(RECORDS.map(r=>r['Order Status']))].sort();
+
+    const head = document.getElementById('pivotHead');
+    head.innerHTML = '<th>Date</th>' + statuses.map(s=>`<th>${s}</th>`).join('') + '<th>Grand Total</th>';
+
+    const grid = {};
+    days.forEach(d=>{ grid[d] = {}; statuses.forEach(s=> grid[d][s]=0); });
+    RECORDS.forEach(r=>{ grid[r.Day][r['Order Status']]++; });
+
+    const body = document.getElementById('pivotBody');
+    let colTotals = {}; statuses.forEach(s=> colTotals[s]=0);
+    let bodyHtml = '';
+    days.forEach(d=>{
+        let rowTotal = 0;
+        let cells = statuses.map(s=>{ const v=grid[d][s]; colTotals[s]+=v; rowTotal+=v; return `<td>${v || ''}</td>`; }).join('');
+        bodyHtml += `<tr><td>${d}</td>${cells}<td>${rowTotal || ''}</td></tr>`;
+    });
+    const grand = Object.values(colTotals).reduce((a,b)=>a+b,0);
+    bodyHtml += `<tr class="grand-row"><td>Grand Total</td>${statuses.map(s=>`<td>${colTotals[s] || ''}</td>`).join('')}<td>${grand || ''}</td></tr>`;
+    body.innerHTML = bodyHtml;
+
+    let statBoxes = `<div class="stat-box"><div class="num">${grand}</div><div class="lbl">Total Matching Orders</div></div>`;
+    statuses.forEach(s=>{
+        statBoxes += `<div class="stat-box"><div class="num">${colTotals[s]}</div><div class="lbl">${s}</div></div>`;
+    });
+    statBoxes += `<div class="stat-box"><div class="num">${days.length}</div><div class="lbl">Days Covered</div></div>`;
+    document.getElementById('statStrip').innerHTML = statBoxes;
+    document.getElementById('rangeLabel').textContent = `Days: ${days.join(', ')}`;
+}
+
+function downloadPivotPNG(){
+    const card = document.getElementById('reportCard');
+    html2canvas(card, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
+        const link = document.createElement('a');
+        const titleSlug = (document.getElementById('reportTitleInput').value || 'report')
+            .replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').toLowerCase();
+        link.download = `${titleSlug || 'pivot_report'}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+}
+
+function buildDayButtons(){
+    const days = [...new Set(RECORDS.map(r=>r.Day))].sort((a,b)=>{
+        const rowA = RECORDS.find(r=>r.Day===a)._sortDate;
+        const rowB = RECORDS.find(r=>r.Day===b)._sortDate;
+        return (rowA||0) - (rowB||0);
+    });
+    const statuses = [...new Set(RECORDS.map(r=>r['Order Status']))].sort();
+    let html = `<button onclick="setDayFilter('all')">All Days</button>`;
+    days.forEach(d=> html += `<button onclick="setDayFilter('${d}')">${d}</button>`);
+    html += `<button onclick="setStatusFilter('all')">All Status</button>`;
+    statuses.forEach(s=> html += `<button onclick="setStatusFilter('${s}')">${s} Only</button>`);
+    document.getElementById('dayButtons').innerHTML = html;
+}
+
+function setDayFilter(d){ dayFilter = d; renderDetail(); }
+function setStatusFilter(s){ statusFilter = s; renderDetail(); }
+
+/* ---------- DETAIL TABLE ---------- */
+function renderDetail(){
+    if(!RECORDS.length){
+        document.getElementById('detailBody').innerHTML = '';
+        document.getElementById('rowCount').textContent = '';
+        return;
+    }
+    const q = document.getElementById('searchBox').value.trim().toLowerCase();
+    const minRows = parseInt(document.getElementById('minRows').value || '0');
+
+    let rows = RECORDS.filter(r=>{
+        if(dayFilter !== 'all' && r.Day !== dayFilter) return false;
+        if(statusFilter !== 'all' && r['Order Status'] !== statusFilter) return false;
+        if(q){
+            const hay = (r['Reference Code']+' '+r['Product Name']+' '+r['Shipping City']+' '+r['Shipping State']).toLowerCase();
+            if(!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    const body = document.getElementById('detailBody');
+    if(rows.length < minRows){
+        body.innerHTML = '<tr><td colspan="10" class="empty-state">Below min rows threshold</td></tr>';
+        document.getElementById('rowCount').textContent = `0 of ${RECORDS.length} rows shown`;
+        return;
+    }
+
+    body.innerHTML = rows.map(r=>{
+        const badgeClass = r['Order Status']==='Confirmed' ? 'confirmed' : (r['Order Status']==='Cancelled' ? 'other' : 'assigned');
+        return `<tr>
+            <td>${r['Reference Code']}</td>
+            <td>${r['Suborder No']}</td>
+            <td>${r['AWB No']}</td>
+            <td>${r['Manifest ID']}</td>
+            <td><span class="badge ${badgeClass}">${r['Order Status']}</span></td>
+            <td>${r['Day']}</td>
+            <td>${r['Import Date']}</td>
+            <td style="text-align:left;">${r['Product Name']}</td>
+            <td>${r['Shipping City']}</td>
+            <td>${r['Shipping State']}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('rowCount').textContent = `${rows.length} of ${RECORDS.length} rows shown`;
+}
+
+function exportCSV(){
+    const q = document.getElementById('searchBox').value.trim().toLowerCase();
+    let rows = RECORDS.filter(r=>{
+        if(dayFilter !== 'all' && r.Day !== dayFilter) return false;
+        if(statusFilter !== 'all' && r['Order Status'] !== statusFilter) return false;
+        if(q){
+            const hay = (r['Reference Code']+' '+r['Product Name']+' '+r['Shipping City']+' '+r['Shipping State']).toLowerCase();
+            if(!hay.includes(q)) return false;
+        }
+        return true;
+    });
+    const cols = ['Reference Code','Suborder No','AWB No','Manifest ID','Order Status','Day','Import Date','Product Name','Category','Shipping City','Shipping State'];
+    let csv = cols.join(',') + '\n';
+    rows.forEach(r=>{
+        csv += cols.map(c=>`"${(r[c]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'packed_not_manifested.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
