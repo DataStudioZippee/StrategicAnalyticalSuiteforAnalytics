@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hyue | Courier Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ================= GLOBAL ================= */
+body{
+    margin:0;
+    font-family:"Segoe UI", Arial;
+    background:#eef1f6;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+
+/* ================= HEADER ================= */
+.zippee-header{
+    width:100%;
+    background:linear-gradient(90deg,#003f8c,#0059b3);
+    color:white;
+    padding:16px 32px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    box-sizing:border-box;
+}
+.zippee-header h1{ margin:0; font-size:22px; }
+
+/* ================= MAIN CONTAINER ================= */
+.main-container{ width:100%; max-width:2000px; padding:20px; box-sizing:border-box; }
+
+/* ================= SECTION CARD ================= */
+.section-card{
+    background:#ffffff;
+    border-radius:14px;
+    padding:18px 20px 22px;
+    margin:26px auto;
+    box-shadow:0 12px 30px rgba(0,0,0,0.08);
+    max-width:1800px;
+    width:98%;
+    box-sizing:border-box;
+}
+.section-title{ font-size:18px; font-weight:700; margin-bottom:14px; color:#0b1f3b; }
+
+/* ================= CONTROLS ================= */
+.controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:20px; }
+.controls button{
+    background:linear-gradient(135deg,#0A66C2,#0078FF);
+    border:none; border-radius:10px; padding:10px 16px;
+    color:white; cursor:pointer; font-weight:700;
+}
+.controls button.secondary{ background:linear-gradient(135deg,#6b7280,#4b5563); }
+.controls button.ghost{ background:#fff; color:#0A66C2; border:1px solid #0A66C2; }
+
+/* ================= UPLOAD ================= */
+.upload-zone{
+    border:2px dashed #0b4ea2; border-radius:14px; padding:28px;
+    text-align:center; cursor:pointer; background:#f4f8ff; transition:background .15s;
+}
+.upload-zone:hover, .upload-zone.drag{ background:#e8f0fe; }
+.upload-zone input{ display:none; }
+.file-list{ margin-top:14px; font-size:13px; color:#33425a; text-align:center; }
+.file-chip{
+    display:inline-block; background:#eef2fb; border:1px solid #cfd9ec;
+    border-radius:20px; padding:5px 12px; margin:4px 4px 0 0; font-size:12px;
+}
+.file-chip .rm{ cursor:pointer; color:#b91c1c; font-weight:700; margin-left:8px; }
+.status-pill{ text-align:center; font-size:13px; color:#0b4ea2; font-weight:700; margin-top:6px; }
+
+/* ================= CONFIG ================= */
+.logic-box{
+    background:#f4f7fc; border-left:4px solid #0b4ea2; border-radius:8px;
+    padding:12px 16px; font-size:13px; color:#33425a; margin-bottom:18px; line-height:1.8;
+}
+.logic-box code{ background:#e7edf8; padding:1px 6px; border-radius:4px; }
+.logic-box ol{ margin:6px 0 0 18px; padding:0; }
+
+.config-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:16px; margin:18px 0;
+}
+.config-block{ background:#f9fafc; border:1px solid #e3e6ec; border-radius:10px; padding:12px 14px; }
+.config-block h4{
+    margin:0 0 8px; font-size:13px; color:#0b1f3b;
+    text-transform:uppercase; letter-spacing:.3px; display:flex; justify-content:space-between; align-items:center;
+}
+.config-block h4 .mini{
+    font-size:11px; text-transform:none; letter-spacing:0; font-weight:600;
+    color:#0A66C2; cursor:pointer;
+}
+.chk-row{ display:flex; align-items:center; gap:8px; font-size:13px; margin:4px 0; }
+.chk-list{ max-height:210px; overflow-y:auto; padding-right:4px; }
+
+/* ================= STAT STRIP ================= */
+.stat-strip{ display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-bottom:22px; }
+.stat-box{ background:#0b1f3b; color:#fff; border-radius:12px; padding:14px 22px; min-width:150px; text-align:center; }
+.stat-box .num{ font-size:26px; font-weight:800; line-height:1.1; }
+.stat-box .lbl{ font-size:12px; opacity:0.75; margin-top:4px; text-transform:uppercase; letter-spacing:0.4px; }
+
+/* ================= REPORT TITLE / CAUTION INPUTS ================= */
+.report-title-row, .caution-row{
+    display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;
+}
+.report-title-row input, .caution-row input{
+    text-align:center; font-size:13px; padding:6px 10px; border:1px solid #cfd6e2; border-radius:8px; min-width:300px;
+}
+
+/* ================= REPORT CARD (matches reference pivot screenshot) ================= */
+#reportCard{
+    width:100%; max-width:900px; margin:0 auto; border:1px solid #9aa5b1; background:#ffffff;
+    font-family:"Segoe UI", Arial, sans-serif;
+}
+.report-banner{
+    background:#4FC3E8; color:#000; font-weight:800; font-size:24px;
+    text-align:center; padding:14px 10px 10px; border-bottom:1px solid #9aa5b1;
+}
+.report-banner-sub{
+    background:#4FC3E8; color:#0b1f3b; font-weight:600; font-size:13px;
+    text-align:center; padding:0 10px 12px; border-bottom:1px solid #9aa5b1;
+}
+.courier-banner{
+    background:#D96FE0; color:#000; font-weight:800; font-size:18px;
+    text-align:center; padding:10px 10px; border-top:1px solid #9aa5b1; border-bottom:1px solid #9aa5b1;
+}
+.report-table{ width:100%; border-collapse:collapse; font-size:14px; }
+.report-table th{
+    text-align:center; font-weight:700; padding:7px 10px; border:1px solid #9aa5b1; background:#fff;
+}
+.report-table td{ padding:6px 10px; border:1px solid #9aa5b1; text-align:center; }
+.report-table td:first-child{ text-align:left; font-weight:400; }
+.report-table tr.grand-row td{ font-weight:700; background:#f2f4f8; }
+.report-watermark{ text-align:center; padding:10px; font-size:13px; color:#000; border-top:1px solid #9aa5b1; background:#fff; }
+.report-caution{
+    text-align:center; padding:9px 14px; font-size:13px; font-weight:700; color:#7a3b00;
+    background:#FFF3CD; border-top:1px solid #9aa5b1;
+}
+.empty-state{ text-align:center; color:#7a8494; padding:30px; font-size:14px; }
+
+/* ================= DETAIL TABLE ================= */
+.search-section{ display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+.search-section input[type="text"]{
+    padding:10px 14px; border:1px solid #cfd6e2; border-radius:10px; min-width:260px; font-size:14px;
+}
+.table-wrapper{ width:100%; overflow-x:auto; margin-top:15px; }
+.clean-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.clean-table thead th{ background:#0b4ea2; color:white; padding:9px 11px; white-space:nowrap; font-weight:600; }
+.clean-table tbody td{ padding:8px 11px; border-bottom:1px solid #e3e6ec; white-space:nowrap; text-align:center; }
+.clean-table tbody tr:hover{ background:#f6f9ff; }
+.clean-table th:first-child, .clean-table td:first-child{ text-align:left; }
+.row-count{ text-align:center; font-size:13px; color:#5a6472; margin-top:10px; }
+.badge{ display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+.badge.delivered{ background:#d6ebd9; color:#1c6b2a; }
+.badge.transit{ background:#fde6c8; color:#8a4a00; }
+.badge.undelivered{ background:#fbd4d4; color:#8a1414; }
+.badge.other{ background:#e5e7eb; color:#374151; }
+
+/* ================= FOOTER ================= */
+footer{ margin:30px 0 10px; font-size:13px; opacity:0.7; text-align:center; }
+.disclaimer{ text-align:center; font-size:13px; margin:10px 0 15px; color:#b91c1c; font-weight:600; }
+
+/* ================= PENDING MODAL ================= */
+.pending-modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(20,20,20,0.55); z-index:1000;
+    align-items:center; justify-content:center;
+}
+.pending-modal-overlay.show{ display:flex; }
+.pending-modal{
+    background:#fff; border-radius:14px; max-width:460px; width:90%; padding:26px 28px 22px;
+    text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.35); border-top:6px solid #D64545;
+}
+.pending-modal .icon{ font-size:36px; margin-bottom:10px; }
+.pending-modal h3{ margin:0 0 10px; color:#7A1414; font-size:17px; }
+.pending-modal p{ margin:0 0 20px; color:#4a4a4a; font-size:14px; line-height:1.5; }
+.pending-modal .count{ font-weight:800; }
+.pending-modal button{
+    background:linear-gradient(135deg,#D64545,#B32C2C); border:none; color:#fff; font-weight:700;
+    padding:10px 22px; border-radius:10px; cursor:pointer; font-size:14px;
+}
+</style>
+</head>
+<body>
+
+<div class="zippee-header">
+    <h1>Hyue &middot; Courier Report</h1>
+    <div id="rangeLabel" style="font-size:13px;opacity:0.9;"></div>
+</div>
+
+<div class="pending-modal-overlay" id="pendingAlert">
+    <div class="pending-modal">
+        <div class="icon">&#9888;&#65039;</div>
+        <h3>Pending Orders Found</h3>
+        <p><span class="count" id="pendingCount">0</span> row(s) with Order Status = <b>Pending</b> were found within Shopify orders.
+        These need a separate report — they are excluded from the courier pivot below.</p>
+        <button onclick="closePendingModal()">OK, Got it</button>
+    </div>
+</div>
+
+<div class="main-container">
+
+    <div class="section-card">
+        <div class="section-title">1. Upload Data</div>
+        <div class="upload-zone" id="dropZone">
+            <div id="dzLabel">Drag & drop one or more <b>.csv</b> or <b>.zip</b> export files here, or click to browse</div>
+            <input type="file" id="fileInput" multiple accept=".csv,.zip">
+        </div>
+        <div class="file-list" id="fileList"></div>
+        <div class="controls" style="margin-top:16px;">
+            <button onclick="loadFiles()">Process Files</button>
+            <button class="secondary" onclick="clearAll()">Clear All</button>
+        </div>
+        <div class="status-pill" id="statusPill"></div>
+    </div>
+
+    <div class="section-card" id="configCard" style="display:none;">
+        <div class="section-title">2. Report Logic</div>
+        <div class="logic-box">
+            <b>Fixed pipeline (applied in order):</b>
+            <ol>
+                <li>Keep only <code>MP Name = Shopify</code> rows.</li>
+                <li>Check that subset's <code>Order Status</code> for <code>Pending</code> — if found, a caution popup appears and those rows are excluded from the report below.</li>
+                <li>Add a helper <code>Unique Column</code> on <code>Reference Code</code> (column E): the first row seen for each Reference Code is <code>Unique</code>, every repeat is <code>Duplicate</code> — same as <code>=IF(COUNTIF($E$2:E2,E2)=1,"Unique","Duplicate")</code>. This collapses a multi-product order (several suborder rows, one shared shipment) down to one counted row.</li>
+                <li>Pivot, filtered to <code>Unique Column = Unique</code> and the selected couriers below — Rows: <code>Import Date</code> (by day) &middot; Columns: <code>Shipping Status</code> &middot; Values: count of <code>AWB No</code> — one table per selected courier.</li>
+            </ol>
+        </div>
+
+        <div class="config-grid">
+            <div class="config-block">
+                <h4>Courier Filter <span class="mini" onclick="presetCouriers()">reset to BLUEDART + Delhivery + DTDC</span></h4>
+                <div class="chk-list" id="courierChecks"></div>
+                <div class="controls" style="margin-top:10px;margin-bottom:0;">
+                    <button class="ghost" onclick="toggleAllCouriers(true)">Select All</button>
+                    <button class="ghost" onclick="toggleAllCouriers(false)">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="generateReport()">Generate Report</button>
+        </div>
+    </div>
+
+    <div class="section-card" id="pivotCard" style="display:none;">
+        <div class="section-title">3. Courier &times; Shipping Status Report</div>
+        <div class="stat-strip" id="statStrip"></div>
+
+        <div class="report-title-row">
+            <label for="reportTitleInput" style="font-size:13px;color:#33425a;">Report title:</label>
+            <input type="text" id="reportTitleInput" value="Hyue &lt;&gt; Courier Report" oninput="document.getElementById('reportBannerText').textContent = this.value">
+        </div>
+
+        <div id="reportCard">
+            <div class="report-banner" id="reportBannerText">Hyue &lt;&gt; Courier Report</div>
+            <div class="report-banner-sub" id="reportTimestamp"></div>
+            <div id="courierSections"></div>
+            <div class="report-watermark">Powered By SASA Automation</div>
+        </div>
+
+        <div class="controls" style="margin-top:18px;">
+            <button onclick="downloadPivotPNG()">Download Report as PNG</button>
+        </div>
+    </div>
+
+    <div class="section-card" id="detailCard" style="display:none;">
+        <div class="section-title">Matching Rows (Shopify + Unique + Selected Couriers)</div>
+
+        <div class="controls" id="courierButtons"></div>
+
+        <div class="search-section">
+            <input type="text" id="searchBox" placeholder="Search AWB No, Reference Code, City..." oninput="renderDetail()">
+        </div>
+
+        <div class="table-wrapper">
+            <table class="clean-table" id="detailTable">
+                <thead>
+                    <tr>
+                        <th>Reference Code</th>
+                        <th>Suborder No</th>
+                        <th>AWB No</th>
+                        <th>Courier</th>
+                        <th>Shipping Status</th>
+                        <th>Order Status</th>
+                        <th>Day</th>
+                        <th>Import Date</th>
+                        <th>Product Name</th>
+                        <th>City</th>
+                        <th>State</th>
+                    </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+            </table>
+        </div>
+        <div class="row-count" id="rowCount"></div>
+        <div class="controls">
+            <button onclick="exportCSV()">Export CSV</button>
+        </div>
+    </div>
+
+    <div class="disclaimer">This report recomputes entirely in your browser from the files you upload — nothing is sent anywhere.</div>
+    <footer>Hyue Courier Report &middot; Internal use only</footer>
+</div>
+
+<script>
+/* ---------- fixed column names (matches the standard export schema) ---------- */
+const COL_CHANNEL   = 'MP Name';
+const COL_STATUS    = 'Order Status';
+const COL_KEY        = 'Reference Code';   // column E — the Unique Column formula keys on this
+const COL_COURIER   = 'Courier';
+const COL_SHIP      = 'Shipping Status';
+const COL_DATE      = 'Import Date';
+const COL_AWB       = 'AWB No';
+
+let RAW_ROWS = [];
+let SHOPIFY_ROWS = [];     // Step 1 output
+let HEADERS = [];
+let RECORDS = [];          // fully filtered + enriched rows feeding the pivot
+let selectedFiles = [];
+let courierFilter = 'all';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* ---------- FILE HANDLING ---------- */
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', ()=> fileInput.click());
+dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e=>{
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e=> addFiles(e.target.files));
+
+function addFiles(fileListObj){
+    for(const f of fileListObj) selectedFiles.push(f);
+    renderFileList();
+}
+function removeFile(idx){ selectedFiles.splice(idx,1); renderFileList(); }
+function renderFileList(){
+    document.getElementById('fileList').innerHTML = selectedFiles.map((f,i)=>
+        `<span class="file-chip">${f.name} <span class="rm" onclick="removeFile(${i})">&times;</span></span>`
+    ).join('');
+}
+function clearAll(){
+    selectedFiles = []; RAW_ROWS = []; SHOPIFY_ROWS = []; RECORDS = [];
+    renderFileList();
+    document.getElementById('configCard').style.display='none';
+    document.getElementById('pivotCard').style.display='none';
+    document.getElementById('detailCard').style.display='none';
+    document.getElementById('statusPill').textContent='';
+    document.getElementById('rangeLabel').textContent='';
+    document.getElementById('pendingAlert').classList.remove('show');
+}
+
+async function loadFiles(){
+    if(!selectedFiles.length){
+        document.getElementById('statusPill').textContent = 'Add at least one .csv or .zip file first.';
+        return;
+    }
+    document.getElementById('statusPill').textContent = 'Parsing files...';
+    RAW_ROWS = [];
+    for(const file of selectedFiles){
+        if(file.name.toLowerCase().endsWith('.zip')){
+            const zip = await JSZip.loadAsync(file);
+            for(const name of Object.keys(zip.files)){
+                if(name.toLowerCase().endsWith('.csv')){
+                    const text = await zip.files[name].async('string');
+                    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+                    RAW_ROWS.push(...parsed.data);
+                }
+            }
+        } else {
+            const text = await file.text();
+            const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+            RAW_ROWS.push(...parsed.data);
+        }
+    }
+    if(!RAW_ROWS.length){
+        document.getElementById('statusPill').textContent = 'No rows found in the uploaded files.';
+        return;
+    }
+    HEADERS = Object.keys(RAW_ROWS[0]);
+
+    const missing = [COL_CHANNEL, COL_STATUS, COL_KEY, COL_COURIER, COL_SHIP, COL_DATE, COL_AWB].filter(c=>!HEADERS.includes(c));
+    if(missing.length){
+        document.getElementById('statusPill').textContent = `Missing expected column(s): ${missing.join(', ')}`;
+        return;
+    }
+
+    // ---- Step 1: MP Name = Shopify only ----
+    SHOPIFY_ROWS = RAW_ROWS.filter(r => (r[COL_CHANNEL]||'').toString().trim().toLowerCase() === 'shopify');
+
+    document.getElementById('statusPill').textContent =
+        `Loaded ${RAW_ROWS.length} rows from ${selectedFiles.length} file(s) — ${SHOPIFY_ROWS.length} are Shopify orders.`;
+
+    // ---- Step 2: check for Pending within the Shopify subset ----
+    checkPendingOrders();
+
+    buildCourierChecks();
+    document.getElementById('configCard').style.display='block';
+    document.getElementById('configCard').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- Step 2: PENDING ORDER CHECK (within Shopify subset only) ---------- */
+function checkPendingOrders(){
+    const pendingRows = SHOPIFY_ROWS.filter(r => (r[COL_STATUS]||'').toString().trim().toLowerCase() === 'pending');
+    const modalEl = document.getElementById('pendingAlert');
+    if(pendingRows.length){
+        document.getElementById('pendingCount').textContent = pendingRows.length;
+        modalEl.classList.add('show');
+    } else {
+        modalEl.classList.remove('show');
+    }
+}
+function closePendingModal(){ document.getElementById('pendingAlert').classList.remove('show'); }
+
+/* ---------- Courier picker (built from the Shopify subset) ---------- */
+function buildCourierChecks(){
+    const vals = [...new Set(SHOPIFY_ROWS.map(r=>(r[COL_COURIER]||'').toString()).filter(v=>v.trim()!==''))].sort();
+    document.getElementById('courierChecks').innerHTML = vals.map(v=>
+        `<div class="chk-row"><input type="checkbox" class="courier-chk" value="${escapeAttr(v)}"><label>${v}</label></div>`
+    ).join('');
+    presetCouriers();
+}
+function presetCouriers(){
+    const wanted = ['bluedart','dtdc','delhivery'];
+    document.querySelectorAll('.courier-chk').forEach(c=>{
+        c.checked = wanted.some(w => c.value.toLowerCase().trim() === w);
+    });
+}
+function toggleAllCouriers(state){
+    document.querySelectorAll('.courier-chk').forEach(c=> c.checked = state);
+}
+function escapeAttr(s){ return s.replace(/"/g,'&quot;'); }
+
+/* ---------- Day formatting for Import Date ---------- */
+function formatDay(dateVal){
+    if(!dateVal) return null;
+    const d = new Date(dateVal.toString().replace(' ','T'));
+    if(isNaN(d)) return null;
+    return { label: String(d.getDate()).padStart(2,'0') + '-' + MONTHS[d.getMonth()], sortKey: d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate() };
+}
+
+/* ---------- Step 3 + 4: Unique Column, filters, pivot ---------- */
+function generateReport(){
+    const selectedCouriers = [...document.querySelectorAll('.courier-chk:checked')].map(c=>c.value);
+    if(!selectedCouriers.length){
+        document.getElementById('statusPill').textContent = 'Select at least one courier before generating the report.';
+        return;
+    }
+
+    // Exclude Pending rows from the reporting base (they need their own report, per Step 2)
+    let base = SHOPIFY_ROWS.filter(r => (r[COL_STATUS]||'').toString().trim().toLowerCase() !== 'pending');
+    // Values field counts AWB No, so a row with no AWB yet can't count toward anything — drop it first
+    // so it doesn't skew the Unique Column (blank cells would otherwise collide with each other).
+    base = base.filter(r => (r[COL_AWB]||'').toString().trim() !== '');
+
+    // Step 3: Unique Column — first occurrence per Reference Code (column E) = Unique, else Duplicate
+    const seen = new Set();
+    const withUnique = base.map(r=>{
+        const k = (r[COL_KEY] ?? '').toString();
+        let flag;
+        if(seen.has(k)){ flag = 'Duplicate'; }
+        else { seen.add(k); flag = 'Unique'; }
+        return { ...r, __uniqueFlag: flag };
+    });
+
+    // Step 4 filters: Unique Column = Unique, Courier = selected
+    let rows = withUnique.filter(r => r.__uniqueFlag === 'Unique');
+    rows = rows.filter(r => selectedCouriers.includes((r[COL_COURIER]||'').toString()));
+
+    rows = rows.map(r=>{
+        const day = formatDay(r[COL_DATE]);
+        return {
+            'Reference Code': r['Reference Code'] || '',
+            'Suborder No': r[COL_KEY] || '',
+            'AWB No': r[COL_AWB] || '',
+            'Courier': r[COL_COURIER] || '',
+            'Shipping Status': r[COL_SHIP] || '(blank)',
+            'Order Status': r[COL_STATUS] || '',
+            'Day': day ? day.label : '(no date)',
+            '_daySort': day ? day.sortKey : 999999,
+            'Import Date': r[COL_DATE] || '',
+            'Product Name': r['Product Name'] || '',
+            'Shipping City': r['Shipping City'] || '',
+            'Shipping State': r['Shipping State'] || ''
+        };
+    });
+
+    RECORDS = rows;
+    courierFilter = 'all';
+    stampReportTime();
+    buildPivotSections(selectedCouriers);
+    buildCourierButtons(selectedCouriers);
+    renderDetail();
+
+    document.getElementById('pivotCard').style.display='block';
+    document.getElementById('detailCard').style.display='block';
+    document.getElementById('pivotCard').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- Report timestamp ---------- */
+function stampReportTime(){
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2,'0');
+    const month = MONTHS[now.getMonth()];
+    const year = now.getFullYear();
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12; if(hours === 0) hours = 12;
+    const minutes = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById('reportTimestamp').textContent =
+        `Generated on ${day}-${month}-${year}, ${hours}:${minutes} ${ampm}`;
+}
+
+/* ---------- PIVOT: one section per courier, in the order selected ---------- */
+function buildPivotSections(selectedCouriers){
+    const container = document.getElementById('courierSections');
+
+    if(!RECORDS.length){
+        container.innerHTML = '<div class="empty-state">No rows match the current filters.</div>';
+        document.getElementById('statStrip').innerHTML = '';
+        return;
+    }
+
+    // Global status list — kept consistent as columns across every courier section
+    const allStatuses = [...new Set(RECORDS.map(r=>r['Shipping Status']))].sort();
+
+    let html = '';
+    // Render every selected courier, even ones with zero matching rows in this file —
+    // "selected in the filter" should always produce a (possibly empty) section.
+    selectedCouriers.forEach(courier=>{
+        const rowsForCourier = RECORDS.filter(r=>r.Courier===courier);
+
+        const days = [...new Set(rowsForCourier.map(r=>r.Day))]
+            .sort((a,b)=>{
+                const sa = rowsForCourier.find(r=>r.Day===a)._daySort;
+                const sb = rowsForCourier.find(r=>r.Day===b)._daySort;
+                return sa - sb;
+            });
+
+        const grid = {};
+        days.forEach(d=>{ grid[d]={}; allStatuses.forEach(s=> grid[d][s]=0); });
+        rowsForCourier.forEach(r=>{ grid[r.Day][r['Shipping Status']]++; });
+
+        const colTotals = {}; allStatuses.forEach(s=> colTotals[s]=0);
+        let bodyRows = '';
+        days.forEach(d=>{
+            let rowTotal = 0;
+            const cells = allStatuses.map(s=>{
+                const v = grid[d][s]; colTotals[s]+=v; rowTotal+=v;
+                return `<td>${v ? v : ''}</td>`;
+            }).join('');
+            bodyRows += `<tr><td>${d}</td>${cells}<td>${rowTotal || ''}</td></tr>`;
+        });
+        const grandTotal = Object.values(colTotals).reduce((a,b)=>a+b,0);
+        bodyRows += `<tr class="grand-row"><td>Grand Total</td>${allStatuses.map(s=>`<td>${colTotals[s]}</td>`).join('')}<td>${grandTotal}</td></tr>`;
+
+        html += `
+        <div class="courier-banner">${courier}</div>
+        <table class="report-table">
+            <thead><tr><th>Row Labels</th>${allStatuses.map(s=>`<th>${s}</th>`).join('')}<th>Grand Total</th></tr></thead>
+            <tbody>${bodyRows}</tbody>
+        </table>`;
+    });
+
+    container.innerHTML = html || '<div class="empty-state">No rows match the current filters.</div>';
+
+    const statBoxes = [
+        `<div class="stat-box"><div class="num">${RECORDS.length}</div><div class="lbl">Unique AWBs Counted</div></div>`,
+        `<div class="stat-box"><div class="num">${selectedCouriers.length}</div><div class="lbl">Couriers Shown</div></div>`,
+        `<div class="stat-box"><div class="num">${allStatuses.length}</div><div class="lbl">Shipping Statuses</div></div>`
+    ].join('');
+    document.getElementById('statStrip').innerHTML = statBoxes;
+
+    const dayRange = [...new Set(RECORDS.map(r=>r.Day))].sort((a,b)=>{
+        const sa = RECORDS.find(r=>r.Day===a)._daySort;
+        const sb = RECORDS.find(r=>r.Day===b)._daySort;
+        return sa - sb;
+    });
+    document.getElementById('rangeLabel').textContent = `Days: ${dayRange.join(', ')}`;
+}
+
+function downloadPivotPNG(){
+    const card = document.getElementById('reportCard');
+    html2canvas(card, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
+        const link = document.createElement('a');
+        const titleSlug = (document.getElementById('reportTitleInput').value || 'courier_report')
+            .replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').toLowerCase();
+        link.download = `${titleSlug || 'courier_report'}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+}
+
+/* ---------- DETAIL TABLE ---------- */
+function buildCourierButtons(selectedCouriers){
+    const couriersWithData = selectedCouriers.filter(c => RECORDS.some(r=>r.Courier===c));
+    let html = `<button onclick="setCourierFilter('all')">All Couriers</button>`;
+    couriersWithData.forEach(c => html += `<button onclick="setCourierFilter('${escapeAttr(c)}')">${c}</button>`);
+    document.getElementById('courierButtons').innerHTML = html;
+}
+function setCourierFilter(c){ courierFilter = c; renderDetail(); }
+
+function statusBadgeClass(status){
+    const s = (status||'').toLowerCase();
+    if(s.includes('deliver') && !s.includes('undeliver') && !s.includes('out for')) return 'delivered';
+    if(s.includes('undeliver')) return 'undelivered';
+    if(s.includes('transit') || s.includes('out for') || s.includes('pickup')) return 'transit';
+    return 'other';
+}
+
+function renderDetail(){
+    if(!RECORDS.length){
+        document.getElementById('detailBody').innerHTML = '';
+        document.getElementById('rowCount').textContent = '';
+        return;
+    }
+    const q = document.getElementById('searchBox').value.trim().toLowerCase();
+    let rows = RECORDS.filter(r=>{
+        if(courierFilter !== 'all' && r.Courier !== courierFilter) return false;
+        if(q){
+            const hay = (r['AWB No']+' '+r['Reference Code']+' '+r['Shipping City']+' '+r['Shipping State']).toLowerCase();
+            if(!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    document.getElementById('detailBody').innerHTML = rows.map(r=>`
+        <tr>
+            <td>${r['Reference Code']}</td>
+            <td>${r['Suborder No']}</td>
+            <td>${r['AWB No']}</td>
+            <td>${r['Courier']}</td>
+            <td><span class="badge ${statusBadgeClass(r['Shipping Status'])}">${r['Shipping Status']}</span></td>
+            <td>${r['Order Status']}</td>
+            <td>${r['Day']}</td>
+            <td>${r['Import Date']}</td>
+            <td style="text-align:left;">${r['Product Name']}</td>
+            <td>${r['Shipping City']}</td>
+            <td>${r['Shipping State']}</td>
+        </tr>`).join('');
+
+    document.getElementById('rowCount').textContent = `${rows.length} of ${RECORDS.length} rows shown`;
+}
+
+function exportCSV(){
+    const q = document.getElementById('searchBox').value.trim().toLowerCase();
+    let rows = RECORDS.filter(r=>{
+        if(courierFilter !== 'all' && r.Courier !== courierFilter) return false;
+        if(q){
+            const hay = (r['AWB No']+' '+r['Reference Code']+' '+r['Shipping City']+' '+r['Shipping State']).toLowerCase();
+            if(!hay.includes(q)) return false;
+        }
+        return true;
+    });
+    const cols = ['Reference Code','Suborder No','AWB No','Courier','Shipping Status','Order Status','Day','Import Date','Product Name','Shipping City','Shipping State'];
+    let csv = cols.join(',') + '\n';
+    rows.forEach(r=>{
+        csv += cols.map(c=>`"${(r[c]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'courier_report_detail.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
