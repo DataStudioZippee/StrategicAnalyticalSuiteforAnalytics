@@ -175,10 +175,9 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
         <div class="step"><b>4. Payment Mode</b>Cash only</div>
     </div>
 
-    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 (Myntra Reco Sheet) is fetched automatically from a published Google Sheet once Input 1 and Input 2 are both loaded — no manual step needed. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b>.</div>
+    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 (Myntra Reco Sheet) is fetched automatically from a published Google Sheet once Input 1 and Input 2 are both loaded — no manual step needed. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b>. Once Input 3 finishes loading, the report is generated automatically.</div>
 
     <div class="button-group">
-        <button class="tool-button" id="processBtn" disabled>⚙️ Process Data</button>
         <button class="tool-button secondary" id="downloadBtn" disabled>⬇️ Download Filtered CSV</button>
     </div>
 
@@ -264,12 +263,7 @@ const recoRetryBtn = document.getElementById("recoRetryBtn");
 const RECO_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJq9hM3Y9h1CM213y-G9eFsL7X3tg03j1Fzh29Y5ogFavhfI6CPBe09nTx_yY3YF_R-cWedvXyOWgJ/pub?gid=0&single=true&output=csv";
 let recoFetchInProgress = false;
 
-const processBtn = document.getElementById("processBtn");
 const downloadBtn = document.getElementById("downloadBtn");
-
-function updateProcessState(){
-    processBtn.disabled = !(csvText && settlementCsvText && recoRows.length);
-}
 
 fileInput.addEventListener("change", async e => {
     const file = e.target.files[0];
@@ -278,7 +272,7 @@ fileInput.addEventListener("change", async e => {
     csvText = await file.text();
     document.getElementById("status").textContent = "Input 1 loaded. Now upload Input 2.";
     document.getElementById("results").classList.add("hidden");
-    updateProcessState();
+    resetForReprocess();
     maybeAutoFetchReco();
 });
 
@@ -287,9 +281,9 @@ settlementFileInput.addEventListener("change", async e => {
     if (!file) return;
     settlementFileName.textContent = file.name;
     settlementCsvText = await file.text();
-    document.getElementById("status").textContent = "Input 2 loaded. Both files are ready to process.";
+    document.getElementById("status").textContent = "Input 2 loaded. Fetching Input 3...";
     document.getElementById("results").classList.add("hidden");
-    updateProcessState();
+    resetForReprocess();
     maybeAutoFetchReco();
 });
 
@@ -308,13 +302,23 @@ function bindDrop(labelSelector, input, nameEl, successText){
         else settlementCsvText = await file.text();
         document.getElementById("status").textContent = successText;
         document.getElementById("results").classList.add("hidden");
-        updateProcessState();
+        resetForReprocess();
         maybeAutoFetchReco();
     });
 }
 
 bindDrop('label[for="csvFile"]', fileInput, fileName, "Input 1 loaded. Now upload Input 2.");
-bindDrop('label[for="settlementFile"]', settlementFileInput, settlementFileName, "Input 2 loaded. Both files are ready to process.");
+bindDrop('label[for="settlementFile"]', settlementFileInput, settlementFileName, "Input 2 loaded. Fetching Input 3...");
+
+// If Input 1 or Input 2 changes after a reco fetch already happened, clear
+// the old reco data so a fresh fetch + auto-process can happen again.
+function resetForReprocess(){
+    recoRows = [];
+    recoFileName.textContent = "Waiting for Input 1 & 2";
+    recoRetryBtn.classList.add("hidden");
+    downloadBtn.disabled = true;
+}
+
 // ---------- shared: turn cleaned row objects into the recoRows shape ----------
 function buildRecoRowsFromObjects(cleanedRows){
     if (!cleanedRows.length) {
@@ -420,8 +424,11 @@ async function fetchRecoData(){
 
         recoFileName.textContent = `${recoRows.length.toLocaleString("en-IN")} rows loaded`;
         document.getElementById("status").textContent =
-            `Input 3 fetched automatically: ${recoRows.length.toLocaleString("en-IN")} rows. Ready to process.`;
+            `Input 3 fetched automatically: ${recoRows.length.toLocaleString("en-IN")} rows. Processing…`;
         document.getElementById("results").classList.add("hidden");
+
+        // Input 1, 2 and 3 are all ready — auto-trigger processing, no button needed.
+        processData();
 
     } catch (err) {
         recoRows = [];
@@ -431,7 +438,6 @@ async function fetchRecoData(){
             "Error fetching Input 3 from Google Sheet: " + err.message;
     } finally {
         recoFetchInProgress = false;
-        updateProcessState();
     }
 }
 
@@ -475,7 +481,9 @@ function fmtDate(d){
     return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
 }
 
-processBtn.addEventListener("click", () => {
+// Runs automatically once Input 1, Input 2 and Input 3 (reco) are all ready.
+// (Previously triggered by the "Process Data" button, which has been removed.)
+function processData(){
     document.getElementById("loader").style.display="flex";
     setTimeout(() => {
         try{
@@ -606,7 +614,7 @@ processBtn.addEventListener("click", () => {
             document.getElementById("loader").style.display="none";
         }
     },80);
-});
+}
 
 function renderOrderSummary(){
     const table = document.getElementById("summaryTable");
