@@ -211,22 +211,65 @@ let planned={};
 fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vSZ-18de0srb6yUjkIVdVlZkZqzNAPD6XcLC8ZFPckoyAjTLxgpLekUd4KHoX95M2oqZP5ZUF9b19kQ/pub?gid=0&single=true&output=csv")
 .then(r=>r.text())
 .then(t=>{
-  const rows=t.split("\n").map(r=>r.split(","));
-  const h = rows[0].map(x => x.trim());
+  const rows=t.trim().split(/\r?\n/).map(r=>r.split(",").map(c=>c.trim()));
+  const h = rows[0];
 
 rows.slice(1).forEach(r=>{
-  const storeName = r[0].trim();
+  const storeName = (r[0]||"").trim();
+  if(!storeName) return;
 
   planned[storeName] = {};
 
   h.slice(1).forEach((x,i)=>{
-    planned[storeName][x.trim()] = parseInt(r[i+1]) || 0;
+    planned[storeName][x] = parseInt(r[i+1]) || 0;
   });
 });
 });
+
 /* ===== HELPERS ===== */
 const bfCls=v=>v>2.5?"bf-red":v>=2?"bf-yellow":"bf-green";
 
+/*
+  Parses one store's pasted text and pulls out the fields we need.
+
+  Field directions in the source dashboard are NOT consistent:
+   - "Active Riders" / "Banner Factor": VALUE appears BEFORE the label
+     (e.g. "16" then "Active Riders")
+   - The order-status block's "In Store" / "Unassigned": VALUE appears
+     AFTER the label (e.g. "In Store" then "12")
+   - The rider-status block's "In Store" / "Checked Out": VALUE appears
+     BEFORE the label (e.g. "1" then "In Store", "3" then "Checked Out")
+     -- this is a SECOND, later "In Store" occurrence in the same paste.
+
+  So "In Store" is matched twice: first occurrence = order-status
+  (pending-orders component), second occurrence = rider-status (idle
+  riders). We track which occurrence we're on and read in the correct
+  direction each time.
+*/
+function parseStore(text){
+  const l = text.split("\n").map(x=>x.trim());
+  let a=0,b=0,i=[],u=0,co=0;
+  let inStoreCount=0;
+
+  l.forEach((x,j)=>{
+    if(x==="Active Riders" || x==="No. of Active Riders") a=+l[j-1]||0;
+    if(x==="Banner Factor") b=parseFloat(l[j-1])||0;
+
+    if(x==="In Store"){
+      inStoreCount++;
+      if(inStoreCount===1){
+        i.push(+l[j+1]||0);   // order-status In Store -> value AFTER label
+      } else {
+        i.push(+l[j-1]||0);   // rider-status In Store (idle) -> value BEFORE label
+      }
+    }
+
+    if(x==="Unassigned") u=+l[j+1]||0;      // order-status -> value AFTER label
+    if(x==="Checked Out") co=+l[j-1]||0;    // rider-status -> value BEFORE label
+  });
+
+  return {a,b,i,u,co};
+}
 
 function getCurrentTime() {
   const now = new Date();
@@ -266,22 +309,11 @@ title2.innerText=`Planned Rider Report – Time: ${reportTime}`;
   let ta=0,ti=0,tp=0,tco=0,tbf=0,c=0,pp=0,pa=0,pd=0,tur=0,tpl=0,toi=0;
 
   stores.forEach(s=>{
-    const l=document.getElementById(s).value.split("\n").map(x=>x.trim());
-    let a=0,b=0,i=[],u=0,co=0;
-
-    l.forEach((x,j)=>{
-      if(x==="No. of Active Riders") a=+l[j-1]||0;
-      if(x==="Banner Factor") b=parseFloat(l[j-1])||0;
-      if(x==="In Store") i.push(+l[j+1]||0);
-      if(x==="Unassigned") u=+l[j+1]||0;
-      if(x==="Checked Out") co=+l[j+1]||0;
-    });
+    const {a,b,i,u,co} = parseStore(document.getElementById(s).value);
 
     const idle=i[1]||0,p=(i[0]||0)+u;
 const oiRatio = idle > 0 ? (p / idle).toFixed(2) : "0.00";
 const pl=planned[s]?.[planTime]||0;
-console.log("Current Time:", planTime);
-console.log("Available Times:", Object.keys(planned[s] || {}));
 const diff = a - pl;
 const uniqueRiders = a + co;
 ta+=a;
@@ -347,7 +379,7 @@ if(b){
     <td>${tco}</td>
     <td>${tp}</td>
 <td>${ti > 0 ? (tp/ti).toFixed(2) : "0.00"}</td>
-<td class="${bfCls(tbf/c)}">${c>0 ? (tbf/c).toFixed(2) : "0.00"}</td>
+<td class="${bfCls(c>0?tbf/c:0)}">${c>0 ? (tbf/c).toFixed(2) : "0.00"}</td>
 <td>${tur}</td>
   </tr>`;
   body2.innerHTML+=`
@@ -363,15 +395,7 @@ function copySummary(){
   let text = "";
 
   stores.forEach(s=>{
-    const l=document.getElementById(s).value.split("\n").map(x=>x.trim());
-    let a=0,b=0,i=[];
-
-    l.forEach((x,j)=>{
-      if(x==="No. of Active Riders") a=+l[j-1]||0;
-      if(x==="Banner Factor") b=parseFloat(l[j-1])||0;
-      if(x==="In Store") i.push(+l[j+1]||0);
-    });
-
+    const {a,b,i} = parseStore(document.getElementById(s).value);
     const idle=i[1]||0;
 
     text += `${a}\t${idle}\t${b.toFixed(2)}\n`;
@@ -401,7 +425,7 @@ function downloadBoth(){
 <script>
 /* ------------- SCREENSHOT / COPY DETERRENCE -------------- */
 
-/* Temporary Blur Overlay 
+/* Temporary Blur Overlay */
 function temporarilyBlur() {
     const overlay = document.createElement("div");
     overlay.style.position = "fixed";
@@ -413,7 +437,7 @@ function temporarilyBlur() {
     document.body.appendChild(overlay);
     setTimeout(()=> overlay.remove(), 1400);
 }
-*/
+
 /* Windows Snipping Tool (Win + Shift + S fallback detection) */
 document.addEventListener("keydown", function(e){
     if (e.shiftKey && e.metaKey) {
