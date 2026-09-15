@@ -101,6 +101,20 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
     position:fixed;top:10px;right:15px;background:white;border:0;
     border-radius:50px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:50;
 }
+.table-header-row{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;margin-bottom:4px;
+}
+.table-header-row h3{margin:0}
+.table-actions{display:flex;gap:8px;flex-wrap:wrap}
+.icon-btn{
+    border:1px solid #b9d7f4;background:#fff;color:#00305E;
+    padding:6px 12px;border-radius:8px;font-size:12.5px;font-weight:700;
+    cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px;
+    min-width:auto;
+}
+.icon-btn:hover{background:#eaf4ff;transform:translateY(-1px)}
+.icon-btn:active{transform:translateY(0)}
 .ticker-bar{
     position:fixed;bottom:0;width:100%;background:rgba(0,48,94,.94);
     color:white;padding:7px 0;overflow:hidden;z-index:5;font-size:12px
@@ -202,7 +216,14 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
 </section>
 
 <section id="mismatchSummary" class="hidden">
-    <h3>Cash Collection Mismatch</h3>
+    <div class="table-header-row">
+        <h3>Cash Collection Mismatch</h3>
+        <div class="table-actions">
+            <button type="button" class="icon-btn" id="mismatchCopyBtn">📋 Copy Table</button>
+            <button type="button" class="icon-btn" id="mismatchPngBtn">🖼️ Download PNG</button>
+            <button type="button" class="icon-btn" id="mismatchXlsxBtn">📊 Download Excel</button>
+        </div>
+    </div>
 
     <div class="note">
         Only orders where Input 1 Cash Collected does not match Input 3 Cash + Static QR are shown.
@@ -237,6 +258,9 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
     <div class="spinner"></div>
     <b>Processing data...</b>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 let rows = [];
@@ -704,9 +728,12 @@ function renderMismatchTable(recoSummary){
 
     // Compare only the Order Numbers present in Input 1 summary.
     input1Summary.forEach((input1Amount, key) => {
-        const originalOrderNumber = filtered.find(
+        const matchedRow = filtered.find(
             r => normalize(r["Order Number"]) === key
-        )?.["Order Number"] ?? key;
+        );
+        const originalOrderNumber = matchedRow?.["Order Number"] ?? key;
+        const orderDate = matchedRow?.["Order Date"] ?? "";
+        const storeName = matchedRow?.["Store Name"] ?? "";
 
         const hasInput3Match = recoSummary.has(originalOrderNumber)
             || Array.from(recoSummary.keys()).some(
@@ -727,12 +754,15 @@ function renderMismatchTable(recoSummary){
         const right = Math.round(input3Amount * 100) / 100;
 
         // Show only mismatches.
+        // Difference = Input 3 (Cash + Static QR) - Input 1 (Cash Collected)
         if (left !== right) {
             mismatchRows.push({
+                orderDate: orderDate,
+                storeName: storeName,
                 orderNumber: originalOrderNumber,
                 input1Cash: left,
                 input3Cash: right,
-                difference: Math.round((left - right) * 100) / 100,
+                difference: Math.round((right - left) * 100) / 100,
                 input3Status: hasInput3Match ? "Matched Order ID" : "No Order ID Match"
             });
         }
@@ -741,6 +771,8 @@ function renderMismatchTable(recoSummary){
     let tableHTML = `
         <thead>
             <tr>
+                <th>Order Date</th>
+                <th>Store Name</th>
                 <th>Order Number</th>
                 <th>Input 1 Cash Collected</th>
                 <th>Input 3 Cash + Static QR</th>
@@ -754,6 +786,8 @@ function renderMismatchTable(recoSummary){
     mismatchRows.forEach(row => {
         tableHTML += `
             <tr>
+                <td>${escapeHTML(row.orderDate)}</td>
+                <td>${escapeHTML(row.storeName)}</td>
                 <td>${escapeHTML(row.orderNumber)}</td>
                 <td>${row.input1Cash.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -791,6 +825,112 @@ function renderPreview(){
 function escapeHTML(v){
     return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 }
+
+// ---------- Table export helpers: Copy / PNG / Excel ----------
+function tableToTSV(table){
+    return Array.from(table.rows).map(row =>
+        Array.from(row.cells).map(cell => cell.textContent.trim()).join("\t")
+    ).join("\n");
+}
+
+function flashBtn(btnEl, text, isError){
+    if(!btnEl) return;
+    if(!btnEl.dataset.originalText) btnEl.dataset.originalText = btnEl.innerHTML;
+    btnEl.textContent = text;
+    btnEl.style.color = isError ? "#c0392b" : "#0a7a3d";
+    clearTimeout(btnEl._flashTimer);
+    btnEl._flashTimer = setTimeout(() => {
+        btnEl.innerHTML = btnEl.dataset.originalText;
+        btnEl.style.color = "";
+    }, 1600);
+}
+
+async function copyTableToClipboard(tableId, btnEl){
+    const table = document.getElementById(tableId);
+    if(!table || !table.rows.length){ flashBtn(btnEl, "Nothing to copy", true); return; }
+
+    try{
+        if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+            const htmlBlob = new Blob([table.outerHTML], {type:"text/html"});
+            const textBlob = new Blob([tableToTSV(table)], {type:"text/plain"});
+            await navigator.clipboard.write([
+                new ClipboardItem({"text/html": htmlBlob, "text/plain": textBlob})
+            ]);
+            flashBtn(btnEl, "✅ Copied!");
+            return;
+        }
+        throw new Error("Clipboard API unavailable");
+    }catch(err){
+        // Fallback: select the table DOM node and use execCommand, which
+        // preserves formatting well when pasted into Excel/Sheets.
+        try{
+            const range = document.createRange();
+            range.selectNode(table);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            const ok = document.execCommand("copy");
+            sel.removeAllRanges();
+            if(!ok) throw new Error("execCommand copy failed");
+            flashBtn(btnEl, "✅ Copied!");
+        }catch(e2){
+            flashBtn(btnEl, "Copy failed", true);
+        }
+    }
+}
+
+function downloadTableAsPNG(tableId, filename, btnEl){
+    if(typeof html2canvas === "undefined"){
+        flashBtn(btnEl, "PNG lib failed to load", true);
+        return;
+    }
+    const table = document.getElementById(tableId);
+    const wrap = table ? table.closest(".table-wrap") : null;
+    if(!wrap || !table.rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+
+    // Temporarily expand the scroll box so the *entire* table is captured,
+    // not just the part currently visible/scrolled into view.
+    const prevMaxHeight = wrap.style.maxHeight;
+    const prevOverflow = wrap.style.overflow;
+    wrap.style.maxHeight = "none";
+    wrap.style.overflow = "visible";
+
+    html2canvas(wrap, {backgroundColor:"#ffffff", scale:2}).then(canvas => {
+        wrap.style.maxHeight = prevMaxHeight;
+        wrap.style.overflow = prevOverflow;
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }).catch(() => {
+        wrap.style.maxHeight = prevMaxHeight;
+        wrap.style.overflow = prevOverflow;
+        flashBtn(btnEl, "PNG export failed", true);
+    });
+}
+
+function downloadTableAsExcel(tableId, filename, btnEl){
+    if(typeof XLSX === "undefined"){
+        flashBtn(btnEl, "Excel lib failed to load", true);
+        return;
+    }
+    const table = document.getElementById(tableId);
+    if(!table || !table.rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+    const wb = XLSX.utils.table_to_book(table, {sheet: "Mismatch"});
+    XLSX.writeFile(wb, filename);
+}
+
+const mismatchCopyBtn = document.getElementById("mismatchCopyBtn");
+const mismatchPngBtn = document.getElementById("mismatchPngBtn");
+const mismatchXlsxBtn = document.getElementById("mismatchXlsxBtn");
+
+mismatchCopyBtn.addEventListener("click", () => copyTableToClipboard("mismatchSummaryTable", mismatchCopyBtn));
+mismatchPngBtn.addEventListener("click", () => downloadTableAsPNG("mismatchSummaryTable", "Cash_Collection_Mismatch.png", mismatchPngBtn));
+mismatchXlsxBtn.addEventListener("click", () => downloadTableAsExcel("mismatchSummaryTable", "Cash_Collection_Mismatch.xlsx", mismatchXlsxBtn));
 
 downloadBtn.addEventListener("click",()=>{
     if(!filtered.length) return;
