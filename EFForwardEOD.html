@@ -1177,30 +1177,55 @@ function buildDashboard(){
 
     /* --------------------------------------------------------
        STATUS COUNTS
+
+       KPI logic (per business rules):
+       - Delivered / In Transit-Pending / RTO / No Way Bill /
+         Shipment Lost are derived from the "Sub Remark" column,
+         using an EXACT (case-insensitive) match — not a
+         substring/keyword match. e.g. "Delivered - Partially"
+         does NOT count towards Delivered; "RTO In Transit"
+         does NOT count towards RTO.
+       - Courier Issue / Customer Issue are derived from the
+         "Updated Status" column (case-insensitive exact match,
+         so "EF Team"/"EF team" and "Customer Issue"/
+         "Customer issue" are merged instead of undercounted).
     -------------------------------------------------------- */
 
-    const statusMap = countBy("Updated Status");
+    let delivered = 0;
+    let pending = 0;
+    let rto = 0;
+    let noway = 0;
+    let lost = 0;
+    let courier = 0;
+    let customer = 0;
 
-    const delivered =
-    statusMap["DELIVERED"] || 0;
+    rows.forEach(row => {
 
-    const pending =
-        statusMap["Pending"] || 0;
+        const subRemark = norm(getField(row,"Sub Remark"));
+        const updatedStatus = norm(getField(row,"Updated Status"));
 
-    const rto =
-        statusMap["RTO"] || 0;
+        if(subRemark === "delivered")
+            delivered++;
 
-    const courier =
-        statusMap["Courier Issue"] || 0;
+        if(subRemark === "in transit")
+            pending++;
 
-    const customer =
-        (statusMap["Customer Issue"] || 0);
+        if(subRemark === "rto")
+            rto++;
 
-    const noway =
-        statusMap["NO WAY BILL"] || 0;
+        if(subRemark === "no waybill found")
+            noway++;
 
-    const lost =
-        statusMap["Shipment Lost"] || 0;
+        if(subRemark === "shipment lost")
+            lost++;
+
+        if(updatedStatus === "courier issue")
+            courier++;
+
+        if(updatedStatus === "customer issue")
+            customer++;
+
+    });
 
 
     setText("totalShipments",formatNumber(total));
@@ -1231,7 +1256,7 @@ function buildDashboard(){
        CHARTS
     -------------------------------------------------------- */
 
-    buildStatusChart(statusMap,total);
+    buildStatusChart(countBy("Updated Status"),total);
 
     buildTatChart();
 
