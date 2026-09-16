@@ -131,7 +131,7 @@ body{
 
 .kpi-grid{
     display:grid;
-    grid-template-columns:repeat(8,1fr);
+    grid-template-columns:repeat(7,1fr);
     gap:7px;
     padding:4px 10px 7px;
 }
@@ -187,7 +187,6 @@ body{
 .delivered .kpi-icon{background:#159638;color:white}
 .transit .kpi-icon{background:#ef5b22;color:white}
 .rto .kpi-icon{background:#542078;color:white}
-.courier .kpi-icon{background:#e0000b;color:white}
 .customer .kpi-icon{background:#076582;color:white}
 .noway .kpi-icon{background:#132361;color:white}
 .lost .kpi-icon{background:#555;color:white}
@@ -195,7 +194,6 @@ body{
 .delivered .kpi-percent{color:#158b36}
 .transit .kpi-percent{color:#ed571c}
 .rto .kpi-percent{color:#57207d}
-.courier .kpi-percent{color:#d40000}
 .customer .kpi-percent{color:#075678}
 .noway .kpi-percent{color:#12205f}
 .lost .kpi-percent{color:#555}
@@ -540,16 +538,6 @@ tbody tr:last-child td{
             <div class="kpi-title">RTO</div>
             <div class="kpi-value" id="rto">0</div>
             <div class="kpi-percent" id="rtoPct">0%</div>
-        </div>
-    </div>
-
-
-    <div class="kpi courier">
-        <div class="kpi-icon">!</div>
-        <div class="kpi-content">
-            <div class="kpi-title">COURIER ISSUE</div>
-            <div class="kpi-value" id="courier">0</div>
-            <div class="kpi-percent" id="courierPct">0%</div>
         </div>
     </div>
 
@@ -1185,10 +1173,10 @@ function buildDashboard(){
          substring/keyword match. e.g. "Delivered - Partially"
          does NOT count towards Delivered; "RTO In Transit"
          does NOT count towards RTO.
-       - Courier Issue / Customer Issue are derived from the
-         "Updated Status" column (case-insensitive exact match,
-         so "EF Team"/"EF team" and "Customer Issue"/
-         "Customer issue" are merged instead of undercounted).
+       - Customer Issue is derived from the "Updated Status"
+         column (case-insensitive exact match, so "Customer
+         Issue"/"Customer issue" are merged instead of
+         undercounted).
     -------------------------------------------------------- */
 
     let delivered = 0;
@@ -1196,7 +1184,6 @@ function buildDashboard(){
     let rto = 0;
     let noway = 0;
     let lost = 0;
-    let courier = 0;
     let customer = 0;
 
     rows.forEach(row => {
@@ -1219,9 +1206,6 @@ function buildDashboard(){
         if(subRemark === "shipment lost")
             lost++;
 
-        if(updatedStatus === "courier issue")
-            courier++;
-
         if(updatedStatus === "customer issue")
             customer++;
 
@@ -1238,9 +1222,6 @@ function buildDashboard(){
 
     setText("rto",formatNumber(rto));
     setText("rtoPct",pct(rto,total));
-
-    setText("courier",formatNumber(courier));
-    setText("courierPct",pct(courier,total));
 
     setText("customer",formatNumber(customer));
     setText("customerPct",pct(customer,total));
