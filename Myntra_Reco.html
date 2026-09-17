@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<title>Zippee Cash Order Filter</title>
+<title>Zippee <> Mnow Reconciliation Report</title>
 <style>
 :root{
     --zippee-primary:#00305E;
@@ -58,6 +57,7 @@ h1{margin:0;font-size:22px}
     border:2px dashed #0078D4; border-radius:16px;
     padding:28px 15px; background:rgba(255,255,255,.48);
     text-align:center; cursor:pointer; transition:.2s;
+    display:flex; flex-direction:column;
 }
 .upload-box:hover{transform:translateY(-2px);background:rgba(255,255,255,.65)}
 .upload-box input{display:none}
@@ -101,6 +101,39 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
     position:fixed;top:10px;right:15px;background:white;border:0;
     border-radius:50px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:50;
 }
+.table-header-row{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;margin-bottom:4px;
+}
+.table-header-row h3{margin:0}
+.table-actions{display:flex;gap:8px;flex-wrap:wrap}
+.icon-btn{
+    border:1px solid #b9d7f4;background:#fff;color:#00305E;
+    padding:6px 12px;border-radius:8px;font-size:12.5px;font-weight:700;
+    cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px;
+    min-width:auto;
+}
+.icon-btn:hover{background:#eaf4ff;transform:translateY(-1px)}
+.icon-btn:active{transform:translateY(0)}
+.cod-filter-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0}
+.cod-filter-row label{font-size:12.5px;font-weight:700;color:#00305E}
+.cod-filter-row select,.cod-filter-row input[type=date]{
+    padding:7px 10px;border-radius:8px;border:1px solid #b9d7f4;
+    font-size:13px;background:#fff;color:#1d2a38;
+}
+.cod-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+.cod-store-list{background:rgba(255,255,255,.55);border-radius:12px;padding:6px 14px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.cod-store-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #e2ebf5}
+.cod-store-row:last-child{border-bottom:none}
+.cod-store-name{flex:0 0 170px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cod-bar-wrap{flex:1;background:rgba(0,48,94,.08);border-radius:6px;overflow:hidden;height:18px;min-width:60px}
+.cod-bar-fill{height:100%;background:linear-gradient(135deg,#0A66C2,#0078FF);border-radius:6px;transition:width .3s}
+.cod-store-amount{flex:0 0 130px;text-align:right;font-size:12.5px;font-weight:700;color:#00305E}
+.cod-store-orders{flex:0 0 60px;text-align:right;font-size:11.5px;color:#5a6b7d}
+@media(max-width:700px){
+    .cod-store-name{flex-basis:110px}
+    .cod-store-amount{flex-basis:95px}
+}
 .ticker-bar{
     position:fixed;bottom:0;width:100%;background:rgba(0,48,94,.94);
     color:white;padding:7px 0;overflow:hidden;z-index:5;font-size:12px
@@ -113,6 +146,9 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
 }
 .spinner{width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* --- Reco sheet auto-fetch status (added) --- */
+
 @media(max-width:700px){
     .upload-grid,.steps,.kpis{grid-template-columns:1fr 1fr}
 }
@@ -128,7 +164,7 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
 
 <header class="header-main">
     <div style="font-size:26px">⚡</div>
-    <h1>Zippee Cash Order Filter</h1>
+    <h1>Zippee <> Mnow Reconciliation Report</h1>
 </header>
 
 <main class="container">
@@ -155,15 +191,13 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
         <input id="settlementFile" type="file" accept=".csv,text/csv">
     </label>
 
-    <label class="upload-box" for="recoFile">
+    <div class="upload-box" style="cursor:default" id="recoBox">
         <div class="upload-icon">📊</div>
-        <div><b>Upload Reco Sheet</b></div>
+        <div><b>Reco Sheet</b></div>
         <div style="margin-top:4px;font-size:13px">Myntra Reco Sheet — Cash + Static QR</div>
-        <div class="file-name" id="recoFileName">No file selected</div>
-        <input id="recoFile"
-       type="file"
-       accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-    </label>
+        <div class="file-name" id="recoFileName">Waiting for Input 1 &amp; 2</div>
+        <button type="button" id="recoRetryBtn" class="hidden" style="margin-top:12px;border:none;border-radius:8px;background:#00305E;color:#fff;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">Retry fetch</button>
+    </div>
 
 </div>
 
@@ -174,14 +208,51 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
         <div class="step"><b>4. Payment Mode</b>Cash only</div>
     </div>
 
-    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 is not filtered and is used to create <b>Order ID → Cash + Static QR</b>.</div>
+    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 (Myntra Reco Sheet) is fetched automatically from a published Google Sheet once Input 1 and Input 2 are both loaded — no manual step needed. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b>. Once Input 3 finishes loading, the report is generated automatically.</div>
 
     <div class="button-group">
-        <button class="tool-button" id="processBtn" disabled>⚙️ Process Data</button>
         <button class="tool-button secondary" id="downloadBtn" disabled>⬇️ Download Filtered CSV</button>
+        <button class="tool-button secondary" id="codViewBtn" disabled>📈 COD View</button>
     </div>
 
     <div id="status" class="status"></div>
+
+    <section id="codView" class="hidden">
+        <div class="table-header-row">
+            <h3>📈 COD View — Store-wise Collection</h3>
+        </div>
+
+        <div class="cod-filter-row">
+            <label for="codPeriodType">Period</label>
+            <select id="codPeriodType">
+                <option value="monthly" selected>Monthly (full range)</option>
+                <option value="weekly">Weekly</option>
+                <option value="custom">Custom Date Range</option>
+            </select>
+
+            <span id="codWeekSelectWrap" class="hidden" style="display:flex;align-items:center;gap:8px">
+                <label for="codWeekSelect">Week</label>
+                <select id="codWeekSelect"></select>
+            </span>
+
+            <span id="codCustomRangeWrap" class="hidden" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <label for="codFromDate">From</label>
+                <input type="date" id="codFromDate">
+                <label for="codToDate">To</label>
+                <input type="date" id="codToDate">
+            </span>
+        </div>
+
+        <div class="note">Showing: <b id="codRangeLabel">—</b></div>
+
+        <div class="cod-kpis">
+            <div class="kpi"><div class="value">₹<span id="codTotalAmount">0</span></div><div class="label">Total COD Received</div></div>
+            <div class="kpi"><div class="value" id="codTotalOrders">0</div><div class="label">Orders</div></div>
+            <div class="kpi"><div class="value" id="codStoreCount">0</div><div class="label">Stores</div></div>
+        </div>
+
+        <div class="cod-store-list" id="codStoreList"></div>
+    </section>
 
             <section id="orderSummary" class="hidden">
             <h3>Order Number vs Cash Collected</h3>
@@ -202,7 +273,14 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
 </section>
 
 <section id="mismatchSummary" class="hidden">
-    <h3>Cash Collection Mismatch</h3>
+    <div class="table-header-row">
+        <h3>Cash Collection Mismatch</h3>
+        <div class="table-actions">
+            <button type="button" class="icon-btn" id="mismatchCopyBtn">📋 Copy Table</button>
+            <button type="button" class="icon-btn" id="mismatchPngBtn">🖼️ Download PNG</button>
+            <button type="button" class="icon-btn" id="mismatchXlsxBtn">📊 Download Excel</button>
+        </div>
+    </div>
 
     <div class="note">
         Only orders where Input 1 Cash Collected does not match Input 3 Cash + Static QR are shown.
@@ -238,6 +316,9 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
     <b>Processing data...</b>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script>
 let rows = [];
 let headers = [];
@@ -250,21 +331,23 @@ let settlementCsvText = "";
 
 let recoRows = [];
 
+let currentMonthStart = null;
+let currentD1 = null;
+
 const fileInput = document.getElementById("csvFile");
 const fileName = document.getElementById("fileName");
 
 const settlementFileInput = document.getElementById("settlementFile");
 const settlementFileName = document.getElementById("settlementFileName");
 
-const recoFileInput = document.getElementById("recoFile");
 const recoFileName = document.getElementById("recoFileName");
+const recoRetryBtn = document.getElementById("recoRetryBtn");
 
-const processBtn = document.getElementById("processBtn");
+// Published Google Sheet (Myntra Reco Sheet) — CSV export link.
+const RECO_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJq9hM3Y9h1CM213y-G9eFsL7X3tg03j1Fzh29Y5ogFavhfI6CPBe09nTx_yY3YF_R-cWedvXyOWgJ/pub?gid=0&single=true&output=csv";
+let recoFetchInProgress = false;
+
 const downloadBtn = document.getElementById("downloadBtn");
-
-function updateProcessState(){
-    processBtn.disabled = !(csvText && settlementCsvText && recoRows.length);
-}
 
 fileInput.addEventListener("change", async e => {
     const file = e.target.files[0];
@@ -273,7 +356,8 @@ fileInput.addEventListener("change", async e => {
     csvText = await file.text();
     document.getElementById("status").textContent = "Input 1 loaded. Now upload Input 2.";
     document.getElementById("results").classList.add("hidden");
-    updateProcessState();
+    resetForReprocess();
+    maybeAutoFetchReco();
 });
 
 settlementFileInput.addEventListener("change", async e => {
@@ -281,9 +365,10 @@ settlementFileInput.addEventListener("change", async e => {
     if (!file) return;
     settlementFileName.textContent = file.name;
     settlementCsvText = await file.text();
-    document.getElementById("status").textContent = "Input 2 loaded. Both files are ready to process.";
+    document.getElementById("status").textContent = "Input 2 loaded. Fetching Input 3...";
     document.getElementById("results").classList.add("hidden");
-    updateProcessState();
+    resetForReprocess();
+    maybeAutoFetchReco();
 });
 
 function bindDrop(labelSelector, input, nameEl, successText){
@@ -301,144 +386,155 @@ function bindDrop(labelSelector, input, nameEl, successText){
         else settlementCsvText = await file.text();
         document.getElementById("status").textContent = successText;
         document.getElementById("results").classList.add("hidden");
-        updateProcessState();
+        resetForReprocess();
+        maybeAutoFetchReco();
     });
 }
 
 bindDrop('label[for="csvFile"]', fileInput, fileName, "Input 1 loaded. Now upload Input 2.");
-bindDrop('label[for="settlementFile"]', settlementFileInput, settlementFileName, "Input 2 loaded. Both files are ready to process.");
-const recoDropBox = document.querySelector('label[for="recoFile"]');
+bindDrop('label[for="settlementFile"]', settlementFileInput, settlementFileName, "Input 2 loaded. Fetching Input 3...");
 
-recoDropBox.addEventListener("dragover", e => {
-    e.preventDefault();
-});
+// If Input 1 or Input 2 changes after a reco fetch already happened, clear
+// the old reco data so a fresh fetch + auto-process can happen again.
+function resetForReprocess(){
+    recoRows = [];
+    recoFileName.textContent = "Waiting for Input 1 & 2";
+    recoRetryBtn.classList.add("hidden");
+    downloadBtn.disabled = true;
 
-recoDropBox.addEventListener("drop", async e => {
-    e.preventDefault();
+    codViewBtn.disabled = true;
+    document.getElementById("codView").classList.add("hidden");
+    const weekSelect = document.getElementById("codWeekSelect");
+    delete weekSelect.dataset.built;
+    weekSelect._weeks = null;
+    document.getElementById("codFromDate").value = "";
+    document.getElementById("codToDate").value = "";
+}
 
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
+// ---------- shared: turn cleaned row objects into the recoRows shape ----------
+function buildRecoRowsFromObjects(cleanedRows){
+    if (!cleanedRows.length) {
+        throw new Error("No data rows found.");
+    }
 
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    recoFileInput.files = dt.files;
+    const availableHeaders = Object.keys(cleanedRows[0]);
 
-    recoFileInput.dispatchEvent(
-        new Event("change", { bubbles: true })
-    );
-});
+    function findHeader(target) {
+        const targetClean = target
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, " ");
 
-recoFileInput.addEventListener("change", async e => {
-    const file = e.target.files[0];
-    if (!file) return;
+        return availableHeaders.find(h =>
+            h.toLowerCase()
+                .trim()
+                .replace(/\s+/g, " ") === targetClean
+        );
+    }
 
-    recoFileName.textContent = file.name;
+    const orderIdHeader = findHeader("Order ID");
+    const cashHeader = findHeader("Cash");
+    const qrHeader = findHeader("Static QR");
+
+    const missing = [];
+    if (!orderIdHeader) missing.push("Order ID");
+    if (!cashHeader) missing.push("Cash");
+    if (!qrHeader) missing.push("Static QR");
+
+    if (missing.length) {
+        throw new Error(
+            "Input 3 missing: " +
+            missing.join(", ") +
+            ". Found columns: " +
+            availableHeaders.join(", ")
+        );
+    }
+
+    return cleanedRows.map(row => ({
+        "Order ID": row[orderIdHeader],
+        "Cash": row[cashHeader],
+        "Static QR": row[qrHeader]
+    }));
+}
+
+function cleanHeaderKeys(rawRows){
+    return rawRows.map(row => {
+        const obj = {};
+        Object.keys(row).forEach(key => {
+            const cleanKey = String(key)
+                .replace(/\u00A0/g, " ")
+                .trim()
+                .replace(/\s+/g, " ");
+            obj[cleanKey] = row[key];
+        });
+        return obj;
+    });
+}
+
+// ---------- Automatically fetch Input 3 from the Google Sheet once Input 1 & 2 are both loaded ----------
+function maybeAutoFetchReco(){
+    if (!csvText || !settlementCsvText) return;   // still waiting on Input 1 and/or 2
+    if (recoFetchInProgress || recoRows.length) return; // already fetching / already have data
+    fetchRecoData();
+}
+
+async function fetchRecoData(){
+    recoFetchInProgress = true;
+    recoRetryBtn.classList.add("hidden");
+    recoFileName.textContent = "Fetching…";
+    document.getElementById("status").textContent = "Input 1 & 2 loaded — fetching Input 3 from Google Sheet…";
     recoRows = [];
 
     try {
-        if (!/\.(xlsx|xls)$/i.test(file.name)) {
-            throw new Error("Please upload an Excel file (.xlsx or .xls).");
+        const res = await fetch(RECO_SHEET_CSV_URL, { cache: "no-store" });
+        if (!res.ok) {
+            throw new Error(`Google Sheet request failed (HTTP ${res.status}). Make sure the sheet is still published to the web as CSV.`);
         }
 
-        if (typeof XLSX === "undefined") {
-            throw new Error("Excel reader library could not be loaded.");
+        const text = await res.text();
+
+        // A basic sanity check: a broken/unpublished link often returns an
+        // HTML error page instead of CSV.
+        if (/^\s*<(!doctype|html)/i.test(text)) {
+            throw new Error("The Google Sheet did not return CSV data (got an HTML page instead). Check that it's still published to the web.");
         }
 
-        const buffer = await file.arrayBuffer();
-
-        const workbook = XLSX.read(buffer, {
-            type: "array",
-            cellDates: true
-        });
-
-        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-            throw new Error("No worksheet found in Input 3.");
+        const parsedRows = parseCSV(text);
+        if (parsedRows.length < 2) {
+            throw new Error("The Google Sheet CSV appears to be empty.");
         }
 
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
-const rawRows = XLSX.utils.sheet_to_json(worksheet, {
-            defval: "",
-            raw: false
-        });
-
-        if (!rawRows.length) {
-            throw new Error("Input 3 contains no data rows.");
-        }
-
-        // Clean column names
-        const cleanedRows = rawRows.map(row => {
+        const rawHeaders = parsedRows[0];
+        const rawObjects = parsedRows.slice(1).map(r => {
             const obj = {};
-
-            Object.keys(row).forEach(key => {
-                const cleanKey = String(key)
-                    .replace(/\u00A0/g, " ")
-                    .trim()
-                    .replace(/\s+/g, " ");
-
-                obj[cleanKey] = row[key];
-            });
-
+            rawHeaders.forEach((h, i) => obj[h] = r[i] ?? "");
             return obj;
         });
 
-        const availableHeaders = Object.keys(cleanedRows[0]);
+        const cleanedRows = cleanHeaderKeys(rawObjects);
+        recoRows = buildRecoRowsFromObjects(cleanedRows);
 
-        function findHeader(target) {
-            const targetClean = target
-                .toLowerCase()
-                .trim()
-                .replace(/\s+/g, " ");
-
-            return availableHeaders.find(h =>
-                h.toLowerCase()
-                    .trim()
-                    .replace(/\s+/g, " ") === targetClean
-            );
-        }
-
-        const orderIdHeader = findHeader("Order ID");
-        const cashHeader = findHeader("Cash");
-        const qrHeader = findHeader("Static QR");
-
-        const missing = [];
-
-        if (!orderIdHeader) missing.push("Order ID");
-        if (!cashHeader) missing.push("Cash");
-        if (!qrHeader) missing.push("Static QR");
-
-        if (missing.length) {
-            throw new Error(
-                "Input 3 missing: " +
-                missing.join(", ") +
-                ". Found columns: " +
-                availableHeaders.join(", ")
-            );
-        }
-
-        // Convert to the exact names used by the rest of the website
-        recoRows = cleanedRows.map(row => ({
-            "Order ID": row[orderIdHeader],
-            "Cash": row[cashHeader],
-            "Static QR": row[qrHeader]
-        }));
-
+        recoFileName.textContent = `${recoRows.length.toLocaleString("en-IN")} rows loaded`;
         document.getElementById("status").textContent =
-            `Input 3 loaded successfully: ${recoRows.length.toLocaleString("en-IN")} rows.`;
-
+            `Input 3 fetched automatically: ${recoRows.length.toLocaleString("en-IN")} rows. Processing…`;
         document.getElementById("results").classList.add("hidden");
 
-        updateProcessState();
+        // Input 1, 2 and 3 are all ready — auto-trigger processing, no button needed.
+        processData();
 
     } catch (err) {
         recoRows = [];
-
+        recoFileName.textContent = "Fetch failed";
+        recoRetryBtn.classList.remove("hidden");
         document.getElementById("status").textContent =
-            "Error loading Input 3: " + err.message;
-
-        updateProcessState();
+            "Error fetching Input 3 from Google Sheet: " + err.message;
+    } finally {
+        recoFetchInProgress = false;
     }
-});
+}
+
+recoRetryBtn.addEventListener("click", () => fetchRecoData());
+
 function parseCSV(text) {
     const out=[]; let row=[], cell="", quoted=false;
     for(let i=0;i<text.length;i++){
@@ -477,7 +573,9 @@ function fmtDate(d){
     return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
 }
 
-processBtn.addEventListener("click", () => {
+// Runs automatically once Input 1, Input 2 and Input 3 (reco) are all ready.
+// (Previously triggered by the "Process Data" button, which has been removed.)
+function processData(){
     document.getElementById("loader").style.display="flex";
     setTimeout(() => {
         try{
@@ -504,6 +602,8 @@ processBtn.addEventListener("click", () => {
             const d1=new Date(today);
             d1.setDate(d1.getDate()-1);
             const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
+            currentMonthStart=monthStart;
+            currentD1=d1;
 
             // Existing Input 1 filtering logic remains unchanged.
             let baseFiltered=rows.filter(r=>{
@@ -568,7 +668,7 @@ processBtn.addEventListener("click", () => {
             headers=outputHeaders;
 
             // -------------------- INPUT 3 --------------------
-            // Input 3 columns: C = Order ID, F = Cash, G = Static QR.
+            // Input 3 columns: Order ID, Cash, Static QR (whether from file or fetched sheet).
             // Build Order ID -> (Cash + Static QR), summing duplicate Order IDs.
             const recoSummary = new Map();
 
@@ -600,6 +700,10 @@ processBtn.addEventListener("click", () => {
             renderRecoPivot(recoSummary);
             renderMismatchTable(recoSummary);
             downloadBtn.disabled=filtered.length===0;
+            codViewBtn.disabled=filtered.length===0;
+            if(!document.getElementById("codView").classList.contains("hidden")){
+                renderCODView();
+            }
             document.getElementById("results").classList.remove("hidden");
         }catch(err){
             document.getElementById("status").textContent="Error: "+err.message;
@@ -608,7 +712,7 @@ processBtn.addEventListener("click", () => {
             document.getElementById("loader").style.display="none";
         }
     },80);
-});
+}
 
 function renderOrderSummary(){
     const table = document.getElementById("summaryTable");
@@ -623,13 +727,20 @@ function renderOrderSummary(){
             .replace(/,/g, "");
         const cash = Number(rawCash);
         const amount = Number.isFinite(cash) ? cash : 0;
+        const storeName = String(r["Store Name"] ?? "").trim();
 
-        summary.set(orderNumber, (summary.get(orderNumber) || 0) + amount);
+        const existing = summary.get(orderNumber);
+        if (existing) {
+            existing.amount += amount;
+            if (!existing.storeName && storeName) existing.storeName = storeName;
+        } else {
+            summary.set(orderNumber, { storeName, amount });
+        }
     });
 
-    let html = `<thead><tr><th>Order Number</th><th>Cash Collected</th></tr></thead><tbody>`;
-    summary.forEach((amount, orderNumber) => {
-        html += `<tr><td>${escapeHTML(orderNumber)}</td><td>${amount.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>`;
+    let html = `<thead><tr><th>Store Name</th><th>Order Number</th><th>Cash Collected</th></tr></thead><tbody>`;
+    summary.forEach(({ storeName, amount }, orderNumber) => {
+        html += `<tr><td>${escapeHTML(storeName)}</td><td>${escapeHTML(orderNumber)}</td><td>${amount.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>`;
     });
     html += "</tbody>";
     table.innerHTML = html;
@@ -639,9 +750,20 @@ function renderRecoPivot(summary){
 
     const table = document.getElementById("recoSummaryTable");
 
+    // Input 3 has no Store Name column, so look it up from Input 1 (filtered)
+    // by matching Order ID -> Order Number.
+    const storeNameByKey = new Map();
+    filtered.forEach(r => {
+        const key = normalize(r["Order Number"]);
+        if (key && !storeNameByKey.has(key)) {
+            storeNameByKey.set(key, String(r["Store Name"] ?? "").trim());
+        }
+    });
+
     let html = `
         <thead>
             <tr>
+                <th>Store Name</th>
                 <th>Order ID</th>
                 <th>Cash + Static QR</th>
             </tr>
@@ -651,8 +773,11 @@ function renderRecoPivot(summary){
 
     summary.forEach((amount, orderId) => {
 
+        const storeName = storeNameByKey.get(normalize(orderId)) || "";
+
         html += `
             <tr>
+                <td>${escapeHTML(storeName)}</td>
                 <td>${escapeHTML(orderId)}</td>
                 <td>${amount.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -698,9 +823,12 @@ function renderMismatchTable(recoSummary){
 
     // Compare only the Order Numbers present in Input 1 summary.
     input1Summary.forEach((input1Amount, key) => {
-        const originalOrderNumber = filtered.find(
+        const matchedRow = filtered.find(
             r => normalize(r["Order Number"]) === key
-        )?.["Order Number"] ?? key;
+        );
+        const originalOrderNumber = matchedRow?.["Order Number"] ?? key;
+        const orderDate = matchedRow?.["Order Date"] ?? "";
+        const storeName = matchedRow?.["Store Name"] ?? "";
 
         const hasInput3Match = recoSummary.has(originalOrderNumber)
             || Array.from(recoSummary.keys()).some(
@@ -721,12 +849,15 @@ function renderMismatchTable(recoSummary){
         const right = Math.round(input3Amount * 100) / 100;
 
         // Show only mismatches.
+        // Difference = Input 3 (Cash + Static QR) - Input 1 (Cash Collected)
         if (left !== right) {
             mismatchRows.push({
+                orderDate: orderDate,
+                storeName: storeName,
                 orderNumber: originalOrderNumber,
                 input1Cash: left,
                 input3Cash: right,
-                difference: Math.round((left - right) * 100) / 100,
+                difference: Math.round((right - left) * 100) / 100,
                 input3Status: hasInput3Match ? "Matched Order ID" : "No Order ID Match"
             });
         }
@@ -735,6 +866,8 @@ function renderMismatchTable(recoSummary){
     let tableHTML = `
         <thead>
             <tr>
+                <th>Order Date</th>
+                <th>Store Name</th>
                 <th>Order Number</th>
                 <th>Input 1 Cash Collected</th>
                 <th>Input 3 Cash + Static QR</th>
@@ -748,6 +881,8 @@ function renderMismatchTable(recoSummary){
     mismatchRows.forEach(row => {
         tableHTML += `
             <tr>
+                <td>${escapeHTML(row.orderDate)}</td>
+                <td>${escapeHTML(row.storeName)}</td>
                 <td>${escapeHTML(row.orderNumber)}</td>
                 <td>${row.input1Cash.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -782,9 +917,265 @@ function renderPreview(){
     html+="</tbody>";
     table.innerHTML=html;
 }
+// ---------- COD View: store-wise COD dashboard with Monthly / Weekly / Custom filters ----------
+const codViewBtn = document.getElementById("codViewBtn");
+const codViewSection = document.getElementById("codView");
+const codPeriodType = document.getElementById("codPeriodType");
+const codWeekSelectWrap = document.getElementById("codWeekSelectWrap");
+const codWeekSelect = document.getElementById("codWeekSelect");
+const codCustomRangeWrap = document.getElementById("codCustomRangeWrap");
+const codFromDate = document.getElementById("codFromDate");
+const codToDate = document.getElementById("codToDate");
+
+codViewBtn.addEventListener("click", () => {
+    codViewSection.classList.toggle("hidden");
+    if(!codViewSection.classList.contains("hidden")){
+        renderCODView();
+    }
+});
+codPeriodType.addEventListener("change", renderCODView);
+codWeekSelect.addEventListener("change", renderCODView);
+codFromDate.addEventListener("change", renderCODView);
+codToDate.addEventListener("change", renderCODView);
+
+function toInputDateStr(d){
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+// Monday-start week containing date d.
+function getWeekStart(d){
+    const day = d.getDay(); // 0 = Sun .. 6 = Sat
+    const diff = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diff);
+    monday.setHours(0,0,0,0);
+    return monday;
+}
+
+// Builds Monday-Sunday week buckets spanning [startDate, endDate], each
+// clipped to that range (so the first/last week don't spill outside it).
+function buildWeekBuckets(startDate, endDate){
+    const weeks = [];
+    let cursor = getWeekStart(startDate);
+    while(cursor.getTime() <= endDate.getTime()){
+        const weekEnd = new Date(cursor);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const rangeStart = cursor.getTime() < startDate.getTime() ? startDate : cursor;
+        const rangeEnd = weekEnd.getTime() > endDate.getTime() ? endDate : weekEnd;
+        weeks.push({ rangeStart, rangeEnd });
+        cursor = new Date(cursor);
+        cursor.setDate(cursor.getDate() + 7);
+    }
+    return weeks;
+}
+
+// Store-wise { amount, orders } totals from `filtered`, within [startDate, endDate] inclusive.
+function computeStoreTotals(startDate, endDate){
+    const totals = new Map();
+    filtered.forEach(r => {
+        const od = parseDateOnly(r["Order Date"]);
+        if(!od) return;
+        if(od.getTime() < startDate.getTime() || od.getTime() > endDate.getTime()) return;
+
+        const store = String(r["Store Name"] ?? "").trim() || "(Unknown store)";
+        const rawCash = String(r["Cash Collected"] ?? "").trim().replace(/,/g, "");
+        const cash = Number(rawCash);
+        const amount = Number.isFinite(cash) ? cash : 0;
+
+        const existing = totals.get(store) || { amount: 0, orders: 0 };
+        existing.amount += amount;
+        existing.orders += 1;
+        totals.set(store, existing);
+    });
+    return totals;
+}
+
+function renderCODView(){
+    if(!currentMonthStart || !currentD1 || !filtered.length) return;
+
+    const periodType = codPeriodType.value;
+    let rangeStart, rangeEnd;
+
+    codWeekSelectWrap.classList.add("hidden");
+    codCustomRangeWrap.classList.add("hidden");
+
+    if(periodType === "weekly"){
+        codWeekSelectWrap.classList.remove("hidden");
+
+        if(!codWeekSelect.dataset.built){
+            const weeks = buildWeekBuckets(currentMonthStart, currentD1);
+            codWeekSelect.innerHTML = weeks.map((w,i) =>
+                `<option value="${i}">${fmtDate(w.rangeStart)} → ${fmtDate(w.rangeEnd)}</option>`
+            ).join("");
+            codWeekSelect.dataset.built = "1";
+            codWeekSelect._weeks = weeks;
+            codWeekSelect.selectedIndex = weeks.length - 1; // most recent week by default
+        }
+
+        const weeks = codWeekSelect._weeks || [];
+        const idx = Number(codWeekSelect.value || codWeekSelect.selectedIndex || 0);
+        const w = weeks[idx] || weeks[weeks.length - 1];
+        if(!w) return;
+        rangeStart = w.rangeStart;
+        rangeEnd = w.rangeEnd;
+
+    } else if(periodType === "custom"){
+        codCustomRangeWrap.classList.remove("hidden");
+
+        if(!codFromDate.value) codFromDate.value = toInputDateStr(currentMonthStart);
+        if(!codToDate.value) codToDate.value = toInputDateStr(currentD1);
+
+        rangeStart = parseDateOnly(codFromDate.value) || currentMonthStart;
+        rangeEnd = parseDateOnly(codToDate.value) || currentD1;
+        if(rangeStart.getTime() > rangeEnd.getTime()){
+            [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+        }
+
+    } else { // monthly (default) — the full processed range, 1st of month -> D-1
+        rangeStart = currentMonthStart;
+        rangeEnd = currentD1;
+    }
+
+    const totals = computeStoreTotals(rangeStart, rangeEnd);
+    const sorted = Array.from(totals.entries()).sort((a,b) => b[1].amount - a[1].amount);
+
+    const totalAmount = sorted.reduce((s,[,v]) => s + v.amount, 0);
+    const totalOrders = sorted.reduce((s,[,v]) => s + v.orders, 0);
+    const maxAmount = sorted.length ? sorted[0][1].amount : 0;
+
+    document.getElementById("codRangeLabel").textContent = fmtDate(rangeStart) + " → " + fmtDate(rangeEnd);
+    document.getElementById("codTotalAmount").textContent = totalAmount.toLocaleString("en-IN", {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById("codTotalOrders").textContent = totalOrders.toLocaleString("en-IN");
+    document.getElementById("codStoreCount").textContent = sorted.length.toLocaleString("en-IN");
+
+    const listEl = document.getElementById("codStoreList");
+    if(!sorted.length){
+        listEl.innerHTML = '<div class="note">No COD orders in this period.</div>';
+        return;
+    }
+
+    listEl.innerHTML = sorted.map(([store, v]) => {
+        const pct = maxAmount > 0 ? Math.max(2, Math.round((v.amount / maxAmount) * 100)) : 0;
+        return `
+            <div class="cod-store-row">
+                <div class="cod-store-name" title="${escapeHTML(store)}">${escapeHTML(store)}</div>
+                <div class="cod-bar-wrap"><div class="cod-bar-fill" style="width:${pct}%"></div></div>
+                <div class="cod-store-amount">₹${v.amount.toLocaleString("en-IN", {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+                <div class="cod-store-orders">${v.orders} ord</div>
+            </div>
+        `;
+    }).join("");
+}
+
 function escapeHTML(v){
     return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 }
+
+// ---------- Table export helpers: Copy / PNG / Excel ----------
+function tableToTSV(table){
+    return Array.from(table.rows).map(row =>
+        Array.from(row.cells).map(cell => cell.textContent.trim()).join("\t")
+    ).join("\n");
+}
+
+function flashBtn(btnEl, text, isError){
+    if(!btnEl) return;
+    if(!btnEl.dataset.originalText) btnEl.dataset.originalText = btnEl.innerHTML;
+    btnEl.textContent = text;
+    btnEl.style.color = isError ? "#c0392b" : "#0a7a3d";
+    clearTimeout(btnEl._flashTimer);
+    btnEl._flashTimer = setTimeout(() => {
+        btnEl.innerHTML = btnEl.dataset.originalText;
+        btnEl.style.color = "";
+    }, 1600);
+}
+
+async function copyTableToClipboard(tableId, btnEl){
+    const table = document.getElementById(tableId);
+    if(!table || !table.rows.length){ flashBtn(btnEl, "Nothing to copy", true); return; }
+
+    try{
+        if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+            const htmlBlob = new Blob([table.outerHTML], {type:"text/html"});
+            const textBlob = new Blob([tableToTSV(table)], {type:"text/plain"});
+            await navigator.clipboard.write([
+                new ClipboardItem({"text/html": htmlBlob, "text/plain": textBlob})
+            ]);
+            flashBtn(btnEl, "✅ Copied!");
+            return;
+        }
+        throw new Error("Clipboard API unavailable");
+    }catch(err){
+        // Fallback: select the table DOM node and use execCommand, which
+        // preserves formatting well when pasted into Excel/Sheets.
+        try{
+            const range = document.createRange();
+            range.selectNode(table);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            const ok = document.execCommand("copy");
+            sel.removeAllRanges();
+            if(!ok) throw new Error("execCommand copy failed");
+            flashBtn(btnEl, "✅ Copied!");
+        }catch(e2){
+            flashBtn(btnEl, "Copy failed", true);
+        }
+    }
+}
+
+function downloadTableAsPNG(tableId, filename, btnEl){
+    if(typeof html2canvas === "undefined"){
+        flashBtn(btnEl, "PNG lib failed to load", true);
+        return;
+    }
+    const table = document.getElementById(tableId);
+    const wrap = table ? table.closest(".table-wrap") : null;
+    if(!wrap || !table.rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+
+    // Temporarily expand the scroll box so the *entire* table is captured,
+    // not just the part currently visible/scrolled into view.
+    const prevMaxHeight = wrap.style.maxHeight;
+    const prevOverflow = wrap.style.overflow;
+    wrap.style.maxHeight = "none";
+    wrap.style.overflow = "visible";
+
+    html2canvas(wrap, {backgroundColor:"#ffffff", scale:2}).then(canvas => {
+        wrap.style.maxHeight = prevMaxHeight;
+        wrap.style.overflow = prevOverflow;
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }).catch(() => {
+        wrap.style.maxHeight = prevMaxHeight;
+        wrap.style.overflow = prevOverflow;
+        flashBtn(btnEl, "PNG export failed", true);
+    });
+}
+
+function downloadTableAsExcel(tableId, filename, btnEl){
+    if(typeof XLSX === "undefined"){
+        flashBtn(btnEl, "Excel lib failed to load", true);
+        return;
+    }
+    const table = document.getElementById(tableId);
+    if(!table || !table.rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+    const wb = XLSX.utils.table_to_book(table, {sheet: "Mismatch"});
+    XLSX.writeFile(wb, filename);
+}
+
+const mismatchCopyBtn = document.getElementById("mismatchCopyBtn");
+const mismatchPngBtn = document.getElementById("mismatchPngBtn");
+const mismatchXlsxBtn = document.getElementById("mismatchXlsxBtn");
+
+mismatchCopyBtn.addEventListener("click", () => copyTableToClipboard("mismatchSummaryTable", mismatchCopyBtn));
+mismatchPngBtn.addEventListener("click", () => downloadTableAsPNG("mismatchSummaryTable", "Cash_Collection_Mismatch.png", mismatchPngBtn));
+mismatchXlsxBtn.addEventListener("click", () => downloadTableAsExcel("mismatchSummaryTable", "Cash_Collection_Mismatch.xlsx", mismatchXlsxBtn));
 
 downloadBtn.addEventListener("click",()=>{
     if(!filtered.length) return;
