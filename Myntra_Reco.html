@@ -858,7 +858,7 @@ function renderMismatchTable(recoSummary){
                 input1Cash: left,
                 input3Cash: right,
                 difference: Math.round((right - left) * 100) / 100,
-                input3Status: hasInput3Match ? "Matched Order ID" : "No Order ID Match"
+                input3Status: hasInput3Match ? "Amount Mismatched" : "Missing Order ID"
             });
         }
     });
