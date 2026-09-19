@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Zippee PAN India Pendency</title>
+<title>SDD PAN India Pendency</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -99,9 +99,29 @@ th{
   color:white;
 }
 #downloadArea{
-  padding:3px 10px;
-  background:rgb(255, 255, 255);
+  display:inline-block;
+  width:700px;
+  padding:0;
+  background:#ffffff;
   border-radius:5px;
+  overflow:hidden;
+}
+#downloadArea .table-header-bar{
+  margin:0;
+  max-width:none;
+  width:100%;
+}
+#downloadArea table{
+  margin:0;
+  max-width:none;
+  width:100%;
+  box-shadow:none;
+}
+#downloadArea .watermark{
+  margin:0;
+  padding:10px 0;
+  max-width:none;
+  width:100%;
 }
 .total{
   background:#dee2e6;
@@ -153,7 +173,7 @@ th,td{
 <body>
 
 <div class="header">
-  <h2>Zippee – Pendancy Report</h2>
+  <h2>SDD – Pendancy Report</h2>
 </div>
 
 <button onclick="downloadImage()" style="
@@ -618,7 +638,12 @@ function downloadImage(){
   html2canvas(area, {
     scale: 3,
     useCORS: true,
-    backgroundColor: "#ffffff"
+    backgroundColor: "#ffffff",
+    width: area.offsetWidth,
+    height: area.offsetHeight,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    windowWidth: document.documentElement.offsetWidth
   }).then(canvas=>{
     let link = document.createElement("a");
     link.download = "report.png";
