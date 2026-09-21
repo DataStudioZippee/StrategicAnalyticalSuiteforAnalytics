@@ -301,7 +301,8 @@ input[type=date]{
             </div>
 
             <div class="window-note" id="windowNote">
-                Cutoff window: previous day 3:00 PM (exclusive) &rarr; report day 3:00 PM (inclusive)
+                Cutoff window: previous day <span id="cutoffA">4:00 PM</span> (exclusive)
+                &rarr; report day <span id="cutoffB">4:00 PM</span> (inclusive)
             </div>
 
             <div style="margin-top:16px;">
@@ -330,7 +331,7 @@ input[type=date]{
 
         <div class="formula">
             <b>Metrics Logic:</b><br><br>
-            <b>Report Window</b> = Creation Date after (D-1) 3:00 PM and up to and including (D) 3:00 PM<br>
+            <b>Report Window</b> = <span id="cutoffText">Creation Date after (D-1) 4:00 PM and up to and including (D) 4:00 PM</span><br>
             <b>Total Orders</b> = Count of all rows/orders in the window<br>
             <b>Not_D0_Dispatched Orders</b> = Current Status = READY<br>
             <b>D0_Dispatched Orders</b> = Total Orders - (READY Orders with 0 attempt)<br>
@@ -363,20 +364,97 @@ const BRAND_SHEET_URL =
 /* Cutoff hour for the reporting window (24h clock). 16 = 4 PM */
 const CUTOFF_HOUR = 16;
 
-/* Darkstore display mapping (hoisted out of the render loop) */
+/* ------------------------------------------------------------
+   DARKSTORE LABELS — TWO LAYERS
+
+   LAYER 1 (below): the original mapping. Keyed on the CLEANED
+   name, i.e. after "zippee_" / "zipppee_" and "_sdd" are stripped.
+   This layer WINS wherever it has a match.
+   ------------------------------------------------------------ */
 const DARKSTORE_MAPPING = {
-    "okhla":        "Del_Okhla",
-    "dwarka":       "Del_Dwarka",
-    "gurugram":     "Del_Gurugram",
-    "noida":        "Del_Noida",
-    "wazirpur":     "Del_Wazipur",
-    "ghaziabad":    "Del_Ghaziabad",
-    "periyamet":    "Ch_Periyamet",
-    "andheri":      "Mum_Andheri",
-    "koregaonpark": "Pune_Koregaonpark",
-    "matunga":      "Mum_Matunga",
-    "koramangala":  "Blr_Koramangala",
-    "horamavu":     "Blr_Horamavu"
+    "okhla":         "Del_Okhla",
+    "dwarka":        "Del_Dwarka",
+    "gurugram":      "Del_Gurugram",
+    "noida":         "Del_Noida",
+    "wazirpur":      "Del_Wazipur",
+    "ghaziabad":     "Del_Ghaziabad",
+    "periyamet":     "Ch_Periyamet",
+    "andheri":       "Mum_Andheri",
+    "koregaonpark":  "Pune_Koregaonpark",
+    "matunga":       "Mum_Matunga",
+    "koramangala":   "Blr_Koramangala",
+    "horamavu":      "Blr_Horamavu",
+
+    // Additional store mappings
+    "gurugram-clinikally":             "Gurugram",
+    "zippee_andheri_sdd":              "Andheri",
+    "zippee_koregaonpark_sdd":         "Koregaonpark",
+    "zippee_matunga_valkyriesdd":      "Matunga",
+    "zippee_wazirpur_sdd":             "Wazirpur",
+    "zippee_dwarka_sdd":               "Dwarka",
+    "zipppee_noida_sdd":               "Noida",
+    "zippee_ghaziabad_sdd":            "Ghaziabad",
+    "zippee_okhla_sdd":                "Okhla",
+    "zippee_gurugram_sdd":             "Gurugram",
+    "partnr_frazertown":               "Frazertown",
+    "expresshub_testing":              "Testing",
+    "zippee_horamavu_sdd":              "Horamavu",
+    "zippee_koramangala_sdd":          "Koramangala",
+    "zippee_krishna_herbal_indorewh":  "Indore",
+    "zippee_manikonda_sdd":             "Manikonda",
+    "partnr_badshapur":                "Badshapur",
+    "zippee_krishna_herbal_jodhpurwh": "Jodhpur",
+    "partnr_bommasandra":              "Bommasandra",
+    "partnr_yeshwantpur":              "Yeshwantpur",
+    "healthkart-ludhiana":             "Ludhiana",
+    "zippee_topsia_valkyriesdd":       "Topsia",
+    "ugaoo ggn warehouse":             "Gurugram"
+};
+
+/* ------------------------------------------------------------
+   LAYER 2: the new mapping. Keyed on the RAW Darkstore value
+   exactly as it appears in the file (matched case-insensitively).
+   Used only when LAYER 1 has no match for that store.
+
+   To make these plain names win instead, swap the two lookups
+   inside cleanDarkstoreName() below.
+   ------------------------------------------------------------ */
+const RAW_DARKSTORE_MAPPING = {
+    "zippee_okhla_sdd":                "Okhla",
+    "gurugram-clinikally":             "Gurugram",
+    "zippee_koregaonpark_sdd":         "Koregaon",
+    "zippee_andheri_sdd":              "Andheri",
+    "zipppee_noida_sdd":               "noida",
+    "zippee_gurugram_sdd":             "gurugram",
+    "zippee_wazirpur_sdd":             "wazirpur",
+    "zippee_ghaziabad_sdd":            "ghaziabad",
+    "zippee_matunga_valkyriesdd":      "matunga",
+    "zippee_dwarka_sdd":               "dwarka",
+    "partnr_frazertown":               "frazertown",
+    "zippee_koramangala_sdd":          "koramangala",
+    "zippee_horamavu_sdd":             "horamavu",
+    "zippee_manikonda_sdd":            "manikonda",
+    "expresshub_testing":              "Testing",
+    "zippee_kalyannagar_sdd":          "kalyannagar",
+    "test_zippee_warehouse":           "zippee",
+    "zippee_periyamet_sdd":            "periyamet",
+    "ugaoo blr warehouse":             "Banglore",
+    "ugaoo ggn warehouse":             "Gurugram",
+    "partnr_yeshwantpur":              "yeshwantpur",
+    "partnr_badshapur":                "badshapur",
+    "partnr_bommasandra":              "bommasandra",
+    "zippee_kolkata_sdd":              "kolkata",
+    "healthkart-ludhiana":             "NA",
+    "zippee_krishna_herbal_jodhpurwh": "Jodhpur",
+    "geofence_test":                   "test",
+    "zippee_krishna_herbal_indorewh":  "Indore",
+    "testprod":                        "NA",
+    "gurugram test":                   "NA",
+    "ekt_kol":                         "kol",
+    "mf1":                             "NA",
+    "zippee_topsia_valkyriesdd":       "topsia",
+    "mf2":                             "Na",
+    "testzippee":                      "NA"
 };
 
 /* ============================================================
@@ -415,27 +493,57 @@ function cleanCell(v){
 /* Parse "DD/MM/YYYY h:mm AM/PM" -> Date (day-first, NOT US order) */
 function parseCreationDate(v){
 
+    /* real Date object (works once cellDates:true is set above) */
     if(v instanceof Date && !isNaN(v)) return v;
+
+    /* Excel serial number (days since 1899-12-30) */
+    if(typeof v === "number" && isFinite(v) && v > 20000 && v < 90000){
+        const u = new Date(Math.round((v - 25569) * 86400000));
+        return new Date(
+            u.getUTCFullYear(), u.getUTCMonth(),   u.getUTCDate(),
+            u.getUTCHours(),    u.getUTCMinutes(), u.getUTCSeconds()
+        );
+    }
 
     const s = cleanCell(v);
     if(!s) return null;
 
-    const m = s.match(
+    if(/^\d+(\.\d+)?$/.test(s)){
+        const n = parseFloat(s);
+        if(n > 20000 && n < 90000) return parseCreationDate(n);
+    }
+
+    let m = s.match(
         /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i
     );
-    if(!m) return null;
+    if(m){
+        const dd = +m[1], mm = +m[2], yyyy = +m[3];
+        let   hh = m[4] !== undefined ? +m[4] : 0;
+        const mi = m[5] !== undefined ? +m[5] : 0;
+        const ss = m[6] !== undefined ? +m[6] : 0;
+        const ap = m[7] ? m[7].toUpperCase() : null;
+        if(ap === "PM" && hh !== 12) hh += 12;
+        if(ap === "AM" && hh === 12) hh  = 0;
+        const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
+        return isNaN(d) ? null : d;
+    }
 
-    const dd = +m[1], mm = +m[2], yyyy = +m[3];
-    let   hh = m[4] !== undefined ? +m[4] : 0;
-    const mi = m[5] !== undefined ? +m[5] : 0;
-    const ss = m[6] !== undefined ? +m[6] : 0;
-    const ap = m[7] ? m[7].toUpperCase() : null;
+    m = s.match(
+        /^(\d{4})-(\d{2})-(\d{2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i
+    );
+    if(m){
+        const yyyy = +m[1], mm = +m[2], dd = +m[3];
+        let   hh = m[4] !== undefined ? +m[4] : 0;
+        const mi = m[5] !== undefined ? +m[5] : 0;
+        const ss = m[6] !== undefined ? +m[6] : 0;
+        const ap = m[7] ? m[7].toUpperCase() : null;
+        if(ap === "PM" && hh !== 12) hh += 12;
+        if(ap === "AM" && hh === 12) hh  = 0;
+        const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
+        return isNaN(d) ? null : d;
+    }
 
-    if(ap === "PM" && hh !== 12) hh += 12;
-    if(ap === "AM" && hh === 12) hh  = 0;
-
-    const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
-    return isNaN(d) ? null : d;
+    return null;
 }
 
 /* Attempts as a number, tolerant of numeric or string cells */
@@ -450,7 +558,7 @@ function parseAttempts(row){
     return isNaN(n) ? 0 : n;
 }
 
-/* Window for report date D:  (D-1 15:00)  <  t  <=  (D 15:00) */
+/* Window for report date D:  (D-1 CUTOFF)  <  t  <=  (D CUTOFF) */
 function windowFor(yyyy_mm_dd){
     if(!yyyy_mm_dd) return null;
 
@@ -461,6 +569,13 @@ function windowFor(yyyy_mm_dd){
     const start = new Date(y, m - 1, d - 1, CUTOFF_HOUR, 0, 0, 0);
 
     return { start, end };
+}
+
+/* Human label for CUTOFF_HOUR, e.g. "4:00 PM" */
+function cutoffLabel(){
+    let h = CUTOFF_HOUR % 12;
+    if(h === 0) h = 12;
+    return h + ":00 " + (CUTOFF_HOUR >= 12 ? "PM" : "AM");
 }
 
 function fmtDMY(d){
@@ -484,19 +599,39 @@ function pctColour(pct){
     return "#FF7F7F";
 }
 
+/* ------------------------------------------------------------
+   Darkstore label resolution:
+     1. strip zippee_ / zipppee_ prefix and _sdd suffix
+     2. LAYER 1 (DARKSTORE_MAPPING) on the cleaned name  -> wins
+     3. LAYER 2 (RAW_DARKSTORE_MAPPING) on the raw value
+     4. otherwise show the cleaned name as-is
+   ------------------------------------------------------------ */
 function cleanDarkstoreName(ds){
-    let c = String(ds)
+
+    const raw = String(ds).trim();
+
+    let c = raw
         .replace(/^zippee_/i, "")
         .replace(/^zipppee_/i, "")
         .replace(/_sdd$/i, "");
 
     if(c.toLowerCase() === "matunga_valkyriesdd") c = "matunga";
 
-    return DARKSTORE_MAPPING[c.toLowerCase()] || c;
+    /* LAYER 1 — original mapping, takes precedence */
+    if(DARKSTORE_MAPPING[c.toLowerCase()] !== undefined){
+        return DARKSTORE_MAPPING[c.toLowerCase()];
+    }
+
+    /* LAYER 2 — new raw-keyed mapping */
+    if(RAW_DARKSTORE_MAPPING[raw.toLowerCase()] !== undefined){
+        return RAW_DARKSTORE_MAPPING[raw.toLowerCase()];
+    }
+
+    return c;
 }
 
 /* ============================================================
-   REQUIREMENT 3 — BRAND LIST FROM PUBLISHED GOOGLE SHEET
+   BRAND LIST FROM PUBLISHED GOOGLE SHEET
    ============================================================ */
 
 async function loadBrands(){
@@ -582,7 +717,7 @@ function handleFile(e){
 
         try{
             const data     = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, { type: "array" });
+            const workbook = XLSX.read(data, { type: "array", cellDates: true });
             const sheet    = workbook.Sheets[workbook.SheetNames[0]];
             const json     = XLSX.utils.sheet_to_json(sheet);
 
@@ -612,7 +747,7 @@ function handleFile(e){
 }
 
 /* ============================================================
-   RENDER  (requirements 1 + 2 + 3)
+   RENDER
    ============================================================ */
 
 function render(){
@@ -642,7 +777,7 @@ function render(){
         return;
     }
 
-    /* ---- REQUIREMENT 2: cutoff window filter ---- */
+    /* ---- cutoff window filter ---- */
     const unparsed = allRows.filter(r => !r.created).length;
 
     const rows = allRows.filter(r =>
@@ -668,7 +803,7 @@ function render(){
     summary.innerHTML = `
         <tr><td><b>Report Window</b></td>
             <td>${esc(fmtDMYHM(win.start))} &rarr; ${esc(fmtDMYHM(win.end))}</td>
-            <td>(D-1) 3:00 PM exclusive &rarr; (D) 3:00 PM inclusive</td></tr>
+            <td>(D-1) ${cutoffLabel()} exclusive &rarr; (D) ${cutoffLabel()} inclusive</td></tr>
         <tr><td><b>Total Orders</b></td><td>${total}</td>
             <td>Count of all orders in the window</td></tr>
         <tr><td><b>Not_D0_Dispatched</b></td><td>${ready} (${pct(ready)})</td>
@@ -731,6 +866,7 @@ function render(){
     let html = "";
     let rendered = 0;
     const emptyBrands = [];
+    const unmapped    = new Set();
 
     allowedBrands.forEach(brand => {
 
@@ -765,6 +901,13 @@ function render(){
 <tr><td class="yellow"><b>Metric</b></td>`;
 
         darkstores.forEach(ds => {
+            const lower = String(ds).trim().toLowerCase();
+            const cl    = lower.replace(/^zippee_|^zipppee_/,"").replace(/_sdd$/,"");
+            if(DARKSTORE_MAPPING[cl] === undefined &&
+               RAW_DARKSTORE_MAPPING[lower] === undefined &&
+               cl !== "matunga_valkyriesdd"){
+                unmapped.add(String(ds).trim());
+            }
             html += `<td class="yellow"><b>${esc(cleanDarkstoreName(ds))}</b></td>`;
         });
         html += `</tr>`;
@@ -829,6 +972,12 @@ function render(){
         cls = "warn";
     }
 
+    if(unmapped.size){
+        msg += "<br>Darkstore(s) with no mapping entry (shown as-is): <b>" +
+               esc([...unmapped].join(", ")) + "</b>";
+        cls = "warn";
+    }
+
     if(unparsed){
         msg += "<br><b>" + unparsed +
                "</b> row(s) had an unreadable Creation Date and were excluded.";
@@ -889,6 +1038,13 @@ window.addEventListener("load", () => {
         yesterday.getFullYear() + "-" +
         String(yesterday.getMonth() + 1).padStart(2,"0") + "-" +
         String(yesterday.getDate()).padStart(2,"0");
+
+    /* keep all cutoff labels in sync with CUTOFF_HOUR */
+    document.getElementById("cutoffA").textContent = cutoffLabel();
+    document.getElementById("cutoffB").textContent = cutoffLabel();
+    document.getElementById("cutoffText").textContent =
+        "Creation Date after (D-1) " + cutoffLabel() +
+        " and up to and including (D) " + cutoffLabel();
 
     loadBrands();
 });
