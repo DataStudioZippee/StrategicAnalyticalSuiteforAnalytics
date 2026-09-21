@@ -457,6 +457,37 @@ function darkstoreGroupKey(raw){
 }
 
 /* ------------------------------------------------------------
+   KAPIVA — its own darkstore grouping, replacing the universal
+   Delhi_Hub-only merge with a full city-level rollup. The six
+   Delhi stores still land in "Delhi_Hub" (same as everyone else);
+   everything beyond that merges further into one column per city.
+   A raw darkstore not in this table falls back to itself, same as
+   the universal grouping does, so nothing silently disappears.
+   ------------------------------------------------------------ */
+const KAPIVA_DARKSTORE_GROUPING = {
+    "zippee_wazirpur_sdd":        "Delhi_Hub",
+    "zippee_koregaonpark_sdd":    "Pune",
+    "zippee_okhla_sdd":           "Delhi_Hub",
+    "zipppee_noida_sdd":          "Delhi_Hub",
+    "zippee_andheri_sdd":         "Mumbai",
+    "zippee_dwarka_sdd":          "Delhi_Hub",
+    "zippee_gurugram_sdd":        "Delhi_Hub",
+    "zippee_matunga_valkyriesdd": "Mumbai",
+    "zippee_ghaziabad_sdd":       "Delhi_Hub",
+    "zippee_manikonda_sdd":       "Hyderabad",
+    "zippee_koramangala_sdd":     "Banglore",
+    "zippee_horamavu_sdd":        "Banglore",
+    "zippee_periyamet_sdd":       "Chennai",
+    "zippee_kolkata_sdd":         "Topsia",
+    "zippee_topsia_valkyriesdd":  "Topsia"
+};
+
+function kapivaDarkstoreGroupKey(raw){
+    const low = String(raw).trim().toLowerCase();
+    return KAPIVA_DARKSTORE_GROUPING[low] || String(raw).trim();
+}
+
+/* ------------------------------------------------------------
    AWB LOOKUP OVERRIDE — for these two Krishna Herbal warehouse
    darkstores, a pasted AWB list matches orders by AWB number only,
    ignoring the cutoff window entirely. With the box empty, these
@@ -474,7 +505,7 @@ const AWB_FILTER_STORES = new Set([
    involved at all), and always uses a FIXED 3 PM -> 3 PM cutoff,
    independent of whatever cutoff each brand-wise report uses.
    ------------------------------------------------------------ */
-const DARKSTORE_WISE_CUTOFF_HOUR = 16;
+const DARKSTORE_WISE_CUTOFF_HOUR = 15;
 
 /* Only these darkstores appear in this report; everything else
    (test stores, partner stores, the Krishna Herbal warehouses,
@@ -764,6 +795,29 @@ function pctColour(pct){
     if(pct >= 60) return "#FFFF00";
     if(pct >= 50) return "#F4A460";
     return "#FF7F7F";
+}
+
+/* ------------------------------------------------------------
+   KAPIVA — manual "Total Orders" override.
+
+   Every other brand computes D0%/FASR%/Delivered% against its own
+   ACTUAL processed count (s.total). For Kapiva, the person enters
+   Total Orders by hand per darkstore, and those percentages are
+   computed against that manual number instead, via a Generate
+   button rather than live as they type (matching the reference).
+
+   Values persist per (report date, darkstore) so they survive an
+   unrelated re-render (changing the date, editing the AWB box,
+   reloading brands) without being wiped from the input boxes.
+   ------------------------------------------------------------ */
+const kapivaTotalOrders = new Map(); // key: "<dateVal>|<darkstore>" -> raw input string
+
+function setKapivaPctCell(cellId, numerator, denominator){
+    const cell = document.getElementById(cellId);
+    if(!cell) return;
+    const pct = denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(0)) : 0;
+    cell.textContent = pct + "%";
+    cell.style.background = pctColour(pct);
 }
 
 /* ------------------------------------------------------------
@@ -1131,7 +1185,9 @@ function render(){
         if(!group) return;
 
         const store = brandStats[group];
-        const dsKey = darkstoreGroupKey(r.darkstore);
+        const dsKey = group.trim().toLowerCase() === "kapiva"
+            ? kapivaDarkstoreGroupKey(r.darkstore)
+            : darkstoreGroupKey(r.darkstore);
 
         if(!store[dsKey]){
             store[dsKey] = {
@@ -1159,6 +1215,7 @@ function render(){
     let rendered = 0;
     const emptyBrands = [];
     const unmapped    = new Set();
+    const postRenderHooks = [];
 
     reportGroups.forEach(brand => {
 
@@ -1170,20 +1227,25 @@ function render(){
         }
 
         rendered++;
-        const tableId = "report-" + rendered;
+        const tableId  = "report-" + rendered;
+        const isKapiva = brand.trim().toLowerCase() === "kapiva";
+        const extraCol = isKapiva ? 1 : 0;
 
         html += `
 <div style="margin-bottom:40px;display:flex;flex-direction:column;align-items:center;">
 
-<button class="btn btn-sm" style="margin-bottom:10px;"
+<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px;">
+<button class="btn btn-sm"
         data-table="${tableId}" data-brand="${esc(brand)}">
     Download ${esc(brand)} PNG
 </button>
+${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Generate</button>` : ""}
+</div>
 
 <table id="${tableId}" class="eod-table" style="width:auto;">
 
 <tr>
-    <th colspan="${darkstores.length + 1}" style="font-size:22px;padding:18px;
+    <th colspan="${darkstores.length + 1 + extraCol}" style="font-size:22px;padding:18px;
         background:#ffffff;color:#000000;text-align:center;font-weight:800;
         border-bottom:2px solid #dcdcdc;">
         ZIPPEE &harr; ${esc(brand)} EOD REPORT | ${esc(formattedDate)}
@@ -1193,41 +1255,141 @@ function render(){
 <tr><td class="yellow"><b>Metric</b></td>`;
 
         darkstores.forEach(ds => {
-            if(!isMapped(ds)) unmapped.add(String(ds).trim());
-            html += `<td class="yellow"><b>${esc(cleanDarkstoreName(ds))}</b></td>`;
+            if(isKapiva){
+                html += `<td class="yellow"><b>${esc(ds)}</b></td>`;
+            } else {
+                if(!isMapped(ds)) unmapped.add(String(ds).trim());
+                html += `<td class="yellow"><b>${esc(cleanDarkstoreName(ds))}</b></td>`;
+            }
         });
+        if(isKapiva) html += `<td class="yellow"><b>Total</b></td>`;
         html += `</tr>`;
 
-        const plainRow = (label, fn) => {
-            let h = `<tr><td class="yellow"><b>${label}</b></td>`;
-            darkstores.forEach(ds => h += `<td>${fn(brandStats[brand][ds])}</td>`);
-            return h + `</tr>`;
-        };
+        if(isKapiva){
 
-        const pctRow = (label, fn) => {
-            let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+            const dk = ds => ds.replace(/[^a-zA-Z0-9]/g,"");
+            const brandKey = brand.replace(/[^a-zA-Z0-9]/g,"");
+
+            /* Manual "Total Orders" row — one input per darkstore, blank
+               until the person types a number; nothing here is computed
+               from the data. */
+            html += `<tr><td class="yellow"><b>Total Orders</b></td>`;
             darkstores.forEach(ds => {
-                const s = brandStats[brand][ds];
-                const p = s.total > 0 ? Number((fn(s) / s.total * 100).toFixed(0)) : 0;
-                h += `<td style="background:${pctColour(p)};font-weight:700;">${p}%</td>`;
+                const inputId = `totalOrders_${brandKey}_${dk(ds)}`;
+                html += `<td><input type="number" min="0" id="${inputId}" placeholder="Enter"
+                            style="width:90px;padding:6px;text-align:center;border:1px solid #999;
+                                   border-radius:6px;font-weight:700;"></td>`;
             });
-            return h + `</tr>`;
-        };
+            html += `<td class="gray" id="totalOrdersSum_${brandKey}"><b>0</b></td></tr>`;
 
-        html += plainRow("Processed",      s => s.total);
-        html += plainRow("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
-        html += pctRow  ("D0_Dispatched %",s => s.total - s.readyZeroAttempt);
-        html += plainRow("FASR",           s => s.fasrDelivered);
-        html += pctRow  ("FASR%",          s => s.fasrDelivered);
-        html += plainRow("Delivered",      s => s.delivered);
-        html += pctRow  ("Delivered%",     s => s.delivered);
-        html += plainRow("Cancelled",      s => s.cancelled);
-        html += plainRow("Not Dispatched", s => s.notDispatched);
-        html += plainRow("Not Dispatched + 0 Attempt", s => s.readyZeroAttempt);
+            const plainRowK = (label, fn) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                let sum = 0;
+                darkstores.forEach(ds => {
+                    const v = fn(brandStats[brand][ds]);
+                    sum += v;
+                    h += `<td>${v}</td>`;
+                });
+                return h + `<td class="gray"><b>${sum}</b></td></tr>`;
+            };
+
+            /* Percentage rows start blank (0%) — Generate fills them in
+               from whatever's in the Total Orders boxes above. */
+            const pctRowK = (label, cellPrefix) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                darkstores.forEach(ds => {
+                    h += `<td id="${cellPrefix}_${brandKey}_${dk(ds)}" style="font-weight:700;">0%</td>`;
+                });
+                return h + `<td class="gray" id="${cellPrefix}_${brandKey}_total" style="font-weight:700;">0%</td></tr>`;
+            };
+
+            html += plainRowK("Processed",      s => s.total);
+            html += plainRowK("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
+            html += pctRowK  ("D0_Dispatched %","d0Pct");
+            html += plainRowK("FASR",           s => s.fasrDelivered);
+            html += pctRowK  ("FASR%",          "fasrPct");
+            html += plainRowK("Delivered",      s => s.delivered);
+            html += pctRowK  ("Delivered%",     "delPct");
+            html += plainRowK("Cancelled",      s => s.cancelled);
+
+            /* Wire the inputs + Generate button once this table is in the DOM */
+            postRenderHooks.push(() => {
+
+                darkstores.forEach(ds => {
+                    const input = document.getElementById(`totalOrders_${brandKey}_${dk(ds)}`);
+                    if(!input) return;
+                    const stateKey = dateVal + "|" + ds;
+                    const saved = kapivaTotalOrders.get(stateKey);
+                    if(saved !== undefined) input.value = saved;
+                    input.addEventListener("input", () => {
+                        kapivaTotalOrders.set(stateKey, input.value);
+                    });
+                });
+
+                function doGenerate(){
+                    let sumOrders = 0, sumD0 = 0, sumFasr = 0, sumDelivered = 0;
+
+                    darkstores.forEach(ds => {
+                        const s = brandStats[brand][ds];
+                        const input = document.getElementById(`totalOrders_${brandKey}_${dk(ds)}`);
+                        const totalOrders = input && input.value ? Number(input.value) : 0;
+
+                        sumOrders    += totalOrders;
+                        sumD0        += (s.total - s.readyZeroAttempt);
+                        sumFasr      += s.fasrDelivered;
+                        sumDelivered += s.delivered;
+
+                        setKapivaPctCell(`d0Pct_${brandKey}_${dk(ds)}`,   s.total - s.readyZeroAttempt, totalOrders);
+                        setKapivaPctCell(`fasrPct_${brandKey}_${dk(ds)}`, s.fasrDelivered,              totalOrders);
+                        setKapivaPctCell(`delPct_${brandKey}_${dk(ds)}`,  s.delivered,                  totalOrders);
+                    });
+
+                    const sumCell = document.getElementById(`totalOrdersSum_${brandKey}`);
+                    if(sumCell) sumCell.innerHTML = `<b>${sumOrders}</b>`;
+
+                    setKapivaPctCell(`d0Pct_${brandKey}_total`,   sumD0,        sumOrders);
+                    setKapivaPctCell(`fasrPct_${brandKey}_total`, sumFasr,      sumOrders);
+                    setKapivaPctCell(`delPct_${brandKey}_total`,  sumDelivered, sumOrders);
+                }
+
+                const genBtn = document.querySelector(`button[data-generate-table="${tableId}"]`);
+                if(genBtn) genBtn.addEventListener("click", doGenerate);
+
+                /* Restore a previously-Generated view after any re-render */
+                doGenerate();
+            });
+
+        } else {
+
+            const plainRow = (label, fn) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                darkstores.forEach(ds => h += `<td>${fn(brandStats[brand][ds])}</td>`);
+                return h + `</tr>`;
+            };
+
+            const pctRow = (label, fn) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                darkstores.forEach(ds => {
+                    const s = brandStats[brand][ds];
+                    const p = s.total > 0 ? Number((fn(s) / s.total * 100).toFixed(0)) : 0;
+                    h += `<td style="background:${pctColour(p)};font-weight:700;">${p}%</td>`;
+                });
+                return h + `</tr>`;
+            };
+
+            html += plainRow("Processed",      s => s.total);
+            html += plainRow("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
+            html += pctRow  ("D0_Dispatched %",s => s.total - s.readyZeroAttempt);
+            html += plainRow("FASR",           s => s.fasrDelivered);
+            html += pctRow  ("FASR%",          s => s.fasrDelivered);
+            html += plainRow("Delivered",      s => s.delivered);
+            html += pctRow  ("Delivered%",     s => s.delivered);
+            html += plainRow("Cancelled",      s => s.cancelled);
+        }
 
         html += `
 <tr>
-    <td colspan="${darkstores.length + 1}" style="background:#D3D3D3;color:#000000;
+    <td colspan="${darkstores.length + 1 + extraCol}" style="background:#D3D3D3;color:#000000;
         font-size:13px;font-weight:700;letter-spacing:0.5px;text-align:center;padding:12px;">
         Powered by SASA Automation | Zippee
     </td>
@@ -1243,6 +1405,8 @@ function render(){
         btn.addEventListener("click", () =>
             downloadBrandReport(btn.dataset.table, btn.dataset.brand));
     });
+
+    postRenderHooks.forEach(fn => fn());
 
     /* ---- status line ---- */
     let msg = "Loaded <b>" + allRows.length + "</b> rows | <b>" + total +
