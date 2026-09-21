@@ -251,6 +251,7 @@ input[type=date]{
     padding:10px 14px;
     border-radius:10px;
     display:inline-block;
+    line-height:1.7;
 }
 
 @media(max-width:768px){
@@ -301,8 +302,20 @@ input[type=date]{
             </div>
 
             <div class="window-note" id="windowNote">
-                Cutoff window: previous day <span id="cutoffA">4:00 PM</span> (exclusive)
-                &rarr; report day <span id="cutoffB">4:00 PM</span> (inclusive)
+                Cutoff time is set per brand in the Brand Sheet &mdash; loading brand list&hellip;
+            </div>
+
+            <div style="margin-top:16px;">
+                <label class="control-label" for="awbFilter">
+                    Paste AWB Numbers (one per line) &mdash; Krishna Herbal's Indore &amp; Jodhpur warehouses only
+                </label>
+                <textarea id="awbFilter" placeholder="Paste AWB Numbers here&hellip; (leave empty for normal cutoff-window filtering)"
+                    style="width:100%;height:140px;padding:12px;border-radius:10px;border:1px solid #ccc;
+                           resize:vertical;font-size:14px;font-family:Consolas, monospace;"></textarea>
+                <div class="window-note" style="margin-top:8px;font-size:12px;">
+                    When this box has AWB numbers, orders from those two warehouses are matched by AWB only &mdash;
+                    the cutoff window is skipped for them. Every other darkstore, for every brand, keeps using its normal cutoff window regardless of this box.
+                </div>
             </div>
 
             <div style="margin-top:16px;">
@@ -331,7 +344,8 @@ input[type=date]{
 
         <div class="formula">
             <b>Metrics Logic:</b><br><br>
-            <b>Report Window</b> = <span id="cutoffText">Creation Date after (D-1) 4:00 PM and up to and including (D) 4:00 PM</span><br>
+            <b>Report Window</b> = Creation Date after (D-1) &lt;brand's cutoff hour&gt; and up to and including (D) &lt;brand's cutoff hour&gt;.
+            Each brand's cutoff hour comes from Column B of the Brand Sheet &mdash; see the window note above, or each report's header below, for the exact time used.<br>
             <b>Total Orders</b> = Count of all rows/orders in the window<br>
             <b>Not_D0_Dispatched Orders</b> = Current Status = READY<br>
             <b>D0_Dispatched Orders</b> = Total Orders - (READY Orders with 0 attempt)<br>
@@ -361,63 +375,85 @@ input[type=date]{
 const BRAND_SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=0&single=true&output=csv";
 
-/* Cutoff hour for the reporting window (24h clock). 16 = 4 PM */
-const CUTOFF_HOUR = 16;
+/* Fallback cutoff hour (24h clock) used only when:
+     - a brand row in the sheet has a missing/invalid Cutoff value, or
+     - a row belongs to a brand that isn't in the sheet at all
+   (that second case only affects the grand-total summary — brands
+   outside the sheet never get their own report table). */
+const DEFAULT_CUTOFF_HOUR = 16;
+
+/* ------------------------------------------------------------
+   BRAND ALIASES — merge multiple raw Brand Name values from the
+   file into ONE combined report. Keyed on the SHEET brand name
+   (lowercase); value is the display name used for the merged
+   report. A brand with no entry here just uses its own name.
+   Cutoff is still read per-row from whichever raw brand name that
+   row actually carries, so this merge doesn't affect cutoff logic.
+   ------------------------------------------------------------ */
+const BRAND_ALIASES = {
+    "krishna's hebral & ayurveda": "Krishna Herbal",
+    "sandipani healthcare":        "Krishna Herbal"
+};
+
+function canonicalBrand(name){
+    const key = String(name).trim().toLowerCase();
+    return BRAND_ALIASES[key] || String(name).trim();
+}
+
+/* ------------------------------------------------------------
+   DELHI HUB MERGE — these six darkstores are combined into one
+   "Delhi_Hub" column, for every brand's report.
+   ------------------------------------------------------------ */
+const DELHI_HUB_STORES = new Set([
+    "zippee_okhla_sdd",
+    "zippee_ghaziabad_sdd",
+    "zippee_wazirpur_sdd",
+    "zippee_dwarka_sdd",
+    "zippee_gurugram_sdd",
+    "zipppee_noida_sdd"
+]);
+
+function darkstoreGroupKey(raw){
+    const low = String(raw).trim().toLowerCase();
+    return DELHI_HUB_STORES.has(low) ? "Delhi_Hub" : String(raw).trim();
+}
+
+/* ------------------------------------------------------------
+   AWB LOOKUP OVERRIDE — for these two Krishna Herbal warehouse
+   darkstores, a pasted AWB list matches orders by AWB number only,
+   ignoring the cutoff window entirely. With the box empty, these
+   two darkstores behave like any other (normal cutoff filtering).
+   ------------------------------------------------------------ */
+const AWB_FILTER_STORES = new Set([
+    "zippee_krishna_herbal_indorewh",
+    "zippee_krishna_herbal_jodhpurwh"
+]);
 
 /* ------------------------------------------------------------
    DARKSTORE LABELS — TWO LAYERS
 
-   LAYER 1 (below): the original mapping. Keyed on the CLEANED
-   name, i.e. after "zippee_" / "zipppee_" and "_sdd" are stripped.
-   This layer WINS wherever it has a match.
+   LAYER 1: original mapping, keyed on the CLEANED name (after
+   "zippee_" / "zipppee_" and "_sdd" are stripped). WINS on match.
    ------------------------------------------------------------ */
 const DARKSTORE_MAPPING = {
-    "okhla":         "Del_Okhla",
-    "dwarka":        "Del_Dwarka",
-    "gurugram":      "Del_Gurugram",
-    "noida":         "Del_Noida",
-    "wazirpur":      "Del_Wazipur",
-    "ghaziabad":     "Del_Ghaziabad",
-    "periyamet":     "Ch_Periyamet",
-    "andheri":       "Mum_Andheri",
-    "koregaonpark":  "Pune_Koregaonpark",
-    "matunga":       "Mum_Matunga",
-    "koramangala":   "Blr_Koramangala",
-    "horamavu":      "Blr_Horamavu",
-
-    // Additional store mappings
-    "gurugram-clinikally":             "Gurugram",
-    "zippee_andheri_sdd":              "Andheri",
-    "zippee_koregaonpark_sdd":         "Koregaonpark",
-    "zippee_matunga_valkyriesdd":      "Matunga",
-    "zippee_wazirpur_sdd":             "Wazirpur",
-    "zippee_dwarka_sdd":               "Dwarka",
-    "zipppee_noida_sdd":               "Noida",
-    "zippee_ghaziabad_sdd":            "Ghaziabad",
-    "zippee_okhla_sdd":                "Okhla",
-    "zippee_gurugram_sdd":             "Gurugram",
-    "partnr_frazertown":               "Frazertown",
-    "expresshub_testing":              "Testing",
-    "zippee_horamavu_sdd":              "Horamavu",
-    "zippee_koramangala_sdd":          "Koramangala",
-    "zippee_krishna_herbal_indorewh":  "Indore",
-    "zippee_manikonda_sdd":             "Manikonda",
-    "partnr_badshapur":                "Badshapur",
-    "zippee_krishna_herbal_jodhpurwh": "Jodhpur",
-    "partnr_bommasandra":              "Bommasandra",
-    "partnr_yeshwantpur":              "Yeshwantpur",
-    "healthkart-ludhiana":             "Ludhiana",
-    "zippee_topsia_valkyriesdd":       "Topsia",
-    "ugaoo ggn warehouse":             "Gurugram"
+    "okhla":        "Del_Okhla",
+    "dwarka":       "Del_Dwarka",
+    "gurugram":     "Del_Gurugram",
+    "noida":        "Del_Noida",
+    "wazirpur":     "Del_Wazipur",
+    "ghaziabad":    "Del_Ghaziabad",
+    "periyamet":    "Ch_Periyamet",
+    "andheri":      "Mum_Andheri",
+    "koregaonpark": "Pune_Koregaonpark",
+    "matunga":      "Mum_Matunga",
+    "koramangala":  "Blr_Koramangala",
+    "horamavu":     "Blr_Horamavu"
 };
 
 /* ------------------------------------------------------------
-   LAYER 2: the new mapping. Keyed on the RAW Darkstore value
-   exactly as it appears in the file (matched case-insensitively).
-   Used only when LAYER 1 has no match for that store.
-
-   To make these plain names win instead, swap the two lookups
-   inside cleanDarkstoreName() below.
+   LAYER 2: keyed on the RAW Darkstore value exactly as it
+   appears in the file (matched case-insensitively).
+   Used only where LAYER 1 has no match.
    ------------------------------------------------------------ */
 const RAW_DARKSTORE_MAPPING = {
     "zippee_okhla_sdd":                "Okhla",
@@ -454,16 +490,21 @@ const RAW_DARKSTORE_MAPPING = {
     "mf1":                             "NA",
     "zippee_topsia_valkyriesdd":       "topsia",
     "mf2":                             "Na",
-    "testzippee":                      "NA"
+    "testzippee":                      "NA",
+
+    /* Not a raw file value — this is the synthetic key produced by
+       darkstoreGroupKey() for the six merged Delhi darkstores. */
+    "delhi_hub":                       "Delhi_Hub"
 };
 
 /* ============================================================
    STATE
    ============================================================ */
 
-let allowedBrands = [];   // from Google Sheet, in sheet order
-let allRows       = [];   // every parsed row from the uploaded file
-let fileLoaded    = false;
+let allowedBrands = [];        // brand names, sheet order
+let brandCutoffs   = new Map(); // lowercase brand name -> cutoff hour (0-23)
+let allRows        = [];
+let fileLoaded      = false;
 
 /* ============================================================
    HELPERS
@@ -490,13 +531,49 @@ function cleanCell(v){
     return s.trim();
 }
 
-/* Parse "DD/MM/YYYY h:mm AM/PM" -> Date (day-first, NOT US order) */
+/* Small RFC4180-ish CSV parser — handles quoted fields that
+   contain commas or embedded newlines (Google Sheets exports
+   these when a cell has a trailing newline, e.g. a brand name
+   typed with Enter left in the cell). */
+function parseCSV(text){
+    const rows = [];
+    let field = "", row = [], inQuotes = false;
+
+    for(let i = 0; i < text.length; i++){
+        const c = text[i];
+
+        if(inQuotes){
+            if(c === '"'){
+                if(text[i+1] === '"'){ field += '"'; i++; }
+                else inQuotes = false;
+            } else {
+                field += c;
+            }
+        } else {
+            if(c === '"') inQuotes = true;
+            else if(c === ',') { row.push(field); field = ""; }
+            else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; }
+            else if(c === '\r'){ /* skip, \n follows */ }
+            else field += c;
+        }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows;
+}
+
+/* ------------------------------------------------------------
+   Creation Date parser — the export mixes formats:
+     (a) text        "20/09/2026 3:04 PM"   (day-first)
+     (b) real dates  a JS Date (from cellDates:true below)
+     (c) serials     an Excel day-number, e.g. 46271.63
+     (d) ISO text    "2026-09-07 10:15:00"
+   All four are handled. Anything else -> null, counted in the
+   "unreadable Creation Date" status warning.
+   ------------------------------------------------------------ */
 function parseCreationDate(v){
 
-    /* real Date object (works once cellDates:true is set above) */
     if(v instanceof Date && !isNaN(v)) return v;
 
-    /* Excel serial number (days since 1899-12-30) */
     if(typeof v === "number" && isFinite(v) && v > 20000 && v < 90000){
         const u = new Date(Math.round((v - 25569) * 86400000));
         return new Date(
@@ -522,8 +599,10 @@ function parseCreationDate(v){
         const mi = m[5] !== undefined ? +m[5] : 0;
         const ss = m[6] !== undefined ? +m[6] : 0;
         const ap = m[7] ? m[7].toUpperCase() : null;
+
         if(ap === "PM" && hh !== 12) hh += 12;
         if(ap === "AM" && hh === 12) hh  = 0;
+
         const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
         return isNaN(d) ? null : d;
     }
@@ -537,8 +616,10 @@ function parseCreationDate(v){
         const mi = m[5] !== undefined ? +m[5] : 0;
         const ss = m[6] !== undefined ? +m[6] : 0;
         const ap = m[7] ? m[7].toUpperCase() : null;
+
         if(ap === "PM" && hh !== 12) hh += 12;
         if(ap === "AM" && hh === 12) hh  = 0;
+
         const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
         return isNaN(d) ? null : d;
     }
@@ -558,37 +639,46 @@ function parseAttempts(row){
     return isNaN(n) ? 0 : n;
 }
 
-/* Window for report date D:  (D-1 CUTOFF)  <  t  <=  (D CUTOFF) */
-function windowFor(yyyy_mm_dd){
+/* Cutoff hour for a given brand name (falls back to DEFAULT_CUTOFF_HOUR) */
+function effectiveCutoff(brandRaw){
+    const c = brandCutoffs.get(String(brandRaw).trim().toLowerCase());
+    return (typeof c === "number" && !isNaN(c)) ? c : DEFAULT_CUTOFF_HOUR;
+}
+
+/* Window for report date D at a given cutoff hour:
+   (D-1 cutoffHour) < t <= (D cutoffHour) */
+function windowFor(yyyy_mm_dd, cutoffHour){
     if(!yyyy_mm_dd) return null;
 
     const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
     if(!y || !m || !d) return null;
 
-    const end   = new Date(y, m - 1, d,     CUTOFF_HOUR, 0, 0, 0);
-    const start = new Date(y, m - 1, d - 1, CUTOFF_HOUR, 0, 0, 0);
+    const end   = new Date(y, m - 1, d,     cutoffHour, 0, 0, 0);
+    const start = new Date(y, m - 1, d - 1, cutoffHour, 0, 0, 0);
 
     return { start, end };
 }
 
-/* Human label for CUTOFF_HOUR, e.g. "4:00 PM" */
-function cutoffLabel(){
-    let h = CUTOFF_HOUR % 12;
-    if(h === 0) h = 12;
-    return h + ":00 " + (CUTOFF_HOUR >= 12 ? "PM" : "AM");
+/* Human label for an hour, e.g. 16 -> "4:00 PM" */
+function hourLabel(hour){
+    let h = ((hour % 24) + 24) % 24;
+    const ap = h >= 12 ? "PM" : "AM";
+    let h12 = h % 12; if(h12 === 0) h12 = 12;
+    return h12 + ":00 " + ap;
 }
 
-function fmtDMY(d){
-    return String(d.getDate()).padStart(2,"0") + "/" +
-           String(d.getMonth()+1).padStart(2,"0") + "/" +
-           d.getFullYear();
+function fmtDMYFromISO(yyyy_mm_dd){
+    const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
+    return String(d).padStart(2,"0") + "/" + String(m).padStart(2,"0") + "/" + y;
 }
 
 function fmtDMYHM(d){
     let h = d.getHours();
     const ap = h >= 12 ? "PM" : "AM";
     h = h % 12; if(h === 0) h = 12;
-    return fmtDMY(d) + " " + h + ":" +
+    return String(d.getDate()).padStart(2,"0") + "/" +
+           String(d.getMonth()+1).padStart(2,"0") + "/" +
+           d.getFullYear() + " " + h + ":" +
            String(d.getMinutes()).padStart(2,"0") + " " + ap;
 }
 
@@ -602,8 +692,8 @@ function pctColour(pct){
 /* ------------------------------------------------------------
    Darkstore label resolution:
      1. strip zippee_ / zipppee_ prefix and _sdd suffix
-     2. LAYER 1 (DARKSTORE_MAPPING) on the cleaned name  -> wins
-     3. LAYER 2 (RAW_DARKSTORE_MAPPING) on the raw value
+     2. LAYER 1 on the cleaned name   -> wins
+     3. LAYER 2 on the raw value
      4. otherwise show the cleaned name as-is
    ------------------------------------------------------------ */
 function cleanDarkstoreName(ds){
@@ -617,12 +707,10 @@ function cleanDarkstoreName(ds){
 
     if(c.toLowerCase() === "matunga_valkyriesdd") c = "matunga";
 
-    /* LAYER 1 — original mapping, takes precedence */
     if(DARKSTORE_MAPPING[c.toLowerCase()] !== undefined){
         return DARKSTORE_MAPPING[c.toLowerCase()];
     }
 
-    /* LAYER 2 — new raw-keyed mapping */
     if(RAW_DARKSTORE_MAPPING[raw.toLowerCase()] !== undefined){
         return RAW_DARKSTORE_MAPPING[raw.toLowerCase()];
     }
@@ -630,8 +718,52 @@ function cleanDarkstoreName(ds){
     return c;
 }
 
+function isMapped(ds){
+    const raw = String(ds).trim().toLowerCase();
+    let   c   = raw.replace(/^zippee_|^zipppee_/,"").replace(/_sdd$/,"");
+    if(c === "matunga_valkyriesdd") c = "matunga";
+    return DARKSTORE_MAPPING[c] !== undefined ||
+           RAW_DARKSTORE_MAPPING[raw] !== undefined;
+}
+
+/* ------------------------------------------------------------
+   Window-note banner: groups brands by cutoff hour and shows
+   the exact window each group uses for the selected date.
+   Works as soon as brands are loaded, even before a file is
+   uploaded, since it needs only the date + brand cutoffs.
+   ------------------------------------------------------------ */
+function updateWindowNote(){
+
+    const el      = document.getElementById("windowNote");
+    const dateVal = document.getElementById("reportDate").value;
+
+    if(!allowedBrands.length){
+        el.innerHTML = "Brand sheet unavailable &mdash; cutoff windows cannot be computed.";
+        return;
+    }
+    if(!dateVal){
+        el.innerHTML = "Select a report date to see each brand's cutoff window.";
+        return;
+    }
+
+    const groups = new Map(); // cutoffHour -> [brandNames]
+    allowedBrands.forEach(b => {
+        const c = effectiveCutoff(b);
+        if(!groups.has(c)) groups.set(c, []);
+        groups.get(c).push(b);
+    });
+
+    const lines = [...groups.keys()].sort((a,b) => a - b).map(c => {
+        const win = windowFor(dateVal, c);
+        return "<b>" + esc(hourLabel(c)) + "</b> cutoff (" + esc(groups.get(c).join(", ")) + "): " +
+               esc(fmtDMYHM(win.start)) + " &rarr; " + esc(fmtDMYHM(win.end));
+    });
+
+    el.innerHTML = "Report <b>" + esc(fmtDMYFromISO(dateVal)) + "</b><br>" + lines.join("<br>");
+}
+
 /* ============================================================
-   BRAND LIST FROM PUBLISHED GOOGLE SHEET
+   BRAND LIST FROM PUBLISHED GOOGLE SHEET (Brand Name, Cutoff)
    ============================================================ */
 
 async function loadBrands(){
@@ -646,41 +778,68 @@ async function loadBrands(){
 
         const text = await res.text();
 
-        let names = text
-            .split(/\r?\n/)
-            .map(line => cleanCell(line.split(",")[0]))
-            .filter(Boolean);
+        let records = parseCSV(text).filter(r => r.some(f => cleanCell(f) !== ""));
 
-        /* drop the header row */
-        if(names.length && /^brand\s*name$/i.test(names[0])) names.shift();
+        if(records.length && /^brand\s*name$/i.test(cleanCell(records[0][0]))) records.shift();
 
-        /* de-duplicate, preserve sheet order */
+        allowedBrands = [];
+        brandCutoffs  = new Map();
         const seen = new Set();
-        allowedBrands = names.filter(n => {
-            const k = n.toLowerCase();
-            if(seen.has(k)) return false;
-            seen.add(k);
-            return true;
+        const badCutoff = [];
+
+        records.forEach(r => {
+            const name = cleanCell(r[0]);
+            if(!name) return;
+
+            const key = name.toLowerCase();
+            if(seen.has(key)) return;
+            seen.add(key);
+            allowedBrands.push(name);
+
+            const cutoffRaw = cleanCell(r[1]);
+            const n = parseInt(cutoffRaw, 10);
+
+            if(!isNaN(n) && n >= 0 && n <= 23){
+                brandCutoffs.set(key, n);
+            } else {
+                brandCutoffs.set(key, DEFAULT_CUTOFF_HOUR);
+                badCutoff.push(name);
+            }
         });
 
         if(!allowedBrands.length){
             setStatus("brandStatus",
                 "Brand sheet loaded but contains no brand names.", "warn");
+            updateWindowNote();
             return;
         }
 
-        setStatus("brandStatus",
-            "<b>" + allowedBrands.length + " brand(s)</b> loaded from sheet: " +
-            esc(allowedBrands.join(", ")), "ok");
+        let msg = "<b>" + allowedBrands.length + " brand(s)</b> loaded: " +
+            allowedBrands.map(b =>
+                esc(b) + " (" + esc(hourLabel(brandCutoffs.get(b.toLowerCase()))) + ")"
+            ).join(", ");
+
+        let cls = "ok";
+
+        if(badCutoff.length){
+            msg += "<br>No valid Cutoff value for: <b>" + esc(badCutoff.join(", ")) +
+                   "</b> — defaulted to " + esc(hourLabel(DEFAULT_CUTOFF_HOUR)) + ".";
+            cls = "warn";
+        }
+
+        setStatus("brandStatus", msg, cls);
+        updateWindowNote();
 
     }catch(err){
         allowedBrands = [];
+        brandCutoffs  = new Map();
         setStatus("brandStatus",
             "<b>Could not load the brand sheet.</b> " + esc(err.message) +
             "<br>No reports can be built without it. " +
             "If you opened this file directly from disk (file://), " +
             "serve it over http instead — the browser blocks the request otherwise.",
             "err");
+        updateWindowNote();
     }
 }
 
@@ -690,7 +849,14 @@ async function loadBrands(){
 
 document.getElementById("fileInput").addEventListener("change", handleFile);
 
-document.getElementById("reportDate").addEventListener("change", render);
+document.getElementById("reportDate").addEventListener("change", () => {
+    updateWindowNote();
+    render();
+});
+
+document.getElementById("awbFilter").addEventListener("input", () => {
+    if(fileLoaded) render();
+});
 
 document.getElementById("reloadBrands").addEventListener("click", async () => {
     await loadBrands();
@@ -716,17 +882,22 @@ function handleFile(e){
     reader.onload = function(event){
 
         try{
-            const data     = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, { type: "array", cellDates: true });
-            const sheet    = workbook.Sheets[workbook.SheetNames[0]];
-            const json     = XLSX.utils.sheet_to_json(sheet);
+            const data = new Uint8Array(event.target.result);
+
+            /* cellDates:true -> real date cells arrive as JS Date objects
+               instead of raw Excel serial numbers */
+            const workbook = XLSX.read(data, { type:"array", cellDates:true });
+
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json  = XLSX.utils.sheet_to_json(sheet, { raw:true });
 
             allRows = json.map(row => ({
                 brand:     cleanCell(row["Brand Name"]),
                 darkstore: cleanCell(row["Darkstore"]),
                 status:    cleanCell(row["Current Status"]).toUpperCase(),
                 attempts:  parseAttempts(row),
-                created:   parseCreationDate(row["Creation Date"])
+                created:   parseCreationDate(row["Creation Date"]),
+                awb:       cleanCell(row["AWB Number"]).toUpperCase()
             }));
 
             fileLoaded = true;
@@ -752,12 +923,12 @@ function handleFile(e){
 
 function render(){
 
+    updateWindowNote();
+
     const reportTable = document.getElementById("reportTable");
     const summary     = document.getElementById("summaryTable");
 
-    if(!fileLoaded){
-        return;
-    }
+    if(!fileLoaded) return;
 
     if(!allowedBrands.length){
         reportTable.innerHTML = "";
@@ -769,29 +940,49 @@ function render(){
     }
 
     const dateVal = document.getElementById("reportDate").value;
-    const win     = windowFor(dateVal);
 
-    if(!win){
+    if(!dateVal){
         setStatus("dataStatus", "Please choose a report date.", "warn");
         reportTable.innerHTML = "";
         return;
     }
 
-    /* ---- cutoff window filter ---- */
+    /* per-cutoff window cache, reused across every row/brand in this pass */
+    const windowCache = new Map();
+    function getWindow(cutoffHour){
+        if(!windowCache.has(cutoffHour)) windowCache.set(cutoffHour, windowFor(dateVal, cutoffHour));
+        return windowCache.get(cutoffHour);
+    }
+
     const unparsed = allRows.filter(r => !r.created).length;
 
-    const rows = allRows.filter(r =>
-        r.created && r.created > win.start && r.created <= win.end
-    );
+    /* AWB lookup override, active only when the box has entries */
+    const awbText = document.getElementById("awbFilter").value.trim();
+    const awbSet  = awbText.length
+        ? new Set(awbText.split(/\r?\n/).map(x => x.trim().toUpperCase()).filter(Boolean))
+        : null;
 
-    const formattedDate = fmtDMY(win.end);
+    /* Each row is filtered against its OWN brand's cutoff window
+       (falls back to DEFAULT_CUTOFF_HOUR for brands not in the sheet).
+       Exception: for the two Krishna Herbal warehouse darkstores, when
+       an AWB list is pasted, matching is by AWB number only and the
+       cutoff window is skipped entirely for those rows. */
+    const rows = allRows.filter(r => {
 
-    document.getElementById("windowNote").innerHTML =
-        "Report <b>" + formattedDate + "</b> covers Creation Date after <b>" +
-        fmtDMYHM(win.start) + "</b> up to and including <b>" +
-        fmtDMYHM(win.end) + "</b>";
+        const dsLower = String(r.darkstore).trim().toLowerCase();
 
-    /* ---- summary over the window ---- */
+        if(AWB_FILTER_STORES.has(dsLower) && awbSet){
+            return awbSet.has(r.awb);
+        }
+
+        if(!r.created) return false;
+        const win = getWindow(effectiveCutoff(r.brand));
+        return r.created > win.start && r.created <= win.end;
+    });
+
+    const formattedDate = fmtDMYFromISO(dateVal);
+
+    /* ---- summary (grand total across all rows, each using its own brand's cutoff) ---- */
     const total     = rows.length;
     const ready     = rows.filter(r => r.status === "READY").length;
     const readyZero = rows.filter(r => r.status === "READY" && r.attempts === 0).length;
@@ -801,9 +992,9 @@ function render(){
     const pct = (n) => total > 0 ? ((n / total) * 100).toFixed(0) + "%" : "–";
 
     summary.innerHTML = `
-        <tr><td><b>Report Window</b></td>
-            <td>${esc(fmtDMYHM(win.start))} &rarr; ${esc(fmtDMYHM(win.end))}</td>
-            <td>(D-1) ${cutoffLabel()} exclusive &rarr; (D) ${cutoffLabel()} inclusive</td></tr>
+        <tr><td><b>Report Date</b></td>
+            <td>${esc(formattedDate)}</td>
+            <td>Cutoff hour is set per brand — see the window note above</td></tr>
         <tr><td><b>Total Orders</b></td><td>${total}</td>
             <td>Count of all orders in the window</td></tr>
         <tr><td><b>Not_D0_Dispatched</b></td><td>${ready} (${pct(ready)})</td>
@@ -823,32 +1014,48 @@ function render(){
             'No orders fall inside the ' + esc(formattedDate) + ' window.</div>';
         setStatus("dataStatus",
             "Loaded <b>" + allRows.length + "</b> rows — <b>0</b> inside the " +
-            esc(formattedDate) + " window.", "warn");
+            esc(formattedDate) + " window(s)." +
+            (unparsed ? "<br><b>" + unparsed +
+             "</b> row(s) had an unreadable Creation Date." : ""), "warn");
         return;
     }
 
-    /* ---- aggregate by brand -> darkstore ---- */
-    const brandIndex = new Map();
-    allowedBrands.forEach(b => brandIndex.set(b.toLowerCase(), b));
+    /* ---- aggregate by brand-group -> darkstore-group (rows already
+       per-brand-cutoff / AWB filtered) ----
+
+       Sheet brands that share a BRAND_ALIASES entry (e.g. Krishna's
+       Hebral & Ayurveda + Sandipani Healthcare) collapse into one
+       report group; every other sheet brand is its own group. */
+    const reportGroups = [];
+    const groupSeen = new Set();
+    allowedBrands.forEach(b => {
+        const canon = canonicalBrand(b);
+        const key = canon.toLowerCase();
+        if(!groupSeen.has(key)){ groupSeen.add(key); reportGroups.push(canon); }
+    });
+
+    const brandToGroup = new Map();
+    allowedBrands.forEach(b => brandToGroup.set(b.toLowerCase(), canonicalBrand(b)));
 
     const brandStats = {};
-    allowedBrands.forEach(b => brandStats[b] = {});
+    reportGroups.forEach(g => brandStats[g] = {});
 
     rows.forEach(r => {
 
-        const canonical = brandIndex.get(r.brand.toLowerCase());
-        if(!canonical) return;
+        const group = brandToGroup.get(r.brand.toLowerCase());
+        if(!group) return;
 
-        const store = brandStats[canonical];
+        const store = brandStats[group];
+        const dsKey = darkstoreGroupKey(r.darkstore);
 
-        if(!store[r.darkstore]){
-            store[r.darkstore] = {
+        if(!store[dsKey]){
+            store[dsKey] = {
                 total:0, readyZeroAttempt:0, cancelled:0,
                 fasrDelivered:0, delivered:0, notDispatched:0
             };
         }
 
-        const s = store[r.darkstore];
+        const s = store[dsKey];
         s.total++;
 
         if(r.status === "READY"){
@@ -868,7 +1075,7 @@ function render(){
     const emptyBrands = [];
     const unmapped    = new Set();
 
-    allowedBrands.forEach(brand => {
+    reportGroups.forEach(brand => {
 
         const darkstores = Object.keys(brandStats[brand]).sort();
 
@@ -901,13 +1108,7 @@ function render(){
 <tr><td class="yellow"><b>Metric</b></td>`;
 
         darkstores.forEach(ds => {
-            const lower = String(ds).trim().toLowerCase();
-            const cl    = lower.replace(/^zippee_|^zipppee_/,"").replace(/_sdd$/,"");
-            if(DARKSTORE_MAPPING[cl] === undefined &&
-               RAW_DARKSTORE_MAPPING[lower] === undefined &&
-               cl !== "matunga_valkyriesdd"){
-                unmapped.add(String(ds).trim());
-            }
+            if(!isMapped(ds)) unmapped.add(String(ds).trim());
             html += `<td class="yellow"><b>${esc(cleanDarkstoreName(ds))}</b></td>`;
         });
         html += `</tr>`;
@@ -953,7 +1154,6 @@ function render(){
 
     reportTable.innerHTML = html;
 
-    /* attach download handlers (safe for brands like "Benny's Bowl") */
     reportTable.querySelectorAll("button[data-table]").forEach(btn => {
         btn.addEventListener("click", () =>
             downloadBrandReport(btn.dataset.table, btn.dataset.brand));
@@ -961,7 +1161,7 @@ function render(){
 
     /* ---- status line ---- */
     let msg = "Loaded <b>" + allRows.length + "</b> rows | <b>" + total +
-              "</b> inside the " + esc(formattedDate) + " window | <b>" +
+              "</b> inside brand-specific windows for " + esc(formattedDate) + " | <b>" +
               rendered + "</b> report(s) built.";
 
     let cls = "ok";
@@ -1010,7 +1210,6 @@ function downloadPNG(){
     const report = document.getElementById("reportTable");
     if(!report || !report.innerHTML.trim()) return;
 
-    /* hide the per-brand buttons so they don't appear in the image */
     const btns = report.querySelectorAll("button");
     btns.forEach(b => b.style.visibility = "hidden");
 
@@ -1038,13 +1237,6 @@ window.addEventListener("load", () => {
         yesterday.getFullYear() + "-" +
         String(yesterday.getMonth() + 1).padStart(2,"0") + "-" +
         String(yesterday.getDate()).padStart(2,"0");
-
-    /* keep all cutoff labels in sync with CUTOFF_HOUR */
-    document.getElementById("cutoffA").textContent = cutoffLabel();
-    document.getElementById("cutoffB").textContent = cutoffLabel();
-    document.getElementById("cutoffText").textContent =
-        "Creation Date after (D-1) " + cutoffLabel() +
-        " and up to and including (D) " + cutoffLabel();
 
     loadBrands();
 });
