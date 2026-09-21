@@ -2,10 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIPPEE <> Quickee EOD Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ZIPPEE &lt;&gt; Quickee EOD Report</title>
 <style>
   * { box-sizing: border-box; }
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
   body {
     margin: 0;
     background: #fff;
@@ -13,10 +18,11 @@
     color: #111;
   }
   .report {
-  max-width: 700px;
-  margin: 0 auto;
-  padding: 18px 14px 28px;
-} .header {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 18px 14px 28px;
+  }
+  .header {
     text-align: center;
     margin-bottom: 25px;
   }
@@ -56,7 +62,7 @@
     font-weight: 700;
     cursor: pointer;
   }
-  input[type="file"] { display:none; }
+  input[type="file"] { display: none; }
   .filename {
     color: #555;
     font-size: 13px;
@@ -71,20 +77,22 @@
     font-weight: 700;
   }
   .download {
-  border: 0;
-  background: #0bb34b;
-  color: white;
-  padding: 9px 14px;
-  cursor: pointer;
-  font-weight: 700;
-}
+    border: 0;
+    background: #0bb34b;
+    color: white;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-weight: 700;
+  }
   .status {
     margin-top: 8px;
     font-size: 12px;
     color: #666;
   }
   .status.error { color: #c62828; }
+  .status.warn { color: #b26a00; font-weight: 700; }
 
+  .table-wrap { overflow-x: auto; }
   table {
     width: 100%;
     border-collapse: collapse;
@@ -101,9 +109,9 @@
     font-weight: 800;
     text-align: center;
   }
-  th.sno, td.sno { width: 9%; text-align:center; }
-  th.param, td.param { width: 56%; text-align:left; }
-  th.total, td.total { width: 35%; text-align:center; }
+  th.sno, td.sno { width: 9%; text-align: center; }
+  th.param, td.param { width: 56%; text-align: left; }
+  th.total, td.total { width: 35%; text-align: center; }
 
   tbody td {
     font-size: 21px;
@@ -119,34 +127,24 @@
     color: #000;
     font-weight: 800;
   }
-  tbody tr.kpi-green td.param {
-    color:#000;
-  }
-  tbody tr.percent-row td.param {
+  tbody tr.kpi-green td.param { color: #000; }
+  tbody tr.percent-row td.param { font-weight: 700; }
+  tbody tr.percent-row td.total { font-weight: 800; }
+  tbody tr.sub-row td.param {
     font-weight: 700;
-  }
-  tbody tr.percent-row td.total {
-    font-weight: 800;
+    padding-left: 26px;
   }
 
-  .empty {
-    border: 1px solid #d7d7d7;
-    border-top: 0;
-    padding: 26px;
-    text-align: center;
-    color: #777;
-    font-size: 14px;
-  }
-  #reportCapture {
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
   .footer {
     text-align: center;
     margin-top: 22px;
     font-size: 15px;
     font-weight: 800;
     letter-spacing: 1.2px;
+  }
+  #reportCapture {
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 
   @media (max-width: 760px) {
@@ -157,125 +155,135 @@
     th.param, td.param { width: 57%; }
     th.total, td.total { width: 30%; }
     th, td { padding: 10px 7px; }
+    tbody tr.sub-row td.param { padding-left: 16px; }
   }
 </style>
 </head>
 <body>
 <div class="report">
 
-
-
   <div class="upload-box">
     <div class="upload-row">
-  <label class="choose">
-    Upload Raw CSV
-    <input id="fileInput" type="file" accept=".csv,text/csv">
-  </label>
+      <label class="choose">
+        Upload Raw CSV
+        <input id="fileInput" type="file" accept=".csv,text/csv">
+      </label>
 
-  <label for="reportDatePicker" style="font-size:13px;font-weight:700;">
-    Select Date:
-  </label>
+      <label for="reportDatePicker" style="font-size:13px;font-weight:700;">Select Date:</label>
+      <input type="date" id="reportDatePicker"
+             style="padding:8px 10px;border:1px solid #bbb;border-radius:4px;font-size:13px;">
 
-  <input
-    type="date"
-    id="reportDatePicker"
-    style="padding:8px 10px;border:1px solid #bbb;border-radius:4px;font-size:13px;"
-  >
+      <div class="filename" id="filename">No file selected</div>
 
-  <div class="filename" id="filename">No file selected</div>
-
-  <button class="reset" id="resetBtn" type="button">Reset</button>
-  <button class="download" id="downloadBtn" type="button">
-  Download PNG
-</button>
-</div>
+      <button class="reset" id="resetBtn" type="button">Reset</button>
+      <button class="download" id="downloadBtn" type="button">Download PNG</button>
+    </div>
     <div class="status" id="status">Upload the order raw data to generate the report.</div>
-    
   </div>
-  <div id="reportCapture">
-  <div class="header">
-    <h1>ZIPPEE &lt;&gt; Quickee EOD Report</h1>
-    <div class="meta">Date: <span id="reportDate">-</span></div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th class="sno">S. No.</th>
-        <th class="param">Key Parameters</th>
-        <th class="total">Total</th>
-      </tr>
-    </thead>
-    <tbody id="reportBody">
-      <tr>
-        <td class="sno">1</td>
-        <td class="param">Total Order</td>
-        <td class="total">0</td>
-      </tr>
-      <tr>
-        <td class="sno">2</td>
-        <td class="param">Delivered Order</td>
-        <td class="total">0</td>
-      </tr>
-      <tr class="kpi-green">
-        <td class="sno"></td>
-        <td class="param">Delivery %</td>
-        <td class="total">0.00%</td>
-      </tr>
-      <tr>
-        <td class="sno">3</td>
-        <td class="param">Breach</td>
-        <td class="total">0</td>
-      </tr>
-      <tr class="percent-row">
-        <td class="sno"></td>
-        <td class="param">Breach %</td>
-        <td class="total">0.00%</td>
-      </tr>
-      <tr>
-        <td class="sno">4</td>
-        <td class="param">RTO Delivered</td>
-        <td class="total">0</td>
-      </tr>
-      <tr class="percent-row">
-        <td class="sno"></td>
-        <td class="param">RTO Delivered %</td>
-        <td class="total">0.00%</td>
-      </tr>
-      <tr>
-        <td class="sno">5</td>
-        <td class="param">Cancelled</td>
-        <td class="total">0</td>
-      </tr>
-      <tr class="percent-row">
-        <td class="sno"></td>
-        <td class="param">Cancellation %</td>
-        <td class="total">0.00%</td>
-      </tr>
-    </tbody>
-  </table>
 
-  <div class="footer">POWERED BY SASA AUTOMATION | ZIPPEE</div></div>
+  <div id="reportCapture">
+    <div class="header">
+      <h1>ZIPPEE &lt;&gt; Quickee EOD Report</h1>
+      <div class="meta">Date: <span id="reportDate">-</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sno">S. No.</th>
+            <th class="param">Key Parameters</th>
+            <th class="total">Total</th>
+          </tr>
+        </thead>
+        <tbody id="reportBody">
+          <tr>
+            <td class="sno">1</td>
+            <td class="param">Total Order</td>
+            <td class="total" data-kpi="total">0</td>
+          </tr>
+          <tr>
+            <td class="sno">2</td>
+            <td class="param">Delivered Order</td>
+            <td class="total" data-kpi="delivered">0</td>
+          </tr>
+          <tr class="kpi-green">
+            <td class="sno"></td>
+            <td class="param">Delivery %</td>
+            <td class="total" data-kpi="deliveredPct">0.00%</td>
+          </tr>
+          <tr>
+            <td class="sno">3</td>
+            <td class="param">Breach</td>
+            <td class="total" data-kpi="breach">0</td>
+          </tr>
+          <tr class="percent-row">
+            <td class="sno"></td>
+            <td class="param">Breach %</td>
+            <td class="total" data-kpi="breachPct">0.00%</td>
+          </tr>
+          <tr>
+            <td class="sno">4</td>
+            <td class="param">RTO Delivered</td>
+            <td class="total" data-kpi="rto">0</td>
+          </tr>
+          <tr class="percent-row">
+            <td class="sno"></td>
+            <td class="param">RTO Delivered %</td>
+            <td class="total" data-kpi="rtoPct">0.00%</td>
+          </tr>
+          <tr>
+            <td class="sno">5</td>
+            <td class="param">Cancelled</td>
+            <td class="total" data-kpi="cancelled">0</td>
+          </tr>
+          <tr class="percent-row">
+            <td class="sno"></td>
+            <td class="param">Cancellation %</td>
+            <td class="total" data-kpi="cancelledPct">0.00%</td>
+          </tr>
+          <tr>
+            <td class="sno">6</td>
+            <td class="param">Try &amp; Buy Order</td>
+            <td class="total" data-kpi="tabTotal">0</td>
+          </tr>
+          <tr class="sub-row">
+            <td class="sno"></td>
+            <td class="param">Try &amp; Buy Delivered</td>
+            <td class="total" data-kpi="tabDelivered">0</td>
+          </tr>
+          <tr class="sub-row">
+            <td class="sno"></td>
+            <td class="param">Try &amp; Buy Breach (90 min)</td>
+            <td class="total" data-kpi="tabBreach">0</td>
+          </tr>
+          <tr class="percent-row">
+            <td class="sno"></td>
+            <td class="param">Try &amp; Buy Breach %</td>
+            <td class="total" data-kpi="tabBreachPct">0.00%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">POWERED BY SASA AUTOMATION | ZIPPEE</div>
+  </div>
 </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
 
-  function updateReportDate() {
-  const selectedDate = $('reportDatePicker').value;
-
-  if (selectedDate) {
-    const d = new Date(selectedDate + 'T00:00:00');
-
-    $('reportDate').textContent = d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  } else {
-    $('reportDate').textContent = '-';
-  }
-}  
+  /* ---------- SLA CONFIG ----------
+     Delivery window in minutes, by order_type (read from the Notes column).
+     Anything not listed here falls back to DEFAULT_SLA_MINUTES.
+     To add a rule later, just add a line: RETURN: 1440
+  --------------------------------- */
+  const SLA_MINUTES = {
+    TRY_AND_BUY: 90
+  };
+  const DEFAULT_SLA_MINUTES = 60;
 
   const fileInput = $('fileInput');
   const filename = $('filename');
@@ -284,50 +292,24 @@
   const reportDatePicker = $('reportDatePicker');
   const downloadBtn = $('downloadBtn');
 
-downloadBtn.addEventListener('click', async () => {
-  const report = document.getElementById('reportCapture');
+  let lastRows = null; // cached parsed CSV so a date change doesn't re-read the file
 
-  try {
-    downloadBtn.textContent = 'Generating...';
-    downloadBtn.disabled = true;
-
-    const canvas = await html2canvas(report, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true
-    });
-
-    const link = document.createElement('a');
-
-    const selectedDate = reportDatePicker.value || 'report';
-
-    link.download = `ZIPPEE_Quickee_EOD_Report_${selectedDate}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-
-  } catch (error) {
-    console.error(error);
-    alert('Unable to generate the PNG.');
-  } finally {
-    downloadBtn.textContent = 'Download PNG';
-    downloadBtn.disabled = false;
+  function updateReportDate() {
+    const selectedDate = reportDatePicker.value;
+    if (selectedDate) {
+      const d = new Date(selectedDate + 'T00:00:00');
+      $('reportDate').textContent = d.toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric'
+      });
+    } else {
+      $('reportDate').textContent = '-';
+    }
   }
-});
-  const today = new Date();
-const yyyy = today.getFullYear();
-const mm = String(today.getMonth() + 1).padStart(2, '0');
-const dd = String(today.getDate()).padStart(2, '0');
 
-reportDatePicker.value = `${yyyy}-${mm}-${dd}`;
-updateReportDate();
-
-reportDatePicker.addEventListener('change', () => {
-  updateReportDate();
-
-  if (fileInput.files.length > 0) {
-    fileInput.dispatchEvent(new Event('change'));
+  function todayISO() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
   }
-});
 
   function norm(s) {
     return String(s ?? '')
@@ -335,6 +317,18 @@ reportDatePicker.addEventListener('change', () => {
       .trim()
       .toLowerCase()
       .replace(/\s+/g, ' ');
+  }
+
+  /* Pull the order type out of the Notes column, e.g. "order_type: TRY_AND_BUY" */
+  function orderType(notes) {
+    const m = /order_type\s*:\s*([A-Za-z0-9_]+)/i.exec(String(notes ?? ''));
+    return m ? m[1].toUpperCase() : 'UNKNOWN';
+  }
+
+  function slaMinutesFor(type) {
+    return Object.prototype.hasOwnProperty.call(SLA_MINUTES, type)
+      ? SLA_MINUTES[type]
+      : DEFAULT_SLA_MINUTES;
   }
 
   function parseCSV(text) {
@@ -348,7 +342,7 @@ reportDatePicker.addEventListener('change', () => {
         if (ch === '"') {
           if (text[i + 1] === '"') { field += '"'; i++; }
           else quoted = false;
-        } else {
+        } else if (ch !== '\r') {
           field += ch;
         }
       } else {
@@ -371,7 +365,7 @@ reportDatePicker.addEventListener('change', () => {
   function toDate(value) {
     const s = String(value ?? '').trim();
     if (!s) return null;
-    const ms = Date.parse(s.replace(' ', 'T'));
+    const ms = Date.parse(s.replace(/ /g, 'T'));
     return Number.isNaN(ms) ? null : new Date(ms);
   }
 
@@ -379,10 +373,123 @@ reportDatePicker.addEventListener('change', () => {
     return b ? ((a / b) * 100).toFixed(2) + '%' : '0.00%';
   }
 
-  function setValue(rowIndex, value) {
-    const rows = document.querySelectorAll('#reportBody tr');
-    rows[rowIndex].querySelector('.total').textContent = value;
+  function setKpi(key, value) {
+    const cell = document.querySelector(`#reportBody [data-kpi="${key}"]`);
+    if (cell) cell.textContent = value;
   }
+
+  function clearKpis() {
+    ['total', 'delivered', 'breach', 'rto', 'cancelled', 'tabTotal', 'tabDelivered', 'tabBreach']
+      .forEach(k => setKpi(k, '0'));
+    ['deliveredPct', 'breachPct', 'rtoPct', 'cancelledPct', 'tabBreachPct']
+      .forEach(k => setKpi(k, '0.00%'));
+  }
+
+  /* Breach = actual delivery later than creation + the SLA for that order type.
+     Measured on DELIVERED orders only. */
+  function isBreached(o) {
+    if (norm(o['fulfillment status']) !== 'delivered') return false;
+    const creation = toDate(o['creation date']);
+    const adt = toDate(o['adt(actual delivery time)']);
+    if (!creation || !adt) return false;
+    const sla = slaMinutesFor(orderType(o['notes']));
+    return creation.getTime() + sla * 60000 < adt.getTime();
+  }
+
+  function buildReport() {
+    if (!lastRows) return;
+
+    try {
+      const rows = lastRows;
+      if (rows.length < 2) throw new Error('No data rows found.');
+
+      const headers = rows[0];
+      const headerIndex = {};
+      headers.forEach((h, i) => headerIndex[norm(h)] = i);
+
+      const required = [
+        'Fulfillment Status',
+        'Creation Date',
+        'ADT(Actual Delivery Time)',
+        'Status'
+      ];
+      const missing = required.filter(h => !(norm(h) in headerIndex));
+      if (missing.length) {
+        throw new Error('Missing required column(s): ' + missing.join(', '));
+      }
+      const hasNotes = 'notes' in headerIndex;
+
+      const data = rows.slice(1)
+        .map(r => {
+          const o = {};
+          headers.forEach((h, i) => o[norm(h)] = (r[i] ?? '').trim());
+          return o;
+        })
+        .filter(o => Object.values(o).some(v => v !== ''));
+
+      const selectedDate = reportDatePicker.value;
+      if (!selectedDate) throw new Error('Please select a report date.');
+
+      const filteredData = data.filter(
+        o => String(o['creation date']).substring(0, 10) === selectedDate
+      );
+
+      const total = filteredData.length;
+      const delivered = filteredData.filter(o => norm(o['fulfillment status']) === 'delivered').length;
+      const rto = filteredData.filter(o => norm(o['fulfillment status']) === 'rto_delivered').length;
+      const cancelled = filteredData.filter(o => norm(o['status']) === 'cancelled').length;
+      const breach = filteredData.filter(isBreached).length;
+
+      /* Try & Buy slice */
+      const tab = filteredData.filter(o => orderType(o['notes']) === 'TRY_AND_BUY');
+      const tabTotal = tab.length;
+      const tabDelivered = tab.filter(o => norm(o['fulfillment status']) === 'delivered').length;
+      const tabBreach = tab.filter(isBreached).length;
+
+      setKpi('total', total.toLocaleString());
+      setKpi('delivered', delivered.toLocaleString());
+      setKpi('deliveredPct', percent(delivered, total));
+      setKpi('breach', breach.toLocaleString());
+      setKpi('breachPct', percent(breach, delivered));
+      setKpi('rto', rto.toLocaleString());
+      setKpi('rtoPct', percent(rto, total));
+      setKpi('cancelled', cancelled.toLocaleString());
+      setKpi('cancelledPct', percent(cancelled, total));
+      setKpi('tabTotal', tabTotal.toLocaleString());
+      setKpi('tabDelivered', tabDelivered.toLocaleString());
+      setKpi('tabBreach', tabBreach.toLocaleString());
+      setKpi('tabBreachPct', percent(tabBreach, tabDelivered));
+
+      updateReportDate();
+
+      if (total === 0) {
+        const available = [...new Set(
+          data.map(o => String(o['creation date']).substring(0, 10)).filter(Boolean)
+        )].sort();
+        status.textContent = available.length
+          ? `No orders found for ${selectedDate}. Dates present in this file: ${available.join(', ')}`
+          : `No orders found for ${selectedDate}.`;
+        status.className = 'status warn';
+        return;
+      }
+
+      status.textContent = `${total.toLocaleString()} orders loaded successfully.`
+        + (hasNotes ? '' : ' (Notes column missing — every order defaulted to the 60 min SLA.)');
+      status.className = hasNotes ? 'status' : 'status warn';
+
+    } catch (err) {
+      status.textContent = err.message || 'Unable to process the CSV.';
+      status.className = 'status error';
+    }
+  }
+
+  reportDatePicker.value = todayISO();
+  updateReportDate();
+
+  reportDatePicker.addEventListener('change', () => {
+    updateReportDate();
+    buildReport();
+  });
 
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -396,127 +503,46 @@ reportDatePicker.addEventListener('change', () => {
 
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const rows = parseCSV(reader.result);
-        if (rows.length < 2) throw new Error('No data rows found.');
-
-        const headers = rows[0];
-        const headerIndex = {};
-        headers.forEach((h, i) => headerIndex[norm(h)] = i);
-
-        const required = [
-  'Fulfillment Status',
-  'Creation Date',
-  'ADT(Actual Delivery Time)',
-  'Status'
-];
-        const missing = required.filter(h => !(norm(h) in headerIndex));
-        if (missing.length) {
-          throw new Error('Missing required column(s): ' + missing.join(', '));
-        }
-
-        const data = rows.slice(1)
-          .map(r => {
-            const o = {};
-            headers.forEach((h, i) => o[norm(h)] = (r[i] ?? '').trim());
-            return o;
-          })
-          .filter(o => Object.values(o).some(v => v !== ''));
-
-        const selectedDate = $('reportDatePicker').value;
-
-if (!selectedDate) {
-  throw new Error('Please select a report date.');
-}
-
-const filteredData = data.filter(o => {
-  const creation = toDate(o['creation date']);
-  if (!creation) return false;
-
-  const creationDate = String(o['creation date']).substring(0, 10);
-return creationDate === selectedDate;
-});
-
-const total = filteredData.length;
-
-const delivered = filteredData.filter(
-  o => norm(o['fulfillment status']) === 'delivered'
-).length;
-
-const rto = filteredData.filter(
-  o => norm(o['fulfillment status']) === 'rto_delivered'
-).length;
-
-const cancelled = filteredData.filter(
-  o => norm(o['status']) === 'cancelled'
-).length;
-        const breach = filteredData.filter(o => {
-          if (norm(o['fulfillment status']) !== 'delivered') return false;
-
-          const creation = toDate(o['creation date']);
-          const adt = toDate(o['adt(actual delivery time)']);
-
-          // Breach rule: Creation Date/Time + 60 minutes < ADT
-          if (!creation || !adt) return false;
-
-          const breachThreshold = new Date(creation.getTime() + 60 * 60 * 1000);
-          return breachThreshold.getTime() < adt.getTime();
-        }).length;
-
-        // Fixed KPI order:
-        // 1 Total Order
-        // 2 Delivered Order
-        // 2.1 Delivery %
-        // 3 Breach
-        // 3.1 Breach %
-        // 4 RTO Delivered
-        // 4.1 RTO Delivered %
-        // 5 Cancelled
-        // 5.1 Cancellation %
-
-        setValue(0, total.toLocaleString());
-        setValue(1, delivered.toLocaleString());
-        setValue(2, percent(delivered, total));
-        setValue(3, breach.toLocaleString());
-        setValue(4, percent(breach, delivered));
-        setValue(5, rto.toLocaleString());
-        setValue(6, percent(rto, total));
-        setValue(7, cancelled.toLocaleString());
-        setValue(8, percent(cancelled, total));
-
-        filename.textContent = file.name;
-        status.textContent = `${total.toLocaleString()} orders loaded successfully.`;
-        status.className = 'status';
-        updateReportDate();
-      } catch (err) {
-        status.textContent = err.message || 'Unable to process the CSV.';
-        status.className = 'status error';
-      }
+      lastRows = parseCSV(reader.result);
+      filename.textContent = file.name;
+      buildReport();
     };
     reader.readAsText(file);
   });
 
+  downloadBtn.addEventListener('click', async () => {
+    const report = $('reportCapture');
+    try {
+      downloadBtn.textContent = 'Generating...';
+      downloadBtn.disabled = true;
+
+      const canvas = await html2canvas(report, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true
+      });
+
+      const link = document.createElement('a');
+      link.download = `ZIPPEE_Quickee_EOD_Report_${reportDatePicker.value || 'report'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error(error);
+      alert('Unable to generate the PNG.');
+    } finally {
+      downloadBtn.textContent = 'Download PNG';
+      downloadBtn.disabled = false;
+    }
+  });
+
   resetBtn.addEventListener('click', () => {
-  fileInput.value = '';
-  const today = new Date();
-const yyyy = today.getFullYear();
-const mm = String(today.getMonth() + 1).padStart(2, '0');
-const dd = String(today.getDate()).padStart(2, '0');
-
-reportDatePicker.value = `${yyyy}-${mm}-${dd}`;
-  filename.textContent = 'No file selected';   status.textContent = 'Upload the order raw data to generate the report.';
+    fileInput.value = '';
+    lastRows = null;
+    reportDatePicker.value = todayISO();
+    filename.textContent = 'No file selected';
+    status.textContent = 'Upload the order raw data to generate the report.';
     status.className = 'status';
-
-    [0,0,0,0,0,0,0,0,0].forEach((_, i) => {});
-    setValue(0, '0');
-    setValue(1, '0');
-    setValue(2, '0.00%');
-    setValue(3, '0');
-    setValue(4, '0.00%');
-    setValue(5, '0');
-    setValue(6, '0.00%');
-    setValue(7, '0');
-    setValue(8, '0.00%');
+    clearKpis();
     updateReportDate();
   });
 })();
