@@ -254,6 +254,34 @@ input[type=date]{
     line-height:1.7;
 }
 
+/* Darkstore-wise & Unique Rider reports */
+#darkstoreWiseReport .eod-table,
+#uniqueRiderReport .eod-table{
+    margin-top:0;
+}
+
+#uniqueRiderReport .eod-table{
+    width:420px;
+}
+
+#uniqueRiderReport .eod-table th,
+#uniqueRiderReport .eod-table td{
+    min-width:unset;
+    padding:9px 12px;
+    font-size:13px;
+}
+
+#uniqueRiderReport .eod-table th:first-child,
+#uniqueRiderReport .eod-table td:first-child{
+    width:240px;
+    min-width:unset;
+}
+
+#uniqueRiderReport .eod-table th:last-child,
+#uniqueRiderReport .eod-table td:last-child{
+    width:120px;
+}
+
 @media(max-width:768px){
     .header{
         flex-direction:column;
@@ -359,6 +387,16 @@ input[type=date]{
 
         <div class="table-box" id="reportTable"></div>
 
+        <div style="text-align:center; margin-top:45px; margin-bottom:15px;">
+            <button class="btn" onclick="downloadDarkstoreWisePNG()">Download Darkstore-Wise Report PNG</button>
+        </div>
+        <div class="table-box" id="darkstoreWiseReport" style="display:flex;justify-content:center;"></div>
+
+        <div style="text-align:center; margin-top:35px; margin-bottom:15px;">
+            <button class="btn" onclick="downloadUniqueRiderPNG()">Download Unique Rider Report PNG</button>
+        </div>
+        <div class="table-box" id="uniqueRiderReport" style="display:flex;justify-content:center;"></div>
+
     </div>
 
     <div class="footer">
@@ -428,6 +466,45 @@ const AWB_FILTER_STORES = new Set([
     "zippee_krishna_herbal_indorewh",
     "zippee_krishna_herbal_jodhpurwh"
 ]);
+
+/* ------------------------------------------------------------
+   DARKSTORE-WISE REPORT (+ its Unique Rider companion) — a
+   separate section from the brand-wise reports above. It groups
+   by darkstore across every brand in the file (no Brand Sheet
+   involved at all), and always uses a FIXED 3 PM -> 3 PM cutoff,
+   independent of whatever cutoff each brand-wise report uses.
+   ------------------------------------------------------------ */
+const DARKSTORE_WISE_CUTOFF_HOUR = 16;
+
+/* Only these darkstores appear in this report; everything else
+   (test stores, partner stores, the Krishna Herbal warehouses,
+   Ugaoo warehouses, etc.) is left out entirely. */
+const DARKSTORE_WISE_ALLOWLIST = new Set([
+    "zippee_okhla_sdd", "zippee_ghaziabad_sdd", "zippee_wazirpur_sdd",
+    "zippee_dwarka_sdd", "zippee_gurugram_sdd", "zipppee_noida_sdd",
+    "zippee_horamavu_sdd", "zippee_koramangala_sdd", "zippee_andheri_sdd",
+    "zippee_koregaonpark_sdd", "zippee_matunga_valkyriesdd",
+    "zippee_topsia_valkyriesdd", "zippee_manikonda_sdd",
+    "zippee_periyamet_sdd", "zippee_kalyannagar_sdd"
+]);
+
+/* This report's own darkstore labels — a simpler style than the
+   two-layer DARKSTORE_MAPPING used elsewhere ("Okhla" rather than
+   "Del_Okhla"), matching the reference report this was built from. */
+function darkstoreWiseLabel(ds){
+    if(ds === "Delhi_Hub") return "DEL_HUB";
+
+    let name = String(ds)
+        .replace("zippee_", "")
+        .replace(/_sdd$/i, "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, c => c.toUpperCase());
+
+    if(name === "Matunga Valkyriesdd") name = "Matunga";
+    if(name === "Topsia Valkyriesdd")  name = "Kolkata";
+
+    return name;
+}
 
 /* ------------------------------------------------------------
    DARKSTORE LABELS — TWO LAYERS
@@ -897,7 +974,8 @@ function handleFile(e){
                 status:    cleanCell(row["Current Status"]).toUpperCase(),
                 attempts:  parseAttempts(row),
                 created:   parseCreationDate(row["Creation Date"]),
-                awb:       cleanCell(row["AWB Number"]).toUpperCase()
+                awb:       cleanCell(row["AWB Number"]).toUpperCase(),
+                riderId:   cleanCell(row["Rider ID"])
             }));
 
             fileLoaded = true;
@@ -930,20 +1008,27 @@ function render(){
 
     if(!fileLoaded) return;
 
+    const dateVal = document.getElementById("reportDate").value;
+
+    if(!dateVal){
+        setStatus("dataStatus", "Please choose a report date.", "warn");
+        reportTable.innerHTML = "";
+        document.getElementById("darkstoreWiseReport").innerHTML = "";
+        document.getElementById("uniqueRiderReport").innerHTML = "";
+        return;
+    }
+
+    /* Darkstore-wise report has no dependency on the Brand Sheet (it
+       aggregates every brand together, by darkstore), so it renders
+       even if the brand list below failed to load. */
+    renderDarkstoreWiseReport(dateVal);
+
     if(!allowedBrands.length){
         reportTable.innerHTML = "";
         summary.innerHTML =
             '<tr><td colspan="3">Brand list not loaded — cannot build reports.</td></tr>';
         setStatus("dataStatus",
             "File loaded, but the brand sheet is unavailable.", "err");
-        return;
-    }
-
-    const dateVal = document.getElementById("reportDate").value;
-
-    if(!dateVal){
-        setStatus("dataStatus", "Please choose a report date.", "warn");
-        reportTable.innerHTML = "";
         return;
     }
 
@@ -1188,6 +1273,197 @@ function render(){
 }
 
 /* ============================================================
+   DARKSTORE-WISE REPORT + UNIQUE RIDER REPORT
+
+   Groups every row in the file by darkstore (no brand filter,
+   no Brand Sheet involved), using a fixed 3 PM -> 3 PM cutoff
+   window, independent of the per-brand cutoffs used above.
+   ============================================================ */
+
+function renderDarkstoreWiseReport(dateVal){
+
+    const mainBox  = document.getElementById("darkstoreWiseReport");
+    const riderBox = document.getElementById("uniqueRiderReport");
+
+    const win = windowFor(dateVal, DARKSTORE_WISE_CUTOFF_HOUR);
+
+    const rows = allRows.filter(r =>
+        r.created && r.created > win.start && r.created <= win.end &&
+        DARKSTORE_WISE_ALLOWLIST.has(String(r.darkstore).trim().toLowerCase())
+    );
+
+    if(!rows.length){
+        mainBox.innerHTML =
+            '<div style="background:rgba(255,255,255,.85);padding:18px;border-radius:14px;' +
+            'font-weight:700;color:#9b1c1c;text-align:center;">' +
+            'No orders in the 3 PM cutoff window for the darkstore-wise report.</div>';
+        riderBox.innerHTML = "";
+        return;
+    }
+
+    const formattedDate = fmtDMYFromISO(dateVal);
+
+    /* ---- main table: Delhi Hub merged, one row per darkstore ---- */
+    const mainStats = {};
+
+    /* ---- rider table: same allowlist, Delhi Hub NOT merged ---- */
+    const riderStats = {};
+
+    rows.forEach(r => {
+
+        const rawDs = String(r.darkstore).trim();
+
+        if(!riderStats[rawDs]) riderStats[rawDs] = new Set();
+        if(r.riderId) riderStats[rawDs].add(r.riderId);
+
+        const dsKey = darkstoreGroupKey(rawDs);
+
+        if(!mainStats[dsKey]){
+            mainStats[dsKey] = {
+                total:0, readyZeroAttempt:0, cancelled:0,
+                fasrDelivered:0, delivered:0, notDispatched:0,
+                riderIds: new Set()
+            };
+        }
+
+        const s = mainStats[dsKey];
+        s.total++;
+        if(r.riderId) s.riderIds.add(r.riderId);
+
+        if(r.status === "READY"){
+            s.notDispatched++;
+            if(r.attempts === 0) s.readyZeroAttempt++;
+        }
+        if(r.status === "CANCELLED") s.cancelled++;
+        if(r.status === "DELIVERED"){
+            s.delivered++;
+            if(r.attempts === 0) s.fasrDelivered++;
+        }
+    });
+
+    /* ---- render main table ---- */
+    const darkstores = Object.keys(mainStats).sort((a, b) => {
+        if(a === "Delhi_Hub") return -1;
+        if(b === "Delhi_Hub") return 1;
+        return a.localeCompare(b);
+    });
+
+    let totalProcessed = 0, totalD0 = 0, totalFasr = 0, totalDelivered = 0;
+    let totalNotDispatched = 0, totalNotDispatchedZero = 0, totalCancelled = 0;
+    const totalRiders = new Set();
+
+    let html = `
+<table class="eod-table">
+<tr>
+    <th colspan="12" style="background:#4ea6d8;color:#000;font-size:22px;font-weight:800;">
+        ZIPPEE &harr; DARKSTORE-WISE EOD REPORT | ${esc(formattedDate)}
+    </th>
+</tr>
+<tr>
+    <th>Darkstore</th><th>Processed</th><th>D0_Dispatched %</th><th>D0_Dispatched</th>
+    <th>FASR%</th><th>FASR</th><th>Delivered%</th><th>Delivered</th>
+    <th>Cancelled</th><th>Not Dispatched</th><th>Not Dispatched + 0 Attempt</th><th>Unique Riders</th>
+</tr>`;
+
+    darkstores.forEach(ds => {
+
+        const s = mainStats[ds];
+        const uniqueRiders = s.riderIds.size;
+        s.riderIds.forEach(id => totalRiders.add(id));
+
+        const d0Pct  = s.total ? (((s.total - s.readyZeroAttempt) / s.total) * 100).toFixed(2) : 0;
+        const fasrPct = s.total ? ((s.fasrDelivered / s.total) * 100).toFixed(2) : 0;
+        const delPct  = s.total ? ((s.delivered / s.total) * 100).toFixed(2) : 0;
+
+        totalProcessed += s.total;
+        totalD0 += (s.total - s.readyZeroAttempt);
+        totalCancelled += s.cancelled;
+        totalFasr += s.fasrDelivered;
+        totalDelivered += s.delivered;
+        totalNotDispatched += s.notDispatched;
+        totalNotDispatchedZero += s.readyZeroAttempt;
+
+        html += `
+<tr>
+    <td><b>${esc(darkstoreWiseLabel(ds))}</b></td>
+    <td>${s.total}</td>
+    <td>${d0Pct}%</td>
+    <td>${s.total - s.readyZeroAttempt}</td>
+    <td>${fasrPct}%</td>
+    <td>${s.fasrDelivered}</td>
+    <td>${delPct}%</td>
+    <td>${s.delivered}</td>
+    <td>${s.cancelled}</td>
+    <td>${s.notDispatched}</td>
+    <td>${s.readyZeroAttempt}</td>
+    <td>${uniqueRiders}</td>
+</tr>`;
+    });
+
+    html += `
+<tr style="background:#d9edf7;font-weight:700;">
+    <td><b>Total</b></td>
+    <td><b>${totalProcessed}</b></td>
+    <td><b>${totalProcessed ? ((totalD0 / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
+    <td><b>${totalD0}</b></td>
+    <td><b>${totalProcessed ? ((totalFasr / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
+    <td><b>${totalFasr}</b></td>
+    <td><b>${totalProcessed ? ((totalDelivered / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
+    <td><b>${totalDelivered}</b></td>
+    <td><b>${totalCancelled}</b></td>
+    <td><b>${totalNotDispatched}</b></td>
+    <td><b>${totalNotDispatchedZero}</b></td>
+    <td><b>${totalRiders.size}</b></td>
+</tr>
+<tr>
+    <td colspan="12" style="background:#D3D3D3;font-weight:700;text-align:center;padding:12px;">
+        Powered by SASA Automation | Zippee
+    </td>
+</tr>
+</table>`;
+
+    mainBox.innerHTML = html;
+
+    /* ---- render unique rider table (Delhi Hub NOT merged) ---- */
+    const riderStores = Object.keys(riderStats).sort();
+    const allRiders = new Set();
+
+    let riderHtml = `
+<table class="eod-table">
+<tr>
+    <th colspan="2" style="background:#4ea6d8;color:#000;padding:18px 10px;">
+        <div style="font-size:18px;font-weight:800;white-space:nowrap;">ZIPPEE &harr; UNIQUE RIDER REPORT</div>
+        <div style="font-size:14px;font-weight:700;margin-top:6px;">${esc(formattedDate)}</div>
+    </th>
+</tr>
+<tr><th>Darkstore</th><th>Unique Riders</th></tr>`;
+
+    riderStores.forEach(ds => {
+        const ids = riderStats[ds];
+        ids.forEach(id => allRiders.add(id));
+        riderHtml += `
+<tr>
+    <td><b>${esc(darkstoreWiseLabel(ds))}</b></td>
+    <td>${ids.size}</td>
+</tr>`;
+    });
+
+    riderHtml += `
+<tr style="background:#d9edf7;font-weight:700;">
+    <td><b>Total</b></td>
+    <td><b>${allRiders.size}</b></td>
+</tr>
+<tr>
+    <td colspan="2" style="background:#D3D3D3;font-weight:700;text-align:center;padding:12px;">
+        Powered by SASA Automation | Zippee
+    </td>
+</tr>
+</table>`;
+
+    riderBox.innerHTML = riderHtml;
+}
+
+/* ============================================================
    DOWNLOADS
    ============================================================ */
 
@@ -1222,6 +1498,34 @@ function downloadPNG(){
         link.click();
     })
     .catch(() => btns.forEach(b => b.style.visibility = "visible"));
+}
+
+function downloadDarkstoreWisePNG(){
+
+    const report = document.querySelector("#darkstoreWiseReport table");
+    if(!report) return;
+
+    html2canvas(report, { scale:2, useCORS:true })
+    .then(canvas => {
+        const link = document.createElement("a");
+        link.download = "Zippee_Darkstore_Wise_EOD_Report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
+}
+
+function downloadUniqueRiderPNG(){
+
+    const report = document.querySelector("#uniqueRiderReport table");
+    if(!report) return;
+
+    html2canvas(report, { scale:2, backgroundColor:null, useCORS:true })
+    .then(canvas => {
+        const link = document.createElement("a");
+        link.download = "Zippee_Unique_Rider_Report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
 }
 
 /* ============================================================
