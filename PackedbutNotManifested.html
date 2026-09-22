@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Zippee | Packed But Not Manifested</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -270,6 +270,9 @@ footer{
     min-width:150px;
     text-align:center;
 }
+.stat-box.muted{
+    background:#5a6472;
+}
 .stat-box .num{
     font-size:26px;
     font-weight:800;
@@ -319,6 +322,13 @@ footer{
     background:#e7edf8;
     padding:1px 6px;
     border-radius:4px;
+}
+.logic-box ul{
+    margin:6px 0 0;
+    padding-left:20px;
+}
+.logic-box li{
+    margin:3px 0;
 }
 .empty-state{
     text-align:center;
@@ -491,7 +501,7 @@ footer{
     <div class="section-card">
         <div class="section-title">1. Upload Data</div>
         <div class="upload-zone" id="dropZone">
-            <div id="dzLabel">Drag & drop one or more <b>.csv</b> or <b>.zip</b> export files here, or click to browse</div>
+            <div id="dzLabel">Drag &amp; drop one or more <b>.csv</b> or <b>.zip</b> export files here, or click to browse</div>
             <input type="file" id="fileInput" multiple accept=".csv,.zip">
         </div>
         <div class="file-list" id="fileList"></div>
@@ -505,10 +515,15 @@ footer{
     <div class="section-card" id="configCard" style="display:none;">
         <div class="section-title">2. Report Filters</div>
         <div class="logic-box">
-            Logic: filter to the selected channel(s), keep rows where <code>Manifest ID</code> is blank
-            (i.e. just the placeholder <code>`</code>) and <code>AWB No</code> is present &mdash; meaning the
-            order has a shipping label but hasn't been added to a manifest yet ("packed but not manifested") &mdash;
-            then pivot by day &times; Order Status, counting AWB No.
+            <b>Logic, in order:</b>
+            <ul>
+                <li><b>Channel</b> &mdash; only counts orders from the sales channels you tick.</li>
+                <li><b>Unique</b> &mdash; your data can have the same order listed more than once. The tool keeps only the first time it sees an order and throws away the rest. "Same order" means the same value in the key column you pick below.</li>
+                <li><b>Manifest ID is blank</b> &mdash; empty or just the placeholder <code>`</code>.</li>
+                <li><b>AWB No is present</b> &mdash; the order already has a shipping label.</li>
+                <li><b>Order Status</b> &mdash; only counts the statuses you tick.</li>
+            </ul>
+            Together: the order is packed but hasn't been added to a manifest yet. The result is then pivoted by day &times; Order Status.
         </div>
         <div class="config-grid">
             <div class="config-block">
@@ -523,6 +538,11 @@ footer{
                 <h4>Other Filters</h4>
                 <div class="chk-row"><input type="checkbox" id="manifestBlankToggle" checked><label for="manifestBlankToggle">Manifest ID is blank (`)</label></div>
                 <div class="chk-row"><input type="checkbox" id="awbPresentToggle" checked><label for="awbPresentToggle">AWB No is present (packed)</label></div>
+                <div class="chk-row"><input type="checkbox" id="uniqueToggle" checked><label for="uniqueToggle">Keep only Unique (first occurrence)</label></div>
+                <div class="chk-row">
+                    <label for="keyColumnSelect" style="min-width:75px;">Key column:</label>
+                    <select id="keyColumnSelect"></select>
+                </div>
             </div>
         </div>
         <div class="controls">
@@ -545,7 +565,7 @@ footer{
                 <thead><tr id="pivotHead"></tr></thead>
                 <tbody id="pivotBody"></tbody>
             </table>
-            
+
             <div class="report-watermark">Powered By SASA Automation</div>
         </div>
 
@@ -602,6 +622,11 @@ let selectedFiles = [];
 let dayFilter = 'all';
 let statusFilter = 'all';
 
+/* dedupe bookkeeping, shown in the stat strip */
+let DUP_REMOVED = 0;     // rows dropped because the key was already seen
+let BLANK_KEY_REMOVED = 0; // rows dropped because the key column was empty
+let UNIQUE_ON = false;
+
 /* ---------- FILE HANDLING ---------- */
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -634,6 +659,8 @@ function clearAll(){
     selectedFiles = [];
     RAW_ROWS = [];
     RECORDS = [];
+    DUP_REMOVED = 0;
+    BLANK_KEY_REMOVED = 0;
     renderFileList();
     document.getElementById('configCard').style.display='none';
     document.getElementById('pivotCard').style.display='none';
@@ -725,6 +752,12 @@ function buildConfigUI(){
     } else {
         document.getElementById('statusChecks').innerHTML = '<div style="font-size:12px;color:#888;">No "Order Status" column found</div>';
     }
+
+    // Key column for the Unique check — defaults to Reference Code, same as the
+    // other tracker. Switch to AWB No if one order can legitimately carry
+    // several shipping labels and you want to count each label.
+    const keySel = document.getElementById('keyColumnSelect');
+    keySel.innerHTML = HEADERS.map(h=>`<option value="${h}" ${h==='Reference Code'?'selected':''}>${h}</option>`).join('');
 }
 
 /* ---------- REPORT GENERATION ---------- */
@@ -734,16 +767,39 @@ function generateReport(){
     const manifestCol = HEADERS.includes('Manifest ID') ? 'Manifest ID' : null;
     const awbCol = HEADERS.includes('AWB No') ? 'AWB No' : null;
     const dateCol = HEADERS.includes('Import Date') ? 'Import Date' : (HEADERS.includes('Order Date') ? 'Order Date' : null);
+    const keyCol = document.getElementById('keyColumnSelect').value;
 
     const selectedChannels = [...document.querySelectorAll('.chan-chk:checked')].map(c=>c.value);
     const selectedStatuses = [...document.querySelectorAll('.stat-chk:checked')].map(c=>c.value);
     const manifestBlankOn = document.getElementById('manifestBlankToggle').checked;
     const awbPresentOn = document.getElementById('awbPresentToggle').checked;
+    const uniqueOn = document.getElementById('uniqueToggle').checked;
 
     let rows = RAW_ROWS;
 
     if(channelCol && selectedChannels.length){
         rows = rows.filter(r => selectedChannels.includes(r[channelCol]));
+    }
+
+    /* ---------- UNIQUE (first occurrence wins) ----------
+       Same idea as IF(COUNTIF($F$2:F2,F2)=1,"Unique","Duplicate") in the sheet:
+       walk the rows in order, keep a note of every key already seen, and drop
+       anything whose key is already on the list.
+       Note: this runs AFTER the channel filter, matching the other tracker. Move
+       it above the channel filter if you need to match the Excel helper column,
+       which is computed over the whole sheet.                                  */
+    DUP_REMOVED = 0;
+    BLANK_KEY_REMOVED = 0;
+    UNIQUE_ON = uniqueOn;
+    if(uniqueOn && keyCol){
+        const seen = new Set();
+        rows = rows.filter(r=>{
+            const k = (r[keyCol] ?? '').toString().trim();
+            if(k === ''){ BLANK_KEY_REMOVED++; return false; }  // blank key -> dropped (matches Excel). Change to `return true;` to keep them.
+            if(seen.has(k)){ DUP_REMOVED++; return false; }
+            seen.add(k);
+            return true;
+        });
     }
 
     function isBlankManifest(v){
@@ -840,6 +896,12 @@ function buildPivot(){
         statBoxes += `<div class="stat-box"><div class="num">${colTotals[s]}</div><div class="lbl">${s}</div></div>`;
     });
     statBoxes += `<div class="stat-box"><div class="num">${days.length}</div><div class="lbl">Days Covered</div></div>`;
+    if(UNIQUE_ON){
+        statBoxes += `<div class="stat-box muted"><div class="num">${DUP_REMOVED}</div><div class="lbl">Duplicates Removed</div></div>`;
+        if(BLANK_KEY_REMOVED){
+            statBoxes += `<div class="stat-box muted"><div class="num">${BLANK_KEY_REMOVED}</div><div class="lbl">Blank Key Dropped</div></div>`;
+        }
+    }
     document.getElementById('statStrip').innerHTML = statBoxes;
     document.getElementById('rangeLabel').textContent = `Days: ${days.join(', ')}`;
 }
