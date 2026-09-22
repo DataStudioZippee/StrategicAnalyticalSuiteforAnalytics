@@ -499,6 +499,17 @@ const AWB_FILTER_STORES = new Set([
 ]);
 
 /* ------------------------------------------------------------
+   DELIVERY PINCODE EXCLUSION — rows to these pincodes are dropped
+   from allRows entirely, at upload time, before any report exists.
+   Nothing downstream (brand-wise tables, the top summary,
+   Darkstore-Wise, Unique Rider) ever sees them.
+   ------------------------------------------------------------ */
+const EXCLUDED_DELIVERY_PINCODES = new Set([
+    "711201", "711202", "711103", "711109", "711105",
+    "711101", "711204", "711106", "711104", "711102"
+]);
+
+/* ------------------------------------------------------------
    DARKSTORE-WISE REPORT (+ its Unique Rider companion) — a
    separate section from the brand-wise reports above. It groups
    by darkstore across every brand in the file (no Brand Sheet
@@ -613,6 +624,7 @@ let allowedBrands = [];        // brand names, sheet order
 let brandCutoffs   = new Map(); // lowercase brand name -> cutoff hour (0-23)
 let allRows        = [];
 let fileLoaded      = false;
+let excludedPincodeCount = 0;  // rows dropped at upload for matching EXCLUDED_DELIVERY_PINCODES
 
 /* ============================================================
    HELPERS
@@ -1022,7 +1034,12 @@ function handleFile(e){
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const json  = XLSX.utils.sheet_to_json(sheet, { raw:true });
 
-            allRows = json.map(row => ({
+            const keptJson = json.filter(row =>
+                !EXCLUDED_DELIVERY_PINCODES.has(cleanCell(row["Delivery Pincode"]))
+            );
+            excludedPincodeCount = json.length - keptJson.length;
+
+            allRows = keptJson.map(row => ({
                 brand:     cleanCell(row["Brand Name"]),
                 darkstore: cleanCell(row["Darkstore"]),
                 status:    cleanCell(row["Current Status"]).toUpperCase(),
@@ -1155,7 +1172,9 @@ function render(){
             "Loaded <b>" + allRows.length + "</b> rows — <b>0</b> inside the " +
             esc(formattedDate) + " window(s)." +
             (unparsed ? "<br><b>" + unparsed +
-             "</b> row(s) had an unreadable Creation Date." : ""), "warn");
+             "</b> row(s) had an unreadable Creation Date." : "") +
+            (excludedPincodeCount ? "<br><b>" + excludedPincodeCount +
+             "</b> row(s) were dropped at upload by the Delivery Pincode exclusion." : ""), "warn");
         return;
     }
 
@@ -1430,6 +1449,12 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
     if(unparsed){
         msg += "<br><b>" + unparsed +
                "</b> row(s) had an unreadable Creation Date and were excluded.";
+        cls = "warn";
+    }
+
+    if(excludedPincodeCount){
+        msg += "<br><b>" + excludedPincodeCount +
+               "</b> row(s) were dropped at upload by the Delivery Pincode exclusion (applies everywhere: brand-wise, Darkstore-Wise, Unique Rider).";
         cls = "warn";
     }
 
