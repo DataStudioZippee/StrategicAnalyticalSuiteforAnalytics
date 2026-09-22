@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zippee KPI Report</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<style>
+:root{
+    --glass-bg:rgba(255,255,255,0.55);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.18);
+}
+body{
+    margin:0;
+    font-family:"Segoe UI",Arial;
+    background:linear-gradient(135deg,#e8f0fb,#dce9fb 40%,#eef4fc);
+    min-height:100vh;
+}
+.header{
+    background:linear-gradient(90deg,rgba(0,63,140,.95),rgba(0,89,179,.95));
+    color:white;
+    padding:18px;
+    text-align:center;
+}
+.header h1{margin:0;font-size:22px;}
+.header .sub{font-size:13px;opacity:.85;margin-top:4px;}
+.card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(10px);
+    width:fit-content;
+    max-width:96vw;
+    margin:30px auto;
+    padding:26px;
+    border-radius:18px;
+    box-shadow:var(--card-shadow);
+}
+.card h2{text-align:center;margin-top:0;}
+.store-upload-container{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:24px;
+    flex-wrap:wrap;
+}
+.store-upload{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+}
+.store-upload label{font-weight:700;}
+.controls{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:22px 0 4px;
+}
+button{
+    padding:9px 18px;
+    background:#0078ff;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+}
+button:hover{background:#0063d1;}
+button:disabled{background:#9db8d9;cursor:default;}
+.status-line{
+    text-align:center;
+    font-size:13px;
+    color:#333;
+    min-height:18px;
+    margin-top:4px;
+}
+table{
+    width:auto;
+    border-collapse:collapse;
+    background:white;
+    margin:auto;
+}
+th,td{
+    border:1px solid #ddd;
+    padding:8px 12px;
+    font-size:13px;
+    text-align:center;
+    white-space:nowrap;
+}
+th{background:#e6e6e6;}
+.left{
+    text-align:left;
+    white-space:normal;
+    font-weight:600;
+    width:220px;
+    min-width:220px;
+}
+.footer{
+    text-align:center;
+    margin-top:12px;
+    font-weight:700;
+    font-size:13px;
+}
+.overflow-x{overflow-x:auto;max-width:96vw;}
+/* KPI Row Colours */
+.row-yellow td{background:#fff59d !important;}
+.row-green td{background:#c6efce !important;}
+.row-violet td{background:#d9c2f0 !important;}
+.row-brown td{background:#d2b48c !important;}
+.row-skin td{background:#f4d7c3 !important;}
+.row-orange td{background:#f8cbad !important;}
+.placeholder-msg{
+    text-align:center;
+    color:#666;
+    font-style:italic;
+    padding:12px;
+}
+/* Manually overridden rider inputs (12.3 / 12.5) */
+input[data-dirty="1"]{
+    background:#ffffff;
+    border:1px solid #c9a800;
+    box-shadow:0 0 0 2px rgba(201,168,0,.25);
+}
+.download-value.manual-edit{font-weight:700;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Zippee &lt;&gt; Zilo Report</h1>
+    <div class="sub">Combined KPI + Breach Detail + Hourly Breach view</div>
+</div>
+
+<!-- ============ CONTROLS ============ -->
+<div class="card">
+
+    <div class="store-upload-container">
+        <div class="store-upload">
+            <label for="ghatkoparFile">Ghatkopar</label>
+            <input type="file" id="ghatkoparFile" accept=".csv,.xlsx">
+        </div>
+        <div class="store-upload">
+            <label for="maladFile">Malad</label>
+            <input type="file" id="maladFile" accept=".csv,.xlsx">
+        </div>
+        <div class="store-upload">
+            <label for="vashiFile">Vashi</label>
+            <input type="file" id="vashiFile" accept=".csv,.xlsx">
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="genBtn" onclick="generateReport()">Generate Report</button>
+        <button onclick="downloadCard('reportCard','Zippee_KPI_Report.png')">Download KPI Report</button>
+        <button onclick="downloadCard('breachCard','Zippee_Breach_Details.png')">Download Breach Details</button>
+        <button onclick="downloadCard('reportCard2','Zippee_Hourly_Report.png')">Download Hourly Report</button>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+
+</div>
+
+<!-- ============ MAIN KPI CARD ============ -->
+<div class="card overflow-x">
+<div id="reportCard">
+
+    <div style="text-align:center;font-weight:800;margin-bottom:10px;">
+        Zippee &lt;&gt; Zilo SLA Report
+    </div>
+
+    <div style="text-align:center;margin-bottom:10px;">
+        Date: <span id="date"></span> |
+        Time: <span id="time"></span>
+    </div>
+
+<table>
+<tr><th>S. No.</th>
+<th>Key Parameters</th>
+<th>Ghatkopar</th>
+<th>Malad</th>
+<th>Vashi</th>
+</tr>
+
+<tr class="row-yellow"><td>1</td><td class="left">SLA Target</td><td id="gSLA">--</td><td id="mSLA">--</td><td id="vSLA">--</td></tr>
+<tr class="row-yellow"><td>2</td><td class="left">Delay Target</td><td id="gDelay">--</td><td id="mDelay">--</td><td id="vDelay">--</td></tr>
+<tr class="row-yellow"><td>3</td><td class="left">Projected Order</td><td id="gProjOrder">--</td><td id="mProjOrder">--</td><td id="vProjOrder">--</td></tr>
+
+<tr>
+    <td>4</td>
+    <td class="left">Actual Order</td>
+    <td id="gOrders">--</td>
+    <td id="mOrders">--</td>
+    <td id="vOrders">--</td>
+</tr>
+<tr>
+    <td>4.1</td>
+    <td class="left">Attainment%</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+
+<tr class="row-green">
+    <td>5</td>
+    <td class="left">Delivered Order</td>
+    <td id="gDelivered">--</td>
+    <td id="mDelivered">--</td>
+    <td id="vDelivered">--</td>
+</tr>
+
+<tr class="row-violet">
+    <td>6</td>
+    <td class="left">RTO Orders</td>
+    <td id="gRTO">--</td>
+    <td id="mRTO">--</td>
+    <td id="vRTO">--</td>
+</tr>
+
+<tr class="row-brown">
+    <td>7</td>
+    <td class="left">SLA + 15 min</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+<tr class="row-skin">
+    <td>7.1</td>
+    <td class="left">SLA %</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+<tr class="row-orange">
+    <td>7.2</td>
+    <td class="left">60 Min</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+<tr class="row-orange">
+    <td>7.3</td>
+    <td class="left">90 Min</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+<tr class="row-orange">
+    <td>7.4</td>
+    <td class="left">120 Min</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+<tr class="row-orange">
+    <td>7.5</td>
+    <td class="left">Others</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+
+<tr class="row-violet">
+    <td>8</td>
+    <td class="left">Breach order (Delivered only)</td>
+    <td id="gBreach">--</td>
+    <td id="mBreach">--</td>
+    <td id="vBreach">--</td>
+</tr>
+<tr class="row-violet">
+    <td>9</td>
+    <td class="left">Delay Order</td>
+    <td id="gDelayOrder">--</td>
+    <td id="mDelayOrder">--</td>
+    <td id="vDelayOrder">--</td>
+</tr>
+<tr class="row-violet">
+    <td>10</td>
+    <td class="left">Deep Pain Order</td>
+    <td id="gDeepPain">--</td>
+    <td id="mDeepPain">--</td>
+    <td id="vDeepPain">--</td>
+</tr>
+
+<tr class="row-yellow">
+    <td>11</td>
+    <td class="left">Projected Forward Rider</td>
+    <td id="gProjRider">--</td>
+    <td id="mProjRider">--</td>
+    <td id="vProjRider">--</td>
+</tr>
+<tr class="row-yellow">
+    <td>12</td>
+    <td class="left">Actual Forward Rider</td>
+    <td id="gRiders">--</td>
+    <td id="mRiders">--</td>
+    <td id="vRiders">--</td>
+</tr>
+<tr class="row-yellow">
+    <td>12.1</td>
+    <td class="left">Rider attainment</td>
+    <td>--</td><td>--</td><td>--</td>
+</tr>
+<tr class="row-yellow">
+    <td>12.2</td>
+    <td class="left">Projected Pickup Rider</td>
+    <td><input type="number" id="gProjPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mProjPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vProjPickupRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.3</td>
+    <td class="left">Pickup Rider</td>
+    <td><input type="number" id="gPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vPickupRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.4</td>
+    <td class="left">Projected Omni Rider</td>
+    <td><input type="number" id="gProjOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mProjOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vProjOmniRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.5</td>
+    <td class="left">Omni Rider</td>
+    <td><input type="number" id="gOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vOmniRider" style="width:60px;text-align:center;"></td>
+</tr>
+
+</table>
+
+<div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+<!-- ============ BREACH DETAIL CARD ============ -->
+<div class="card overflow-x" id="breachCard">
+    <h2>Store Wise Breach Orders</h2>
+    <div id="breachContainer">
+        <div class="placeholder-msg">Upload files and click "Generate Report" to see breach order details.</div>
+    </div>
+</div>
+
+<!-- ============ HOURLY BREACH CARD ============ -->
+<div class="card overflow-x" id="hourlyCardWrapper" style="display:none;">
+<div id="reportCard2">
+
+    <div style="text-align:center;margin-bottom:15px;">
+        <div style="font-size:24px;font-weight:800;margin-bottom:6px;">
+            Zippee &lt;&gt; Zilo Hourly Breach Report
+        </div>
+        <div id="reportDateTime" style="font-size:14px;color:#555;font-weight:600;"></div>
+    </div>
+
+    <table id="hourlyTable">
+        <thead>
+            <tr>
+                <th rowspan="2">From</th>
+                <th rowspan="2">To</th>
+                <th colspan="4">Ghatkopar</th>
+                <th colspan="4">Malad</th>
+                <th colspan="4">Vashi</th>
+            </tr>
+            <tr>
+                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
+                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
+                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+<script>
+const ORDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=0&single=true&output=csv";
+const RIDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=775811107&single=true&output=csv";
+const SLA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=1169651333&single=true&output=csv";
+const DELAY_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=319008300&single=true&output=csv";
+/* Rider2 tab: Store | Omni Rider | Pickup Rider  → feeds rows 12.5 and 12.3 */
+const RIDER2_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=157776774&single=true&output=csv";
+
+const STORES = ["Ghatkopar","Malad","Vashi"];
+const PREFIX = {Ghatkopar:"g", Malad:"m", Vashi:"v"};
+
+/* Rows 12.3 / 12.5 — fetched from Rider2, but a user edit always wins */
+const MANUAL_RIDER_IDS = [
+    "gPickupRider","mPickupRider","vPickupRider",
+    "gOmniRider","mOmniRider","vOmniRider"
+];
+
+let breachOrders = {Ghatkopar:[], Malad:[], Vashi:[]};
+
+function setStatus(msg){
+    document.getElementById("statusLine").innerText = msg;
+}
+
+function updateDateTime(){
+    const d = new Date();
+    const dateStr = d.toLocaleDateString('en-GB',{day:"2-digit",month:"short",year:"numeric"});
+    let h = d.getHours();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    const timeStr = h + " " + ampm;
+
+    document.getElementById("date").innerText = dateStr;
+    document.getElementById("time").innerText = timeStr;
+    document.getElementById("reportDateTime").innerHTML =
+        `<b>Date:</b> ${dateStr} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Time:</b> ${timeStr}`;
+}
+
+function findDateRow(data){
+    const today = new Date();
+    return data.find(r => {
+        const sheetDate = String(r.Date || "").trim();
+        if (!sheetDate) return false;
+
+        const shortMatch = sheetDate.match(/^(\d{1,2})-([A-Za-z]{3})$/);
+        if (shortMatch) {
+            const day = parseInt(shortMatch[1], 10);
+            const month = new Date(`${shortMatch[2]} 1, 2000`).getMonth();
+            return day === today.getDate() && month === today.getMonth();
+        }
+
+        const dateMatch = sheetDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dateMatch) {
+            const month = parseInt(dateMatch[1], 10) - 1;
+            const day = parseInt(dateMatch[2], 10);
+            const year = parseInt(dateMatch[3], 10);
+            return day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+        }
+        return false;
+    }) || {};
+}
+
+/* Rider2 has no Date column — match on the Store name, never on row order */
+function findStoreRow(data, store){
+    const want = store.trim().toLowerCase();
+    return data.find(r => String(r.Store || "").trim().toLowerCase() === want) || {};
+}
+
+function parseCSV(text){
+    const rows = text.trim().split("\n").map(r=>r.split(","));
+    const headers = rows[0];
+    return rows.slice(1).map(r=>{
+        let obj={};
+        headers.forEach((h,i)=>obj[h.trim()]=r[i]);
+        return obj;
+    });
+}
+
+async function fetchSheet(url){
+    const res = await fetch(url);
+    const text = await res.text();
+    return parseCSV(text);
+}
+
+function isTodayOrBlank(value){
+    if (value == null || value === "") return true;
+
+    if (typeof value === "number") {
+        const d = XLSX.SSF.parse_date_code(value);
+        value = new Date(d.y, d.m - 1, d.d);
+    } else {
+        value = new Date(value);
+    }
+
+    if (isNaN(value)) return false;
+
+    const today = new Date();
+    return (
+        value.getDate() === today.getDate() &&
+        value.getMonth() === today.getMonth() &&
+        value.getFullYear() === today.getFullYear()
+    );
+}
+
+function serviceDurationFor(store, pincode){
+    const RULES = {
+        Malad: {
+            120: ["400068","401105","401107","401101"],
+            60:  ["400047","400053","400058","400060","400062","400063","400064","400066",
+                  "400067","400069","400090","400091","400092","400093","400095","400097",
+                  "400101","400102","400103","400104"],
+            90:  ["400049","400054","400056","400061","400065"]
+        },
+        Ghatkopar: {
+            60: ["400024","400042","400043","400059","400070","400071","400072","400075",
+                 "400076","400077","400078","400079","400083","400084","400086","400087",
+                 "400089","400096"],
+            90: ["400051","400055","400057","400074","400085","400088","400094","400098",
+                 "400099","400029"]
+        },
+        Vashi: {
+            120: ["400068","401105","401107"],
+            60:  ["400047","400053","400058","400060","400062","400063","400064","400066",
+                  "400067","400069","400090","400091","400092","400093","400095","400097",
+                  "400101","400102","400103","400104","400614","400701","400703","400705",
+                  "400706","400709","400710"],
+            90:  ["400049","400054","400056","400061","400065","400708"]
+        }
+    };
+    const rules = RULES[store];
+    if (rules[120] && rules[120].includes(pincode)) return 120;
+    if (rules[60] && rules[60].includes(pincode)) return 60;
+    if (rules[90] && rules[90].includes(pincode)) return 90;
+    return "others";
+}
+
+async function generateReport(){
+
+    const genBtn = document.getElementById("genBtn");
+    genBtn.disabled = true;
+    setStatus("Fetching targets & processing files…");
+
+    updateDateTime();
+
+    // Kick off the Rider2 fetch in parallel; its own catch keeps a failure here
+    // from affecting the four target sheets below.
+    const rider2Promise = fetchSheet(RIDER2_URL).catch(e => {
+        console.error("Rider2 sheet fetch failed:", e);
+        return [];
+    });
+
+    // -------------------------------------------------
+    // 1. TARGETS FROM GOOGLE SHEETS
+    // -------------------------------------------------
+    try {
+        const [orderData, riderData, slaData, delayData] = await Promise.all([
+            fetchSheet(ORDER_URL),
+            fetchSheet(RIDER_URL),
+            fetchSheet(SLA_URL),
+            fetchSheet(DELAY_URL)
+        ]);
+
+        const orderRow = findDateRow(orderData);
+        document.getElementById("gProjOrder").innerText = orderRow["GHATKOPAR"] || "--";
+        document.getElementById("mProjOrder").innerText = orderRow["MALAD"] || "--";
+        document.getElementById("vProjOrder").innerText = orderRow["VASHI"] || "--";
+
+        const riderRow = findDateRow(riderData);
+        document.getElementById("gProjRider").innerText = riderRow["Ghatkopar"] || "--";
+        document.getElementById("mProjRider").innerText = riderRow["Malad"] || "--";
+        document.getElementById("vProjRider").innerText = riderRow["Vashi"] || "--";
+
+        const slaRow = findDateRow(slaData);
+        document.getElementById("gSLA").innerText = slaRow["Target"] || "--";
+        document.getElementById("mSLA").innerText = slaRow["Target"] || "--";
+        document.getElementById("vSLA").innerText = slaRow["Target"] || "--";
+
+        const delayRow = findDateRow(delayData);
+        document.getElementById("gDelay").innerText = delayRow["Target"] || "--";
+        document.getElementById("mDelay").innerText = delayRow["Target"] || "--";
+        document.getElementById("vDelay").innerText = delayRow["Target"] || "--";
+    } catch (e) {
+        console.error("Target sheet fetch failed:", e);
+        setStatus("Could not fetch target sheet (check your internet connection) — continuing with uploaded files only.");
+    }
+
+    // Constant projected values (unchanged from original tool)
+    document.getElementById("gProjPickupRider").value = 3;
+    document.getElementById("mProjPickupRider").value = 5;
+    document.getElementById("vProjPickupRider").value = 0;
+    document.getElementById("gProjOmniRider").value = 2;
+    document.getElementById("mProjOmniRider").value = 6;
+    document.getElementById("vProjOmniRider").value = 1;
+
+    // -------------------------------------------------
+    // 1b. 12.3 PICKUP RIDER & 12.5 OMNI RIDER (Rider2 sheet)
+    //     Sheet value is the default; anything the user typed is kept.
+    // -------------------------------------------------
+    const rider2Data = await rider2Promise;
+    let rider2Applied = false;
+
+    STORES.forEach(store => {
+        const p = PREFIX[store];
+        const row = findStoreRow(rider2Data, store);
+
+        const apply = (id, raw) => {
+            const el = document.getElementById(id);
+            if (el.dataset.dirty === "1") return;          // user edit wins
+            const val = String(raw ?? "").trim();           // trims Google's trailing \r
+            if (val !== "") { el.value = val; rider2Applied = true; }
+        };
+
+        apply(p + "OmniRider",   row["Omni Rider"]);
+        apply(p + "PickupRider", row["Pickup Rider"]);
+    });
+
+    if (!rider2Applied && rider2Data.length === 0) {
+        console.warn("Rider2 sheet returned no rows — 12.3 / 12.5 left as-is.");
+    }
+
+    // -------------------------------------------------
+    // 2. STORE FILES
+    // -------------------------------------------------
+    const storeFiles = {
+        Ghatkopar: document.getElementById("ghatkoparFile").files[0],
+        Malad: document.getElementById("maladFile").files[0],
+        Vashi: document.getElementById("vashiFile").files[0]
+    };
+
+    if (!storeFiles.Ghatkopar && !storeFiles.Malad && !storeFiles.Vashi) {
+        setStatus("Upload at least one store file before generating.");
+        genBtn.disabled = false;
+        return;
+    }
+
+    let storeOrders    = {Ghatkopar:0, Malad:0, Vashi:0};
+    let storeDelivered = {Ghatkopar:0, Malad:0, Vashi:0};
+    let storeRTO       = {Ghatkopar:0, Malad:0, Vashi:0};
+    let storeBreach    = {Ghatkopar:0, Malad:0, Vashi:0}; // Delivered-only, feeds Row 8
+    let storeDelay     = {Ghatkopar:0, Malad:0, Vashi:0};
+    let storeDeepPain  = {Ghatkopar:0, Malad:0, Vashi:0};
+    let storePickup    = {Ghatkopar:0, Malad:0, Vashi:0};
+
+    let storeForwardRiderSet = {
+        Ghatkopar: new Set(), Malad: new Set(), Vashi: new Set()
+    };
+
+    let storeBuckets = {
+        Ghatkopar: {60:0, 90:0, 120:0, others:0},
+        Malad:     {60:0, 90:0, 120:0, others:0},
+        Vashi:     {60:0, 90:0, 120:0, others:0}
+    };
+
+    const hourlyStats = {Ghatkopar:{}, Malad:{}, Vashi:{}};
+    STORES.forEach(store=>{
+        for (let h=7; h<=22; h++){
+            hourlyStats[store][h] = {total:0, delivered:0, breach:0};
+        }
+    });
+
+    breachOrders = {Ghatkopar:[], Malad:[], Vashi:[]};
+
+    for (const store of STORES){
+
+        const file = storeFiles[store];
+        if (!file) continue;
+
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data);
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        let json = XLSX.utils.sheet_to_json(sheet);
+
+        // Filter: correct channel/status/fulfillment, dated today (or blank)
+        json = json.filter(row => {
+            const channel = String(row["Channel"] || "").trim().toUpperCase();
+            const status = String(row["Status"] || "").trim().toUpperCase();
+            const fulfillment = String(row["Fulfillment Status"] || "").trim().toUpperCase();
+            return (
+                channel === "ZILO" &&
+                status === "COMPLETED" &&
+                (fulfillment === "DELIVERED" || fulfillment === "RTO_DELIVERED") &&
+                isTodayOrBlank(row["Delivery Date"]) &&
+                isTodayOrBlank(row["Pickup Time"])
+            );
+        });
+
+        // Pass 1: Actual Order count (Row 4)
+        json.forEach(row => {
+            const orderId = (row["Reference ID"] || "").toString().trim().toLowerCase();
+            const isActualOrder =
+                !orderId.startsWith("return") &&
+                !orderId.startsWith("f-") &&
+                !orderId.endsWith("-pd") &&
+                !orderId.startsWith("rtv-");
+            if (isActualOrder) storeOrders[store]++;
+        });
+
+        // Pass 2: full per-row processing (feeds KPI table + breach table + hourly table)
+        json.forEach(row => {
+
+            const status = (row["Fulfillment Status"] || "").toUpperCase().trim();
+            const orderId = (row["Reference ID"] || "").toString().trim().toLowerCase();
+
+            if (status === "RTO_DELIVERED") storeRTO[store]++;
+
+            if (orderId.startsWith("return") && (status === "DELIVERED" || status === "RTO_DELIVERED")) {
+                storePickup[store]++;
+            }
+
+            const isActualOrder =
+                !orderId.startsWith("return") &&
+                !orderId.startsWith("f-") &&
+                !orderId.endsWith("-pd") &&
+                !orderId.startsWith("rtv-");
+
+            const movementType = String(row["Movement Type"] || "").trim().toUpperCase();
+            const riderIdRaw = String(row["Rider ID"] || "").trim();
+            if (movementType === "FORWARD" && riderIdRaw !== "") {
+                storeForwardRiderSet[store].add(riderIdRaw);
+            }
+
+            // Row 5 "Delivered Order" — unconditional on slot data (matches original KPI tool)
+            if (status === "DELIVERED" && isActualOrder) {
+                storeDelivered[store]++;
+            }
+
+            const isDeliveredOrRTO = (status === "DELIVERED" || status === "RTO_DELIVERED");
+            if (!isActualOrder || !isDeliveredOrRTO) return;
+
+            // ---- Service duration bucket by pincode ----
+            const address = String(row["Customer Address"] || "").trim();
+            const pincode = address.slice(-6);
+            const serviceDuration = serviceDurationFor(store, pincode);
+
+            // ---- Promise window from Delivery Slot ----
+            const slot = String(row["Delivery Slot"] || "").trim();
+            const slotMatch = slot.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
+            if (!slotMatch) return;
+
+            const start = new Date(`1970-01-01 ${slotMatch[1]}:${slotMatch[2]}:00`);
+            const end = new Date(`1970-01-01 ${slotMatch[3]}:${slotMatch[4]}:00`);
+            const slotHour = end.getHours();
+            const actualPromise = (end - start) / 60000;
+            const endMinute = parseInt(slotMatch[4], 10);
+            const orderType = endMinute === 0 ? "SLOTTED" : "INSTANT";
+
+            let delayDuration = "NA";
+            if (typeof serviceDuration === "number" && !isNaN(actualPromise)) {
+                delayDuration = actualPromise - serviceDuration;
+            }
+
+            // Hourly totals (bucketed by promised-slot end hour)
+            if (hourlyStats[store][slotHour]) {
+                hourlyStats[store][slotHour].total++;
+                if (status === "DELIVERED") hourlyStats[store][slotHour].delivered++;
+            }
+
+            const match = slot.match(/(\d{1,2}:\d{2})$/);
+            if (!match) return;
+
+            const promise = new Date("1970-01-01 " + match[1] + ":00");
+            const sla15 = new Date(promise); sla15.setMinutes(sla15.getMinutes() + 15);
+            const dpSlot = new Date(promise); dpSlot.setHours(dpSlot.getHours() + 1);
+
+            const reachedDelivery = row["Reached Delivery Time"];
+            if (reachedDelivery == null || reachedDelivery === "") return;
+
+            let actualDate;
+            if (typeof reachedDelivery === "number") {
+                const d = XLSX.SSF.parse_date_code(reachedDelivery);
+                actualDate = new Date(d.y, d.m - 1, d.d, d.H, d.M, Math.floor(d.S));
+            } else {
+                actualDate = new Date(reachedDelivery);
+            }
+            if (isNaN(actualDate)) return;
+
+            const promiseTime = sla15.getHours() * 60 + sla15.getMinutes();
+            const dpTime = dpSlot.getHours() * 60 + dpSlot.getMinutes();
+            const actualTime = actualDate.getHours() * 60 + actualDate.getMinutes();
+
+            const isBreach = actualTime >= promiseTime; // status already guaranteed Delivered/RTO
+            const isDeepPain = actualTime > dpTime;
+
+            if (status === "DELIVERED" && isDeepPain) storeDeepPain[store]++;
+
+            if (status === "DELIVERED" && orderType === "INSTANT" &&
+                typeof delayDuration === "number" && delayDuration > 0) {
+                storeDelay[store]++;
+            }
+
+            if (isBreach) {
+                if (hourlyStats[store][slotHour]) hourlyStats[store][slotHour].breach++;
+                if (status === "DELIVERED") storeBreach[store]++;
+
+                // ---- Breach detail row (feeds "Store Wise Breach Orders") ----
+                let orderTime = String(row["Delivery Slot"] || "").split("-")[0];
+                let manifestedTime = "", manifestMinutes = 0;
+                let reachedPickupTime = "", pickupMinutes = 0;
+                let orderMinutes = 0;
+
+                if (orderTime.includes(":")) {
+                    const [h, m] = orderTime.split(":").map(Number);
+                    orderMinutes = h * 60 + m;
+                }
+
+                if (typeof row["Manifested Time"] === "number") {
+                    const d = XLSX.SSF.parse_date_code(row["Manifested Time"]);
+                    manifestedTime = String(d.H).padStart(2,"0") + ":" + String(d.M).padStart(2,"0");
+                    manifestMinutes = d.H * 60 + d.M + (d.S || 0) / 60;
+                } else {
+                    const dt = new Date(row["Manifested Time"]);
+                    if (!isNaN(dt)) {
+                        manifestedTime = String(dt.getHours()).padStart(2,"0") + ":" + String(dt.getMinutes()).padStart(2,"0");
+                        manifestMinutes = dt.getHours() * 60 + dt.getMinutes();
+                    }
+                }
+
+                let orderToPackTAT = manifestMinutes >= orderMinutes ? (manifestMinutes - orderMinutes).toFixed(2) : "";
+
+                if (typeof row["Reached Pickup Time"] === "number") {
+                    const d = XLSX.SSF.parse_date_code(row["Reached Pickup Time"]);
+                    reachedPickupTime = String(d.H).padStart(2,"0") + ":" + String(d.M).padStart(2,"0");
+                    pickupMinutes = d.H * 60 + d.M + (d.S || 0) / 60;
+                } else {
+                    const dt = new Date(row["Reached Pickup Time"]);
+                    if (!isNaN(dt)) {
+                        reachedPickupTime = String(dt.getHours()).padStart(2,"0") + ":" + String(dt.getMinutes()).padStart(2,"0");
+                        pickupMinutes = dt.getHours() * 60 + dt.getMinutes();
+                    }
+                }
+
+                let packingToPickTAT = pickupMinutes >= manifestMinutes ? (pickupMinutes - manifestMinutes).toFixed(2) : "";
+                let totalUTR = pickupMinutes >= orderMinutes ? (pickupMinutes - orderMinutes).toFixed(2) : "";
+
+                const promiseTimeText = String(sla15.getHours()).padStart(2,"0") + ":" + String(sla15.getMinutes()).padStart(2,"0");
+                const reachDeliveryTime = String(actualDate.getHours()).padStart(2,"0") + ":" + String(actualDate.getMinutes()).padStart(2,"0");
+                const breachMinutes = Math.max(0, actualTime - promiseTime);
+                const utrBreach = parseFloat(totalUTR) > 20 ? "YES" : "NO";
+                const deepPainFlag = breachMinutes >= 60 ? "YES" : "NO";
+
+                breachOrders[store].push({
+                    referenceId: row["Reference ID"] || "",
+                    fulfillmentStatus: row["Fulfillment Status"] || "",
+                    orderTime, manifestedTime, orderToPackTAT,
+                    reachedPickupTime, packingToPickTAT, totalUTR,
+                    promise: promiseTimeText, reachDeliveryTime,
+                    breach: breachMinutes, utrBreach, deepPain: deepPainFlag,
+                    riderName: row["Rider Name"] || "",
+                    riderId: row["Rider ID"] || ""
+                });
+
+                return;
+            }
+
+            if (status !== "DELIVERED") return;
+
+            if (serviceDuration === 60) storeBuckets[store][60]++;
+            else if (serviceDuration === 90) storeBuckets[store][90]++;
+            else if (serviceDuration === 120) storeBuckets[store][120]++;
+            else storeBuckets[store].others++;
+        });
+    }
+
+    // -------------------------------------------------
+    // 3. RENDER: MAIN KPI TABLE
+    // -------------------------------------------------
+    renderKPITable(storeOrders, storeDelivered, storeRTO, storeBreach, storeDelay,
+                    storeDeepPain, storeForwardRiderSet, storeBuckets);
+
+    // -------------------------------------------------
+    // 4. RENDER: BREACH DETAIL TABLES
+    // -------------------------------------------------
+    renderBreachTables();
+
+    // -------------------------------------------------
+    // 5. RENDER: HOURLY TABLE
+    // -------------------------------------------------
+    document.getElementById("hourlyCardWrapper").style.display = "block";
+    fillHourlyTable(hourlyStats);
+
+    setStatus("Report generated at " + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ".");
+    genBtn.disabled = false;
+}
+
+function renderKPITable(storeOrders, storeDelivered, storeRTO, storeBreach, storeDelay,
+                         storeDeepPain, storeForwardRiderSet, storeBuckets){
+
+    STORES.forEach(store=>{
+        const p = PREFIX[store];
+        document.getElementById(p+"Orders").innerText = storeOrders[store];
+        document.getElementById(p+"Delivered").innerText = storeDelivered[store];
+        document.getElementById(p+"RTO").innerText = storeRTO[store];
+        document.getElementById(p+"Breach").innerText = storeBreach[store];
+        document.getElementById(p+"DelayOrder").innerText = storeDelay[store];
+        document.getElementById(p+"DeepPain").innerText = storeDeepPain[store];
+        document.getElementById(p+"Riders").innerText = storeForwardRiderSet[store].size;
+    });
+
+    const kpiRows = document.querySelectorAll("#reportCard table tr");
+
+    kpiRows.forEach(row=>{
+        const label = row.cells[1]?.innerText;
+
+        if (label === "60 Min") {
+            STORES.forEach((store,i)=> row.cells[i+2].innerText = storeBuckets[store][60]);
+        }
+        if (label === "90 Min") {
+            STORES.forEach((store,i)=> row.cells[i+2].innerText = storeBuckets[store][90]);
+        }
+        if (label === "120 Min") {
+            STORES.forEach((store,i)=> row.cells[i+2].innerText = storeBuckets[store][120]);
+        }
+        if (label === "Others") {
+            STORES.forEach((store,i)=> row.cells[i+2].innerText = storeBuckets[store].others);
+        }
+        if (label === "SLA + 15 min") {
+            STORES.forEach((store,i)=>{
+                const b = storeBuckets[store];
+                row.cells[i+2].innerText = b[60] + b[90] + b[120] + b.others;
+            });
+        }
+        if (label === "SLA %") {
+            STORES.forEach((store,i)=>{
+                const b = storeBuckets[store];
+                const total = b[60] + b[90] + b[120] + b.others;
+                row.cells[i+2].innerText = storeDelivered[store]
+                    ? ((total / storeDelivered[store]) * 100).toFixed(0) + "%"
+                    : "--";
+            });
+        }
+        if (label === "Attainment%") {
+            const projIds = {Ghatkopar:"gProjOrder", Malad:"mProjOrder", Vashi:"vProjOrder"};
+            STORES.forEach((store,i)=>{
+                const projected = parseFloat(document.getElementById(projIds[store]).innerText);
+                row.cells[i+2].innerText = (isNaN(projected) || projected === 0)
+                    ? "--" : (((storeOrders[store] / projected) * 100).toFixed(0) + "%");
+            });
+        }
+        if (label === "Rider attainment") {
+            const projIds = {Ghatkopar:"gProjRider", Malad:"mProjRider", Vashi:"vProjRider"};
+            STORES.forEach((store,i)=>{
+                const projected = parseFloat(document.getElementById(projIds[store]).innerText);
+                row.cells[i+2].innerText = (isNaN(projected) || projected === 0)
+                    ? "--" : (((storeForwardRiderSet[store].size / projected) * 100).toFixed(0) + "%");
+            });
+        }
+    });
+}
+
+function renderBreachTables(){
+    const container = document.getElementById("breachContainer");
+    container.innerHTML = "";
+
+    STORES.forEach(store=>{
+        container.innerHTML += `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:25px;margin-bottom:8px;">
+            <h3 style="margin:0;">${store}</h3>
+            <button onclick="copyStore('${store}', this)">📋 Copy</button>
+        </div>
+        <table style="margin-bottom:25px;">
+            <tr>
+                <th>Reference ID</th><th>Fulfillment Status</th><th>Order Time</th>
+                <th>Manifested Time</th><th>Order to Pack TAT (mins)</th>
+                <th>Reached Pickup Time</th><th>Packing to Pick TAT (mins)</th>
+                <th>Total UTR (mins)</th><th>Promise</th><th>Reach Delivery Time</th>
+                <th>Breach (mins)</th><th>UTR Breach</th><th>DEEP PAIN</th>
+                <th>Rider Name</th><th>Rider ID</th>
+            </tr>
+            ${
+                breachOrders[store].length
+                ? breachOrders[store].map(o => `
+                    <tr>
+                        <td>${o.referenceId}</td><td>${o.fulfillmentStatus}</td><td>${o.orderTime}</td>
+                        <td>${o.manifestedTime}</td><td>${o.orderToPackTAT}</td>
+                        <td>${o.reachedPickupTime}</td><td>${o.packingToPickTAT}</td>
+                        <td>${o.totalUTR}</td><td>${o.promise}</td><td>${o.reachDeliveryTime}</td>
+                        <td>${o.breach}</td><td>${o.utrBreach}</td><td>${o.deepPain}</td>
+                        <td>${o.riderName}</td><td>${o.riderId}</td>
+                    </tr>`).join("")
+                : `<tr><td colspan="15">No Breach Orders</td></tr>`
+            }
+        </table>`;
+    });
+}
+
+function fillHourlyTable(hourlyStats){
+    const tbody = document.querySelector("#hourlyTable tbody");
+    tbody.innerHTML = "";
+
+    const currentHour = new Date().getHours();
+
+    function buildStoreCells(store, h){
+        const d = hourlyStats[store][h];
+        const pct = d.delivered ? ((d.breach / d.delivered) * 100).toFixed(0) + "%" : "--";
+        return `<td>${d.total}</td><td>${d.delivered}</td><td>${d.breach}</td><td>${pct}</td>`;
+    }
+
+    for (let h = 7; h <= Math.min(currentHour, 22); h++){
+        const tr = document.createElement("tr");
+        const from = String(h).padStart(2,"0") + ":00";
+        const to = String(h+1).padStart(2,"0") + ":00";
+        tr.innerHTML = `
+            <td>${from}</td><td>${to}</td>
+            ${buildStoreCells("Ghatkopar", h)}
+            ${buildStoreCells("Malad", h)}
+            ${buildStoreCells("Vashi", h)}
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
+function downloadCard(elementId, filename){
+    const card = document.getElementById(elementId);
+
+    if (elementId === "reportCard") {
+        // Hide manual rider input boxes, show plain values instead
+        const inputs = document.querySelectorAll(
+            "#gProjPickupRider,#mProjPickupRider,#vProjPickupRider," +
+            "#gPickupRider,#mPickupRider,#vPickupRider," +
+            "#gProjOmniRider,#mProjOmniRider,#vProjOmniRider," +
+            "#gOmniRider,#mOmniRider,#vOmniRider"
+        );
+        inputs.forEach(input => {
+            const span = document.createElement("span");
+            span.className = "download-value";
+            if (input.dataset.dirty === "1") span.classList.add("manual-edit");
+            span.innerText = input.value || "--";
+            input.style.display = "none";
+            input.parentNode.appendChild(span);
+        });
+
+        html2canvas(card, {scale:3, useCORS:true, backgroundColor:"#ffffff"}).then(canvas=>{
+            triggerDownload(canvas, filename);
+            document.querySelectorAll(".download-value").forEach(span => span.remove());
+            inputs.forEach(input => input.style.display = "");
+        });
+        return;
+    }
+
+    html2canvas(card, {scale:3, useCORS:true, backgroundColor:"#ffffff"}).then(canvas=>{
+        triggerDownload(canvas, filename);
+    });
+}
+
+function triggerDownload(canvas, filename){
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
+async function copyStore(store, button){
+    const orders = breachOrders[store];
+
+    if (!orders || !orders.length) {
+        alert("No Breach Orders found for " + store);
+        return;
+    }
+
+    let text = "";
+    orders.forEach(o=>{
+        const row = [
+            o.referenceId, o.fulfillmentStatus, o.orderTime, o.manifestedTime,
+            o.orderToPackTAT, o.reachedPickupTime, o.packingToPickTAT, o.totalUTR,
+            o.promise, o.reachDeliveryTime, o.breach, o.utrBreach, o.deepPain,
+            o.riderName, o.riderId
+        ];
+        text += row.join("\t") + "\n";
+    });
+
+    let copied = false;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            copied = document.execCommand("copy");
+            document.body.removeChild(textarea);
+        }
+    } catch (error) {
+        console.error("Copy failed:", error);
+        copied = false;
+    }
+
+    if (copied) {
+        const original = button.innerHTML;
+        button.innerHTML = "✓ Copied";
+        button.disabled = true;
+        setTimeout(()=>{ button.innerHTML = original; button.disabled = false; }, 2000);
+    } else {
+        alert("Copy failed. Please try again.");
+    }
+}
+
+/* Mark 12.3 / 12.5 as user-edited so Generate stops overwriting them.
+   Clearing a box drops the flag, so the next Generate refills it from the sheet. */
+MANUAL_RIDER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+        el.dataset.dirty = el.value.trim() === "" ? "" : "1";
+    });
+});
+
+// initial timestamp on load
+updateDateTime();
+</script>
+
+</body>
+</html>
