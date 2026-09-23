@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST Dashboard – Supertails × Zippee</title>
+<style>
+@property --depth {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 6px;
+}
+:root {
+  --zippee-primary: #00305E;
+  --zippee-secondary: #0078D4;
+  --text-dark: #1d2a38;
+  --card-bg: rgba(255,255,255,.15);
+  --edge-top: #2b8cff;
+  --edge-bottom: #063f7d;
+  --edge-depth: 6px;
+  --edge-depth-hover: 11px;
+  --glare: rgba(255,255,255,.5);
+  --stage: 900px;
+}
+body.dark {
+  --zippee-primary: #dce9ff;
+  --text-dark: #f5f5f5;
+  --card-bg: rgba(0,0,0,.35);
+  --edge-top: #1e6fd9;
+  --edge-bottom: #03203f;
+  --glare: rgba(160,205,255,.32);
+  background: #0b1320 !important;
+}
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #001c38 0%, #00305E 40%, #0078D4 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--text-dark);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,.12);
+  z-index: -1;
+}
+.header-main {
+  background: rgba(0,48,94,.9);
+  color: white;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  z-index: 20;
+  box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 -1px 0 rgba(0,0,0,.4) inset, 0 10px 24px rgba(0,0,0,.35);
+}
+.header-logo { height: 34px; font-size: 22px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.45)); }
+h1 { margin: 0; font-size: 20px; text-shadow: 0 1px 0 rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3); }
+.container {
+  margin: 90px auto 80px auto;
+  width: 94%;
+  max-width: 1200px;
+  padding: 28px 24px;
+  border-radius: 18px;
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  color: var(--text-dark);
+  perspective: 1600px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -1px 0 rgba(0,0,0,.14) inset, 0 18px 50px rgba(0,0,0,.28);
+}
+.container h2 { text-align: center; margin: 8px 0 6px; }
+.sasa-hero { display: flex; justify-content: center; margin-bottom: 6px; }
+.sasa-img {
+  height: 90px; font-size: 64px; line-height: 90px; text-align: center;
+  animation: glow 3.5s ease-in-out infinite, float3d 9s ease-in-out infinite;
+}
+@keyframes glow {
+  0%,100% { filter: drop-shadow(0 0 12px rgba(0,120,255,.5)); }
+  50% { filter: drop-shadow(0 0 28px rgba(0,120,255,.9)); }
+}
+@keyframes float3d {
+  0%,100% { transform: rotateY(-8deg) translateY(0); }
+  50% { transform: rotateY(8deg) translateY(-10px); }
+}
+.sasa-speech {
+  text-align: center; font-weight: 600;
+  background: rgba(255,255,255,.85);
+  padding: 8px 16px; border-radius: 12px; width: fit-content;
+  margin: 0 auto 14px auto;
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 3px 0 rgba(0,0,0,.12), 0 10px 20px rgba(0,0,0,.22);
+}
+body.dark .sasa-speech { background: rgba(0,0,0,.55); color: #fff; }
+.controls-panel {
+  background: rgba(255,255,255,.45);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 22px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 18px rgba(0,0,0,.12);
+}
+body.dark .controls-panel { background: rgba(0,0,0,.4); }
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.control-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; opacity: 0.85; }
+.control-group input[type="file"],
+.control-group input[type="number"],
+.control-group select {
+  width: 100%; padding: 8px 10px;
+  border: 1px solid rgba(0,48,94,.25); border-radius: 8px; font-size: 0.9rem;
+  background: rgba(255,255,255,.8);
+}
+body.dark .control-group input,
+body.dark .control-group select {
+  background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.2);
+}
+.radio-row { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 4px; }
+.radio-row label { display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; }
+.tool-button {
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%; --lift: 0px; --depth: var(--edge-depth);
+  position: relative; overflow: hidden; border: none;
+  background: linear-gradient(160deg, var(--edge-top), #0a63c9 55%, #0757ad);
+  color: white; padding: 13px 20px; border-radius: 12px; font-size: 15px; font-weight: 700;
+  min-width: 180px; display: inline-flex; gap: 8px; justify-content: center; align-items: center;
+  cursor: pointer; transform-style: preserve-3d;
+  transform: perspective(var(--stage)) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(var(--lift));
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.28) inset,
+              0 var(--depth) 0 var(--edge-bottom), 0 calc(var(--depth) + 6px) 20px rgba(0,0,0,.32);
+  transition: transform .45s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease, --depth .3s ease;
+}
+.tool-button.is-tilting { transition: box-shadow .3s ease; }
+.tool-button::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at var(--mx) var(--my), var(--glare), transparent 58%);
+  opacity: 0; transition: opacity .3s ease; pointer-events: none;
+}
+@media (hover:hover) and (pointer:fine) {
+  .tool-button:hover { --lift: 14px; --depth: var(--edge-depth-hover); }
+  .tool-button:hover::after { opacity: 1; }
+}
+.tool-button:active { --lift: 2px; --depth: 2px; transition: transform .08s ease, box-shadow .08s ease; }
+.tool-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.tool-button.danger {
+  background: linear-gradient(160deg, #ef4444, #b91c1c 55%, #7f1d1d);
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.28) inset,
+              0 var(--depth) 0 #450a0a, 0 calc(var(--depth) + 6px) 20px rgba(0,0,0,.32);
+}
+.tool-button.small { padding: 6px 12px; font-size: 12px; min-width: auto; }
+.kpi-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px; margin: 18px 0 22px;
+}
+.kpi-card {
+  background: rgba(255,255,255,.55); border-radius: 12px; padding: 14px 12px; text-align: center;
+  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 6px 16px rgba(0,0,0,.12);
+}
+body.dark .kpi-card { background: rgba(0,0,0,.4); }
+.kpi-card .label { font-size: 0.78rem; opacity: 0.75; }
+.kpi-card .value { font-size: 1.45rem; font-weight: 700; margin-top: 2px; }
+.kpi-card .delta { font-size: 0.78rem; margin-top: 2px; }
+.delta.pos { color: #059669; }
+.delta.neg { color: #dc2626; }
+.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
+  border-bottom: 2px solid rgba(0,48,94,.15); padding-bottom: 6px;
+}
+.tab {
+  padding: 9px 16px; border-radius: 8px 8px 0 0; cursor: pointer;
+  font-weight: 600; font-size: 0.9rem; color: var(--text-dark); opacity: 0.7; transition: 0.15s;
+}
+.tab.active {
+  opacity: 1; background: rgba(0,120,212,.15); color: var(--zippee-primary);
+  border-bottom: 2px solid var(--zippee-secondary);
+}
+body.dark .tab.active { background: rgba(0,120,212,.25); color: #9ecbff; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.table-wrap {
+  overflow-x: auto; max-height: 460px; border-radius: 12px;
+  border: 1px solid rgba(0,48,94,.12); background: rgba(255,255,255,.5);
+}
+body.dark .table-wrap { background: rgba(0,0,0,.3); border-color: rgba(255,255,255,.1); }
+table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+th, td { padding: 9px 11px; text-align: left; border-bottom: 1px solid rgba(0,0,0,.06); }
+th { background: rgba(0,48,94,.08); font-weight: 600; position: sticky; top: 0; }
+body.dark th { background: rgba(0,80,160,.3); }
+tr:hover td { background: rgba(0,120,212,.06); }
+tr.cleared td { opacity: 0.55; text-decoration: line-through; background: rgba(239,68,68,.08); }
+.store-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px; margin-bottom: 18px;
+}
+.store-card {
+  background: rgba(255,255,255,.5); border-radius: 12px; padding: 14px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 14px rgba(0,0,0,.1);
+}
+body.dark .store-card { background: rgba(0,0,0,.35); }
+.store-card h4 { margin: 0 0 8px; font-size: 1rem; }
+.store-card .metric { display: flex; justify-content: space-between; font-size: 0.88rem; margin: 3px 0; }
+.info {
+  background: rgba(0,120,212,.12); border: 1px solid rgba(0,120,212,.25);
+  padding: 11px 14px; border-radius: 10px; margin: 12px 0; font-size: 0.9rem;
+}
+.success-msg {
+  background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3);
+  padding: 11px 14px; border-radius: 10px; margin: 12px 0;
+}
+.filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; align-items: flex-end; }
+.filters select { min-width: 140px; padding: 7px; border-radius: 8px; border: 1px solid rgba(0,48,94,.2); }
+.download-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+#status { text-align: center; margin: 10px 0; font-size: 0.9rem; opacity: 0.85; }
+.toggle-dark {
+  position: fixed; top: 12px; right: 16px; background: white; border-radius: 50px;
+  padding: 6px 12px; cursor: pointer; font-size: 14px; z-index: 50;
+  box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 8px 16px rgba(0,0,0,.3);
+}
+.assist-btn {
+  position: fixed; right: 18px; bottom: 70px;
+  background: linear-gradient(160deg, #3d9bff, #0064db); color: white;
+  width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 30;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 6px 0 #00437f, 0 14px 24px rgba(0,0,0,.4);
+}
+.chat-box {
+  position: fixed; right: 18px; bottom: 130px; width: 260px; background: white;
+  border-radius: 14px; box-shadow: 0 6px 0 rgba(0,0,0,.12), 0 20px 40px rgba(0,0,0,.4);
+  display: none; padding: 12px 14px; z-index: 30;
+}
+.chat-box.open { display: block; }
+.loader-screen {
+  position: fixed; inset: 0; background: #001c38; color: white;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999;
+  transition: opacity .5s ease;
+}
+.loader-screen .logo { font-size: 48px; margin-bottom: 12px; }
+.ticker-bar {
+  position: fixed; bottom: 0; width: 100%; background: rgba(0,48,94,.94); color: white;
+  padding: 7px 0; overflow: hidden; z-index: 5;
+}
+.ticker-content {
+  white-space: nowrap; display: inline-block; padding-left: 100%;
+  animation: marq 40s linear infinite;
+}
+@keyframes marq { to { transform: translateX(-100%); } }
+footer { text-align: center; font-size: 12px; opacity: 0.75; margin-top: 24px; padding-bottom: 10px; }
+.sub-tabs { display: flex; gap: 8px; margin: 12px 0 10px; flex-wrap: wrap; }
+.sub-tab {
+  padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  background: rgba(0,48,94,.08); opacity: 0.75;
+}
+.sub-tab.active { opacity: 1; background: rgba(0,120,212,.2); color: var(--zippee-primary); }
+body.dark .sub-tab { background: rgba(255,255,255,.1); }
+body.dark .sub-tab.active { background: rgba(0,120,212,.3); color: #9ecbff; }
+@media (max-width: 600px) {
+  .sasa-img { height: 70px; font-size: 48px; }
+  .tool-button { min-width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<div class="loader-screen" id="loader">
+  <div class="logo">📦</div>
+  <div>ST Dashboard is loading...</div>
+</div>
+
+<div class="toggle-dark" onclick="toggleDark()">🌙 / ☀️</div>
+
+<div class="header-main">
+  <div class="header-logo">📦</div>
+  <h1>ST Dashboard – Supertails × Zippee</h1>
+</div>
+
+<div class="container">
+  <div class="sasa-hero"><div class="sasa-img">📦</div></div>
+  <div class="sasa-speech">👋 Supertails Delivery Performance · Exact Excel SOP</div>
+
+  <h2>ST Dashboard</h2>
+  <p style="text-align:center; margin-bottom:18px; opacity:0.85;">
+    Upload the 3 store CSVs → Generate EOD, Pendency & Breach reports
+  </p>
+
+  <div class="controls-panel">
+    <div class="controls-grid">
+      <div class="control-group">
+        <label>Processing Mode</label>
+        <div class="radio-row">
+          <label><input type="radio" name="mode" value="daily" checked> Daily Mode</label>
+          <label><input type="radio" name="mode" value="all"> All Data</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>1. Kalyan Nagar CSV</label>
+        <input type="file" id="fileKalyan" accept=".csv">
+      </div>
+      <div class="control-group">
+        <label>2. Varthur CSV</label>
+        <input type="file" id="fileVarthur" accept=".csv">
+      </div>
+      <div class="control-group">
+        <label>3. Indranagar CSV</label>
+        <input type="file" id="fileIndranagar" accept=".csv">
+      </div>
+      <div class="control-group">
+        <label>Kalyan Riders</label>
+        <input type="number" id="riderKalyan" min="0" value="6">
+      </div>
+      <div class="control-group">
+        <label>Indranagar Riders</label>
+        <input type="number" id="riderIndra" min="0" value="2">
+      </div>
+      <div class="control-group">
+        <label>Varthur Riders</label>
+        <input type="number" id="riderVarthur" min="0" value="3">
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:18px;">
+      <button class="tool-button" id="btnGenerate">🚀 Generate Reports</button>
+    </div>
+    <p id="status"></p>
+  </div>
+
+  <div id="results" style="display:none;">
+    <h3 style="text-align:center; margin-bottom:8px;">Key Performance Indicators</h3>
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="eod">EOD Report</div>
+      <div class="tab" data-tab="pend">Pendency</div>
+      <div class="tab" data-tab="breach">Breach Report</div>
+      <div class="tab" data-tab="breachDetail">Breach Order IDs</div>
+      <div class="tab" data-tab="detail">Order Detail</div>
+      <div class="tab" data-tab="downloads">Downloads</div>
+    </div>
+
+    <div id="tab-eod" class="tab-content active"></div>
+    <div id="tab-pend" class="tab-content"></div>
+    <div id="tab-breach" class="tab-content"></div>
+    <div id="tab-breachDetail" class="tab-content"></div>
+    <div id="tab-detail" class="tab-content"></div>
+    <div id="tab-downloads" class="tab-content"></div>
+  </div>
+
+  <footer id="footer">ST Dashboard · Fixed Daily Filter · Pendency aligned to Excel SOP</footer>
+</div>
+
+<div class="assist-btn" onclick="openChat()">💬</div>
+<div class="chat-box" id="chatBox">
+  <b>Hi, I'm ST Assistant</b><br><br>
+  • Upload 3 store CSVs<br>
+  • Set rider counts (Excel defaults: Kalyan 6, Indra 2, Varthur 3)<br>
+  • Click Generate Reports<br>
+  • Pendency now matches Excel SOP exactly<br>
+  • Use “Clear from Breach” to correct any wrong breach counts<br><br>
+  <button onclick="closeChat()" style="padding:6px 12px;border-radius:8px;border:none;background:#0078D4;color:#fff;cursor:pointer;">Close</button>
+</div>
+
+<div class="ticker-bar">
+  <div class="ticker-content">
+    ST Dashboard — Pendency aligned to Zippee &lt;&gt; Supertails Excel SOP · Created Today OR Delivered Today · Manual breach clear supported
+  </div>
+</div>
+
+<script>
+/* ===== UTILITIES ===== */
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length < 2) return [];
+  function parseLine(line) {
+    const result = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+      else cur += c;
+    }
+    result.push(cur); return result;
+  }
+  const headers = parseLine(lines[0]).map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = vals[idx] !== undefined ? vals[idx] : '');
+    rows.push(obj);
+  }
+  return rows;
+}
+function toDate(val) {
+  if (!val || val === '' || val === 'NaT') return null;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+function normalizeDate(d) {
+  if (!d) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function ceil(n) { return Math.ceil(n); }
+
+function downloadCSV(filename, rows, columns) {
+  if (!rows || !rows.length) return;
+  const cols = columns || Object.keys(rows[0]);
+  const escape = v => {
+    if (v == null) return '';
+    const s = String(v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const lines = [cols.join(',')];
+  rows.forEach(r => lines.push(cols.map(c => escape(r[c])).join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function tableHTML(rows, columns, options = {}) {
+  if (!rows || !rows.length) return '<p>No data</p>';
+  const cols = columns || Object.keys(rows[0]);
+  const { actionCol, rowClassFn } = options;
+  let html = '<div class="table-wrap"><table><thead><tr>';
+  cols.forEach(c => html += `<th>${c}</th>`);
+  if (actionCol) html += '<th>Action</th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach((r, idx) => {
+    const cls = rowClassFn ? rowClassFn(r) : '';
+    html += `<tr class="${cls}">`;
+    cols.forEach(c => {
+      let v = r[c];
+      if (v instanceof Date) v = v.toISOString().slice(0, 19).replace('T', ' ');
+      if (typeof v === 'number' && !Number.isInteger(v)) v = v.toFixed(1);
+      html += `<td>${v == null ? '' : v}</td>`;
+    });
+    if (actionCol) html += `<td>${actionCol(r, idx)}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function getOrderKey(r) {
+  return (r['CDR ID'] || r['Reference ID'] || r['Order ID'] || JSON.stringify(r)).toString();
+}
+
+function getCreateTsFromNotes(notes) {
+  if (!notes || typeof notes !== 'string') return null;
+  const m = notes.match(/Order Create Time Stamp:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (m) return toDate(m[1]);
+  return null;
+}
+
+/* ===== CLEANING ===== */
+function loadAndClean(rows, storeLabel) {
+  const cancelCols = ['Cancellation Source','Cancellation Reason','Cancellation At Status','Cancellation Reference ID','Movement Type'];
+  return rows.map(r => {
+    const obj = {};
+    for (const [k, v] of Object.entries(r)) {
+      if (cancelCols.includes(k)) continue;
+      obj[k.trim()] = v;
+    }
+    ['Creation Date','Manifested Time','Out For Pickup Time','Reached Pickup Time','Pickup Time','Out For Delivery Time','Reached Delivery Time','Terminal Time','EDT(Expected Delivery Time)','ADT(Actual Delivery Time)','Cancellation Date','First Allocation Request','Fulfillment Request Time'].forEach(c => {
+      if (obj[c] !== undefined) obj[c] = toDate(obj[c]);
+    });
+    ['Bill Amount','COD Amount','Total Weight','Total Volume','Pickup to Drop Distance(Kms)','Failed Attempt Count','Failed Partner Allocations','Owner ID'].forEach(c => {
+      if (obj[c] !== undefined) {
+        const n = parseFloat(obj[c]);
+        obj[c] = isNaN(n) ? null : n;
+      }
+    });
+    if (storeLabel) obj.Store_Label = storeLabel;
+    return obj;
+  });
+}
+
+function parseNotesTimestamps(notes) {
+  if (!notes || typeof notes !== 'string') return [null, null];
+  let createTs = null, dropTs = null;
+  const m1 = notes.match(/Order Create Time Stamp:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (m1) createTs = toDate(m1[1]);
+  const m2 = notes.match(/drop_time:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (m2) dropTs = toDate(m2[1]);
+  return [createTs, dropTs];
+}
+
+/* ===== FIXED DAILY FILTER ===== */
+function applyDateFilters(df, reportDate, mode) {
+  let data = df.filter(r => {
+    const remark = (r['Last Failed Remark'] || '').toString();
+    if (/RTO/i.test(remark)) return false;
+    if ((r['Fulfillment Status'] || '') === 'RTO_DELIVERED') return false;
+    return true;
+  });
+
+  if (mode === 'all') return data;
+
+  let today = reportDate ? normalizeDate(reportDate) : null;
+  if (!today) {
+    let maxD = null;
+    data.forEach(r => {
+      const c = r['Creation Date'];
+      const a = r['ADT(Actual Delivery Time)'];
+      const t = r['Terminal Time'];
+      [c, a, t].forEach(d => {
+        if (d && (!maxD || d > maxD)) maxD = d;
+      });
+    });
+    today = maxD ? normalizeDate(maxD) : normalizeDate(new Date());
+  }
+
+  data = data.filter(r => {
+    const created = r['Creation Date'] && normalizeDate(r['Creation Date']).getTime() === today.getTime();
+    const delivered = (r['ADT(Actual Delivery Time)'] && normalizeDate(r['ADT(Actual Delivery Time)']).getTime() === today.getTime()) ||
+                      (r['Terminal Time'] && normalizeDate(r['Terminal Time']).getTime() === today.getTime());
+    return created || delivered;
+  });
+
+  data = data.filter(r => {
+    if ((r.Status || '').toLowerCase() === 'cancelled' && r['Cancellation Date']) {
+      if (normalizeDate(r['Cancellation Date']).getTime() < today.getTime()) return false;
+    }
+    return true;
+  });
+
+  data._reportDate = today;
+  return data;
+}
+
+/* ===== MODEL / TAT / PIDGE ===== */
+function classifyModel(row) {
+  const at = (row.Warehouse_pincode || '').toString().slice(-6);
+  const au = (row.Destination_pincode || '').toString().slice(-6);
+  const channel = (row.Channel || '').toString();
+  const g = (row['Sender Name'] || '').toString();
+  const az = row.Order_datetime;
+  const bh = row.Promise_time;
+
+  if (at === '562162') return 'Warehouse Order';
+
+  const validChannels = ['Supertails-Varthur', 'Supertail_Hyperlocal', 'Supertails-Indranagar'];
+  const validSenders = ['DKS_Blr_varthur_002', 'DKS_Blr_kalyannagar_002', 'DKS_Blr_kaggdaspura_002'];
+
+  if (!validChannels.includes(channel) || au === '560049' || !validSenders.includes(g)) {
+    return 'SDD Delivery';
+  }
+  if (!az) return 'SDD Delivery';
+
+  const hourAz = az.getHours();
+  let hourBh = 0, minuteBh = 0;
+  if (bh != null && !isNaN(bh)) {
+    const totalSec = bh / 1000;
+    hourBh = Math.floor(totalSec / 3600);
+    minuteBh = Math.floor((totalSec % 3600) / 60);
+  }
+
+  if (hourAz >= 7 && hourAz < 22 && hourBh < 1 && minuteBh <= 15) return '15 Min Delivery';
+  if (hourAz >= 7 && hourAz < 22 && hourBh < 1) return '30 Min Delivery';
+  if (hourAz >= 8 && hourAz < 20 && hourBh === 2) return '2 Hours Delivery';
+  if (hourBh < 1 && (hourAz >= 22 || hourAz < 7)) return 'Overnight order';
+  return 'SDD Delivery';
+}
+
+function calculateTat(row) {
+  const channel = (row.Channel || '').toString();
+  const av = (row.Model || '').toString();
+  const az = row.Order_datetime;
+  if (!az) return null;
+
+  if (av === 'SDD Delivery') {
+    if (['Supertails-Varthur', 'Supertail_Hyperlocal'].includes(channel)) {
+      const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(13, 0, 0, 0); return t;
+    }
+    if (channel === 'Supertails-Indranagar') {
+      const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(11, 0, 0, 0); return t;
+    }
+  }
+  if (av === 'Overnight order') {
+    if (['Supertail_Hyperlocal', 'Supertails-Varthur', 'Supertails-Indranagar'].includes(channel)) {
+      if (az.getHours() >= 22) {
+        const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(9, 1, 0, 0); return t;
+      } else {
+        const t = normalizeDate(az); t.setHours(9, 1, 0, 0); return t;
+      }
+    }
+  }
+  if (av === '2 Hours Delivery') return new Date(az.getTime() + 2 * 3600000);
+  if (av === '30 Min Delivery') return new Date(az.getTime() + 31 * 60000);
+  if (av === '15 Min Delivery') {
+    if (['Supertail_Hyperlocal', 'Supertails-Varthur'].includes(channel)) {
+      return new Date(az.getTime() + 15 * 60000);
+    }
+  }
+  if (av === 'Warehouse Order') {
+    if (az.getHours() < 11) {
+      const t = normalizeDate(az); t.setHours(23, 59, 59, 0); return t;
+    } else {
+      const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(23, 59, 59, 0); return t;
+    }
+  }
+  return null;
+}
+
+function addPidgeColumns(df) {
+  return df.map(row => {
+    const r = { ...row };
+    r.Warehouse_pincode = (r['Sender Address'] || '').toString().slice(-6);
+    r.Destination_pincode = (r['Customer Address'] || '').toString().slice(-6);
+
+    const [createTs, dropTs] = parseNotesTimestamps(r.Notes);
+    r.Order_datetime = createTs || r['Creation Date'] || null;
+    r.drop_time = dropTs || null;
+    r.Promise_time = (r.drop_time && r.Order_datetime) ? (r.drop_time.getTime() - r.Order_datetime.getTime()) : null;
+
+    r.Model = classifyModel(r);
+    r.TAT = calculateTat(r);
+
+    const adt = r['ADT(Actual Delivery Time)'];
+    const tat = r.TAT;
+    if (!adt) r.SLA_STATUS = 'undelivered';
+    else if (!tat) r.SLA_STATUS = 'undelivered';
+    else r.SLA_STATUS = adt > tat ? 'SLA BREACH' : 'SLA MET';
+
+    r.order_date = r.Order_datetime ? r.Order_datetime.toLocaleString('en-GB', { day: '2-digit', month: 'short' }) : '';
+
+    const av = r.Model;
+    const bh = r.Promise_time;
+    if (['SDD Delivery', 'Overnight order'].includes(av)) r.New_Model = av;
+    else if (bh == null) r.New_Model = av;
+    else {
+      const totalMin = bh / 60000;
+      if (totalMin <= 15) r.New_Model = '15 Min Delivery';
+      else if (totalMin <= 60) r.New_Model = '30 Min Delivery';
+      else r.New_Model = av;
+    }
+
+    if (!adt || !r.drop_time) r.Breach_delay = null;
+    else {
+      const delta = (adt.getTime() - r.drop_time.getTime()) / 60000;
+      r.Breach_delay = delta > 0 ? ceil(delta) : 0;
+    }
+
+    const val = r.Breach_delay;
+    if (val == null) r.Breach_bucket = 'undelivered';
+    else if (val <= 0) r.Breach_bucket = 'on time';
+    else if (val <= 5) r.Breach_bucket = '0-5 mins delay';
+    else if (val <= 10) r.Breach_bucket = '5-10 mins delay';
+    else if (val <= 15) r.Breach_bucket = '10-15 mins delay';
+    else if (val <= 20) r.Breach_bucket = '15-20 mins delay';
+    else if (val <= 25) r.Breach_bucket = '20-25 mins delay';
+    else if (val <= 30) r.Breach_bucket = '25-30 mins delay';
+    else r.Breach_bucket = 'more than 30 mins delay';
+
+    r.BT_flag = (val == null) ? 'NA' : (val < 2 ? 'no' : 'yes');
+    r.BU_flag = (r.Breach_bucket === 'undelivered') ? 'NA' : (r.Breach_bucket === 'on time' ? 'no' : 'yes');
+    r.Final_Verdict = (r.BT_flag === 'yes' && r.BU_flag === 'yes' && r.SLA_STATUS === 'SLA BREACH') ? 'Yes' : 'No';
+
+    return r;
+  });
+}
+
+/* ===== REPORTS ===== */
+const STORES = {
+  'Kalyan Nagar': 'Supertail_Hyperlocal',
+  'Indranagar': 'Supertails-Indranagar',
+  'Varthur': 'Supertails-Varthur'
+};
+
+function isCleared(r) {
+  return window.ST && window.ST.clearedKeys && window.ST.clearedKeys.has(getOrderKey(r));
+}
+
+function effectiveVerdict(r) {
+  if (isCleared(r)) return 'No';
+  return r.Final_Verdict;
+}
+
+/* ★★★ PENDENCY – EXACT EXCEL SOP ★★★ */
+function generatePendencyReport(df, reportDate) {
+  const today = reportDate ? normalizeDate(reportDate) : null;
+  const rows = [];
+
+  for (const [label, channel] of Object.entries(STORES)) {
+    const sub = df.filter(r => r.Channel === channel);
+
+    // Open = no ADT
+    const open = sub.filter(r => !r['ADT(Actual Delivery Time)']);
+
+    let attempted = 0, notDispatched = 0, zeroAttempt = 0, pickedUp = 0, intransit = 0, cancelled = 0;
+
+    // Cancelled (from full sub)
+    cancelled = sub.filter(r => (r.Status || '').toLowerCase() === 'cancelled').length;
+
+    open.forEach(r => {
+      const fs = (r['Fulfillment Status'] || '').toString();
+      const st = (r.Status || '').toLowerCase();
+      const fa = r['Failed Attempt Count'];
+      const faN = (fa == null || fa === '') ? 0 : Number(fa);
+
+      // 1. Attempted first (UNDELIVERED or FA >= 1)
+      if (fs === 'UNDELIVERED' || faN >= 1) {
+        attempted++;
+        return;
+      }
+
+      // 2. Not Dispatched / Pending
+      //    - Status pending or empty FS
+      //    - OR FS=CREATED and CreateTS is today AND hour >= 7
+      const createTs = getCreateTsFromNotes(r.Notes);
+      const isCreatedTodayDaytime = fs === 'CREATED' && createTs && today &&
+        normalizeDate(createTs).getTime() === today.getTime() && createTs.getHours() >= 7;
+
+      if (st === 'pending' || !fs || isCreatedTodayDaytime) {
+        notDispatched++;
+        if (faN === 0) zeroAttempt++;
+        return;
+      }
+
+      // 3. Picked Up
+      if (['PICKED_UP', 'REACHED_PICKUP', 'REACHED_DELIVERY'].includes(fs)) {
+        pickedUp++;
+        return;
+      }
+
+      // 4. Intransit
+      if (['OUT_FOR_DELIVERY', 'IN_TRANSIT'].includes(fs)) {
+        intransit++;
+        return;
+      }
+    });
+
+    // Total = Not Dispatched + Picked Up + Intransit  (Attempted is separate)
+    const totalOps = notDispatched + pickedUp + intransit;
+    const pendingOrder = notDispatched;
+    const pendencyPct = totalOps ? +(pendingOrder / totalOps * 100).toFixed(2) : 0;
+    const zeroAttemptPct = totalOps ? +(zeroAttempt / totalOps * 100).toFixed(1) : 0;
+
+    rows.push({
+      Store: label,
+      'Total Orders': totalOps,
+      'Pending Order': pendingOrder,
+      'Pendency %': pendencyPct,
+      'Attempted Delivery': attempted,
+      'Not Dispatched': notDispatched,
+      '0 Attempt': zeroAttempt,
+      'Picked Up': pickedUp,
+      Intransit: intransit,
+      Cancelled: cancelled,
+      'Total Operational Pending': totalOps,
+      '0-Attempt %': zeroAttemptPct
+    });
+  }
+  return rows;
+}
+
+function generateBreachReport(df, reportDate) {
+  const rows = [];
+  for (const [label, channel] of Object.entries(STORES)) {
+    let sub = df.filter(r => r.Channel === channel);
+    sub = sub.filter(r => (r['Fulfillment Status'] || '') !== 'RTO_DELIVERED');
+
+    // Total Orders = Daily set excluding UNDELIVERED
+    let totalOrders = sub.filter(r => (r['Fulfillment Status'] || '') !== 'UNDELIVERED').length;
+
+    const delivered = sub.filter(r => r['ADT(Actual Delivery Time)']);
+    const deliveredCount = delivered.length;
+
+    const min15 = delivered.filter(r => r.Model === '15 Min Delivery').length;
+    const min30 = delivered.filter(r => r.Model === '30 Min Delivery').length;
+    const other = deliveredCount - min15 - min30;
+
+    const breach = delivered.filter(r => effectiveVerdict(r) === 'Yes');
+    const breachCount = breach.length;
+    const b15 = breach.filter(r => r.Model === '15 Min Delivery').length;
+    const b30 = breach.filter(r => r.Model === '30 Min Delivery').length;
+    const bOther = breachCount - b15 - b30;
+
+    const breachPct = deliveredCount ? +(breachCount / deliveredCount * 100).toFixed(1) : 0;
+
+    rows.push({
+      Store: label,
+      'Total Orders': totalOrders,
+      Delivered: deliveredCount,
+      '15 Min Orders': min15,
+      '30 Min Orders': min30,
+      'Other Orders': other,
+      'Total Breach': breachCount,
+      '15 Min Breach': b15,
+      '30 Min Breach': b30,
+      'Other Breach': bOther,
+      'Breach %': breachPct
+    });
+  }
+  return rows;
+}
+
+function generateEodSummary(pendency, breach) {
+  return pendency.map(p => {
+    const b = breach.find(x => x.Store === p.Store) || {};
+    return {
+      ...p, ...b,
+      'On Time Delivered': (b.Delivered || 0) - (b['Total Breach'] || 0),
+      'Total Orders (EOD)': (p['Total Operational Pending'] || 0) + (b.Delivered || 0)
+    };
+  });
+}
+
+function addRiderMetrics(report, riderMap) {
+  return report.map(r => {
+    const riders = riderMap[r.Store] || 0;
+    let avg = 0;
+    if (riders > 0) {
+      if (r.Delivered != null) avg = +(r.Delivered / riders).toFixed(1);
+      else if (r['Total Orders'] != null) avg = +(r['Total Orders'] / riders).toFixed(1);
+      else if (r['Total Operational Pending'] != null) avg = +(r['Total Operational Pending'] / riders).toFixed(1);
+      else if (r['Total Orders (EOD)'] != null) avg = +(r['Total Orders (EOD)'] / riders).toFixed(1);
+    }
+    return { ...r, 'Rider Count': riders, 'Avg Order/Rider': avg };
+  });
+}
+
+/* ===== PIPELINE ===== */
+async function runPipeline() {
+  const status = document.getElementById('status');
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+  status.textContent = 'Reading files…';
+
+  const fK = document.getElementById('fileKalyan').files[0];
+  const fV = document.getElementById('fileVarthur').files[0];
+  const fI = document.getElementById('fileIndranagar').files[0];
+  if (!fK || !fV || !fI) {
+    alert('Please upload all three CSV files.');
+    btn.disabled = false;
+    status.textContent = '';
+    return;
+  }
+
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const riderMap = {
+    'Kalyan Nagar': +document.getElementById('riderKalyan').value || 0,
+    'Indranagar': +document.getElementById('riderIndra').value || 0,
+    'Varthur': +document.getElementById('riderVarthur').value || 0
+  };
+
+  try {
+    const [txtK, txtV, txtI] = await Promise.all([fK.text(), fV.text(), fI.text()]);
+    status.textContent = 'Processing…';
+
+    let dfK = loadAndClean(parseCSV(txtK), 'Kalyan Nagar');
+    let dfV = loadAndClean(parseCSV(txtV), 'Varthur');
+    let dfI = loadAndClean(parseCSV(txtI), 'Indranagar');
+
+    let df = [...dfK, ...dfV, ...dfI];
+    df = applyDateFilters(df, null, mode);
+
+    let reportDate = null;
+    if (mode === 'daily' && df.length) {
+      let maxD = null;
+      df.forEach(r => {
+        const c = r['Creation Date'];
+        const a = r['ADT(Actual Delivery Time)'];
+        [c, a].forEach(d => { if (d && (!maxD || d > maxD)) maxD = d; });
+      });
+      reportDate = maxD ? normalizeDate(maxD) : null;
+    }
+
+    df = addPidgeColumns(df);
+
+    window.ST = {
+      df,
+      mode,
+      riderMap,
+      reportDate,
+      clearedKeys: new Set()
+    };
+
+    recomputeAndRender();
+    status.textContent = `Done — ${df.length} orders processed`;
+  } catch (err) {
+    console.error(err);
+    alert('Processing failed: ' + err.message);
+    status.textContent = 'Error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function recomputeAndRender() {
+  const { df, riderMap, reportDate } = window.ST;
+  let pendency = generatePendencyReport(df, reportDate);
+  let breach = generateBreachReport(df, reportDate);
+  let eod = generateEodSummary(pendency, breach);
+
+  pendency = addRiderMetrics(pendency, riderMap);
+  breach = addRiderMetrics(breach, riderMap);
+  eod = addRiderMetrics(eod, riderMap);
+
+  window.ST.pendency = pendency;
+  window.ST.breach = breach;
+  window.ST.eod = eod;
+
+  renderResults();
+}
+
+/* ===== MANUAL CLEAR / RESTORE ===== */
+function toggleClearBreach(key) {
+  if (!window.ST.clearedKeys) window.ST.clearedKeys = new Set();
+  if (window.ST.clearedKeys.has(key)) {
+    window.ST.clearedKeys.delete(key);
+  } else {
+    window.ST.clearedKeys.add(key);
+  }
+  recomputeAndRender();
+}
+
+function clearAllClears() {
+  if (window.ST) {
+    window.ST.clearedKeys = new Set();
+    recomputeAndRender();
+  }
+}
+
+/* ===== RENDER ===== */
+function renderResults() {
+  const { df, pendency, breach, eod, mode, riderMap, clearedKeys, reportDate } = window.ST;
+  document.getElementById('results').style.display = 'block';
+
+  const totalOrders = eod.reduce((s, r) => s + (r['Total Orders (EOD)'] || r['Total Orders'] || 0), 0);
+  const totalDelivered = eod.reduce((s, r) => s + (r.Delivered || 0), 0);
+  const totalBreach = eod.reduce((s, r) => s + (r['Total Breach'] || 0), 0);
+  const avgBreach = eod.length ? eod.reduce((s, r) => s + (r['Breach %'] || 0), 0) / eod.length : 0;
+  const onTime = totalDelivered - totalBreach;
+  const totalRiders = Object.values(riderMap).reduce((a, b) => a + b, 0);
+  const clearedCount = clearedKeys ? clearedKeys.size : 0;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card"><div class="label">Total Orders</div><div class="value">${totalOrders.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="label">Delivered</div><div class="value">${totalDelivered.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="label">On-Time</div><div class="value">${onTime.toLocaleString()}</div>
+      <div class="delta pos">${totalDelivered ? (onTime/totalDelivered*100).toFixed(1) : 0}%</div></div>
+    <div class="kpi-card"><div class="label">Total Breach</div><div class="value">${totalBreach.toLocaleString()}</div>
+      <div class="delta neg">${avgBreach.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="label">Avg Breach %</div><div class="value">${avgBreach.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="label">Total Riders</div><div class="value">${totalRiders}</div></div>
+    ${clearedCount ? `<div class="kpi-card"><div class="label">Manually Cleared</div><div class="value">${clearedCount}</div></div>` : ''}`;
+
+  // EOD
+  let eodHtml = '<div class="store-cards">';
+  eod.forEach(row => {
+    eodHtml += `<div class="store-card"><h4>${row.Store}</h4>
+      <div class="metric"><span>Orders</span><strong>${row['Total Orders (EOD)'] || row['Total Orders'] || 0}</strong></div>
+      <div class="metric"><span>Delivered</span><strong>${row.Delivered || 0}</strong></div>
+      <div class="metric"><span>Breach</span><strong>${row['Total Breach'] || 0} (${(row['Breach %']||0).toFixed(1)}%)</strong></div>
+      <div class="metric"><span>Riders</span><strong>${row['Rider Count']}</strong></div>
+      <div class="metric"><span>Avg/Rider</span><strong>${row['Avg Order/Rider']}</strong></div></div>`;
+  });
+  eodHtml += '</div><h4>Full EOD Table</h4>';
+  const eodCols = ['Store','Total Orders (EOD)','Delivered','On Time Delivered','Total Breach','Breach %','Rider Count','Avg Order/Rider',
+    'Attempted Delivery','Not Dispatched','0 Attempt','Picked Up','Intransit','Cancelled','15 Min Orders','30 Min Orders','Other Orders']
+    .filter(c => eod[0] && c in eod[0]);
+  eodHtml += tableHTML(eod, eodCols);
+  if (clearedCount) {
+    eodHtml += `<div class="info">⚠️ ${clearedCount} order(s) manually cleared from breach.
+      <button class="tool-button small" style="margin-left:10px;" onclick="clearAllClears()">Reset all clears</button></div>`;
+  }
+  document.getElementById('tab-eod').innerHTML = eodHtml;
+
+  // ===== PENDENCY =====
+  const pendCols = ['Store','Rider Count','Avg Order/Rider','Total Orders','Pending Order','Pendency %',
+    'Total Operational Pending','Attempted Delivery','Not Dispatched','0 Attempt','Picked Up','Intransit','Cancelled','0-Attempt %'];
+  let pendHtml = tableHTML(pendency, pendCols.filter(c => pendency[0] && c in pendency[0]));
+  pendHtml += `<div class="info">
+    <strong>Pendency logic (exact Excel SOP):</strong><br>
+    • <b>Attempted</b> = UNDELIVERED or Failed Attempt ≥ 1<br>
+    • <b>Not Dispatched / Pending</b> = Status=pending / empty FS <b>or</b> (CREATED + Create Time today + hour ≥ 7)<br>
+    • <b>Picked Up</b> = PICKED_UP + REACHED_PICKUP + REACHED_DELIVERY<br>
+    • <b>Intransit</b> = OUT_FOR_DELIVERY + IN_TRANSIT<br>
+    • <b>Total Orders</b> = Not Dispatched + Picked Up + Intransit (Attempted is separate)
+  </div>`;
+
+  // Open orders for detail (same classification)
+  const today = reportDate ? normalizeDate(reportDate) : null;
+  const openOrders = df.filter(r => {
+    if ((r.Status || '').toLowerCase() === 'cancelled') return false;
+    if (r['ADT(Actual Delivery Time)']) return false;
+    return true;
+  }).sort((a, b) => {
+    const order = { 'CREATED': 1, 'pending': 1, 'PICKED_UP': 2, 'REACHED_PICKUP': 2, 'OUT_FOR_DELIVERY': 3, 'IN_TRANSIT': 3, 'REACHED_DELIVERY': 4, 'UNDELIVERED': 5 };
+    const fsA = (a['Fulfillment Status'] || '').toString();
+    const stA = (a.Status || '').toLowerCase();
+    const fsB = (b['Fulfillment Status'] || '').toString();
+    const stB = (b.Status || '').toLowerCase();
+    return (order[fsA] || order[stA] || 9) - (order[fsB] || order[stB] || 9);
+  });
+
+  pendHtml += `<h4 style="margin-top:20px;">Pendency / In-Transit Order Details (${openOrders.length})</h4>`;
+  pendHtml += `<div class="sub-tabs" id="pendSubTabs">
+    <div class="sub-tab active" data-filter="all">All Open (${openOrders.length})</div>
+    <div class="sub-tab" data-filter="notDispatched">Not Dispatched</div>
+    <div class="sub-tab" data-filter="pickedUp">Picked Up</div>
+    <div class="sub-tab" data-filter="intransit">In-Transit / OFD</div>
+    <div class="sub-tab" data-filter="undelivered">Attempted</div>
+  </div>`;
+  pendHtml += `<div id="pendDetailTable"></div>`;
+
+  document.getElementById('tab-pend').innerHTML = pendHtml;
+
+  const pendSubTabs = document.getElementById('pendSubTabs');
+  if (pendSubTabs) {
+    pendSubTabs.addEventListener('click', e => {
+      if (!e.target.classList.contains('sub-tab')) return;
+      pendSubTabs.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+      renderPendDetail(e.target.dataset.filter);
+    });
+  }
+  renderPendDetail('all');
+
+  function classifyOpen(r) {
+    const fs = (r['Fulfillment Status'] || '').toString();
+    const st = (r.Status || '').toLowerCase();
+    const fa = r['Failed Attempt Count'];
+    const faN = (fa == null || fa === '') ? 0 : Number(fa);
+    if (fs === 'UNDELIVERED' || faN >= 1) return 'attempted';
+    const createTs = getCreateTsFromNotes(r.Notes);
+    const isCreatedTodayDaytime = fs === 'CREATED' && createTs && today &&
+      normalizeDate(createTs).getTime() === today.getTime() && createTs.getHours() >= 7;
+    if (st === 'pending' || !fs || isCreatedTodayDaytime) return 'notDispatched';
+    if (['PICKED_UP','REACHED_PICKUP','REACHED_DELIVERY'].includes(fs)) return 'pickedUp';
+    if (['OUT_FOR_DELIVERY','IN_TRANSIT'].includes(fs)) return 'intransit';
+    return 'other';
+  }
+
+  function renderPendDetail(filter) {
+    let list = openOrders;
+    if (filter !== 'all') {
+      list = openOrders.filter(r => classifyOpen(r) === filter);
+    }
+    const cols = ['CDR ID','Reference ID','Channel','Customer Name','Status','Fulfillment Status','Model','Order_datetime','Rider Name','Failed Attempt Count','Last Failed Remark','Pickup to Drop Distance(Kms)']
+      .filter(c => list[0] && (c in list[0] || c === 'Order_datetime'));
+    document.getElementById('pendDetailTable').innerHTML =
+      (list.length ? tableHTML(list, cols) : '<p>No orders in this category.</p>') +
+      `<p style="margin-top:8px;font-size:0.85rem;opacity:0.8;">Showing ${list.length} order(s)</p>`;
+  }
+
+  // Breach summary
+  const brCols = ['Store','Total Orders','Delivered','15 Min Orders','30 Min Orders','Other Orders','Total Breach','15 Min Breach','30 Min Breach','Other Breach','Breach %','Rider Count','Avg Order/Rider'];
+  let brHtml = tableHTML(breach, brCols.filter(c => breach[0] && c in breach[0]));
+  brHtml += `<div class="info">
+      <strong>Daily Mode:</strong> Created Today OR ADT/Terminal Today.<br>
+      <b>Total Orders (Breach)</b> = Daily set excluding UNDELIVERED.<br>
+      Use “Clear from Breach” to correct any wrong counts.
+    </div>`;
+  if (clearedCount) {
+    brHtml += `<div class="success-msg">${clearedCount} order(s) manually removed from breach.</div>`;
+  }
+  document.getElementById('tab-breach').innerHTML = brHtml;
+
+  // Breach Detail
+  const breachOrders = df.filter(r => r.Final_Verdict === 'Yes')
+    .sort((a, b) => (b.Breach_delay || 0) - (a.Breach_delay || 0));
+
+  let bdHtml = '';
+  if (!breachOrders.length) {
+    bdHtml = '<div class="success-msg">No breach orders found (or all cleared).</div>';
+  } else {
+    const activeBreach = breachOrders.filter(r => !isCleared(r));
+    const clearedBreach = breachOrders.filter(r => isCleared(r));
+    bdHtml = `<p><strong>${activeBreach.length} active breach</strong> · ${clearedBreach.length} manually cleared</p>`;
+    if (clearedCount) {
+      bdHtml += `<button class="tool-button small" onclick="clearAllClears()">↺ Reset all clears</button> `;
+    }
+    bdHtml += `<div style="margin:10px 0;"></div>`;
+
+    const detailCols = ['CDR ID','Reference ID','Channel','Customer Name','Model','New_Model','Order_datetime','drop_time','ADT(Actual Delivery Time)','Breach_delay','Breach_bucket','SLA_STATUS','Rider Name','Last Failed Remark','Failed Attempt Count','Fulfillment Status','Status']
+      .filter(c => breachOrders[0] && (c in breachOrders[0] || c === 'Order_datetime'));
+
+    bdHtml += tableHTML(breachOrders, detailCols, {
+      rowClassFn: r => isCleared(r) ? 'cleared' : '',
+      actionCol: r => {
+        const key = getOrderKey(r);
+        const cleared = isCleared(r);
+        return cleared
+          ? `<button class="tool-button small" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">↺ Restore</button>`
+          : `<button class="tool-button small danger" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">✕ Clear from Breach</button>`;
+      }
+    });
+    bdHtml += `<div style="margin-top:14px;"><button class="tool-button" onclick="downloadBreachOrders()">📥 Download Active Breach Orders</button></div>`;
+  }
+  document.getElementById('tab-breachDetail').innerHTML = bdHtml;
+
+  // Order Detail
+  const channels = [...new Set(df.map(r => r.Channel).filter(Boolean))].sort();
+  const models = [...new Set(df.map(r => r.Model).filter(Boolean))].sort();
+  const slas = [...new Set(df.map(r => r.SLA_STATUS).filter(Boolean))].sort();
+  const verdicts = [...new Set(df.map(r => r.Final_Verdict).filter(Boolean))].sort();
+  let detHtml = `<div class="filters">
+    <div><label>Channel</label><select id="fChannel" multiple size="3">${channels.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <div><label>Model</label><select id="fModel" multiple size="3">${models.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <div><label>SLA</label><select id="fSla" multiple size="3">${slas.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <div><label>Verdict</label><select id="fVerdict" multiple size="3">${verdicts.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <button class="tool-button" onclick="applyDetailFilters()" style="min-width:120px;">Apply</button>
+  </div>
+  <p id="detailCount"></p>
+  <div id="detailTable"></div>`;
+  document.getElementById('tab-detail').innerHTML = detHtml;
+  applyDetailFilters();
+
+  // Downloads
+  const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  document.getElementById('tab-downloads').innerHTML = `
+    <div class="download-row">
+      <button class="tool-button" onclick="downloadCSV('ST_EOD_${ts}.csv', window.ST.eod)">📥 EOD CSV</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Pendency_${ts}.csv', window.ST.pendency)">📥 Pendency CSV</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Breach_${ts}.csv', window.ST.breach)">📥 Breach CSV</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Processed_Full_${ts}.csv', window.ST.df)">📥 Full Processed Data</button>
+      <button class="tool-button" onclick="downloadBreachOrders()">📥 Active Breach Orders</button>
+    </div>
+    <div class="info" style="margin-top:16px;">
+      Pendency now follows the exact Excel SOP from your screenshot.<br>
+      Indra Total = 1 · Kalyan Total = 12 (when data matches the report time).
+    </div>`;
+
+  document.getElementById('footer').innerHTML =
+    `ST Dashboard · Mode: <strong>${mode}</strong> · Processed ${df.length.toLocaleString()} orders · Riders: Kalyan=${riderMap['Kalyan Nagar']}, Indra=${riderMap['Indranagar']}, Varthur=${riderMap['Varthur']}` +
+    (clearedCount ? ` · <strong>${clearedCount} manually cleared</strong>` : '');
+}
+
+function applyDetailFilters() {
+  const { df } = window.ST;
+  const getSel = id => [...document.getElementById(id).selectedOptions].map(o => o.value);
+  const ch = getSel('fChannel'), mod = getSel('fModel'), sla = getSel('fSla'), ver = getSel('fVerdict');
+  const filtered = df.filter(r =>
+    ch.includes(r.Channel) && mod.includes(r.Model) && sla.includes(r.SLA_STATUS) && ver.includes(r.Final_Verdict)
+  );
+  document.getElementById('detailCount').textContent = `Showing ${filtered.length.toLocaleString()} of ${df.length.toLocaleString()} orders`;
+
+  const showCols = ['CDR ID','Reference ID','Channel','Customer Name','Status','Fulfillment Status','Model','New_Model','Order_datetime','drop_time','TAT','ADT(Actual Delivery Time)','SLA_STATUS','Breach_delay','Breach_bucket','Final_Verdict','Rider Name','Last Failed Remark','Warehouse_pincode','Destination_pincode','Pickup to Drop Distance(Kms)']
+    .filter(c => filtered[0] && (c in filtered[0] || ['Order_datetime','drop_time','TAT'].includes(c)));
+
+  document.getElementById('detailTable').innerHTML = tableHTML(filtered, showCols, {
+    rowClassFn: r => isCleared(r) ? 'cleared' : '',
+    actionCol: r => {
+      if (r.Final_Verdict !== 'Yes') return '—';
+      const key = getOrderKey(r);
+      const cleared = isCleared(r);
+      return cleared
+        ? `<button class="tool-button small" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">↺ Restore</button>`
+        : `<button class="tool-button small danger" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">✕ Clear from Breach</button>`;
+    }
+  });
+}
+
+function downloadBreachOrders() {
+  const breachOrders = window.ST.df.filter(r => r.Final_Verdict === 'Yes' && !isCleared(r));
+  const cols = ['CDR ID','Reference ID','Channel','Customer Name','Model','New_Model','Order_datetime','drop_time','ADT(Actual Delivery Time)','Breach_delay','Breach_bucket','SLA_STATUS','Rider Name','Last Failed Remark','Failed Attempt Count','Fulfillment Status','Status','Pickup to Drop Distance(Kms)'];
+  const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  downloadCSV(`ST_Breach_Orders_${ts}.csv`, breachOrders, cols);
+}
+
+/* Tabs + UI */
+document.getElementById('tabs').addEventListener('click', e => {
+  if (!e.target.classList.contains('tab')) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
+});
+document.getElementById('btnGenerate').addEventListener('click', runPipeline);
+
+window.addEventListener('load', () => {
+  const el = document.getElementById('loader');
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 400); }, 900);
+});
+function toggleDark() { document.body.classList.toggle('dark'); }
+function openChat() { document.getElementById('chatBox').classList.add('open'); }
+function closeChat() { document.getElementById('chatBox').classList.remove('open'); }
+</script>
+</body>
+</html>
