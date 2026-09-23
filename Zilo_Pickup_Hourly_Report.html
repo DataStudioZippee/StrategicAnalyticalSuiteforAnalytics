@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zilo Hourly Pickup Report | SASA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@property --depth{syntax:'<length>';inherits:false;initial-value:6px;}
+:root{
+  --zippee-primary:#00305E; --zippee-secondary:#0078D4;
+  --text-dark:#1d2a38; --card-bg:rgba(255,255,255,.18);
+  --edge-top:#2b8cff; --edge-bottom:#063f7d;
+  --edge-depth:6px; --edge-depth-hover:11px;
+  --glare:rgba(255,255,255,.5); --stage:900px;
+  --surface:rgba(255,255,255,.6); --surface2:rgba(255,255,255,.4);
+  --border:rgba(0,48,94,.18); --muted:#4a5d73;
+  --success:#16a34a;
+}
+body.dark{
+  --zippee-primary:#dce9ff; --text-dark:#f0f4f8;
+  --card-bg:rgba(0,0,0,.4); --edge-top:#1e6fd9; --edge-bottom:#03203f;
+  --glare:rgba(160,205,255,.3); --surface:rgba(0,0,0,.5);
+  --surface2:rgba(0,0,0,.35); --border:rgba(120,180,255,.22);
+  --muted:#9ecbff; background:#0b1320 !important;
+}
+body{
+  margin:0; font-family:"Segoe UI",system-ui,sans-serif;
+  background:linear-gradient(145deg,#e8f1fb 0%,#c5d9f0 45%,#a8c4e8 100%);
+  min-height:100vh; color:var(--text-dark); overflow-x:hidden;
+}
+body.dark{background:#0b1320 !important;}
+body::before{content:"";position:fixed;inset:0;background:rgba(255,255,255,.15);z-index:-1;}
+body.dark::before{background:rgba(0,0,0,.35);}
+
+.header-main{
+  background:rgba(0,48,94,.92); color:#fff;
+  position:fixed; top:0; width:100%; padding:11px 14px;
+  display:flex; justify-content:center; align-items:center; gap:12px; z-index:30;
+  box-shadow:0 1px 0 rgba(255,255,255,.2) inset, 0 10px 24px rgba(0,0,0,.35);
+}
+.header-main h1{margin:0; font-size:19px; text-shadow:0 1px 0 rgba(0,0,0,.4);}
+.header-badge{background:rgba(255,255,255,.18); padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600;}
+
+.toggle-dark{
+  position:fixed; top:10px; right:14px; background:#fff; border-radius:50px;
+  padding:6px 12px; cursor:pointer; font-size:14px; z-index:50;
+  box-shadow:0 3px 0 rgba(0,0,0,.25), 0 8px 16px rgba(0,0,0,.3);
+}
+body.dark .toggle-dark{background:#1a2a40; color:#dce9ff;}
+
+.container{
+  margin:85px auto 70px; width:96%; max-width:1280px;
+  padding:24px 20px; border-radius:18px;
+  background:var(--card-bg); backdrop-filter:blur(12px);
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 18px 50px rgba(0,0,0,.25);
+}
+.container h2{text-align:center; margin:0 0 4px; font-size:22px;}
+.subtitle{text-align:center; color:var(--muted); font-size:13.5px; margin-bottom:16px;}
+
+.date-row{
+  display:flex; justify-content:center; align-items:center; gap:12px;
+  margin-bottom:20px; flex-wrap:wrap;
+}
+.date-row label{font-weight:700; font-size:14px; color:var(--muted);}
+.date-row input[type="date"]{
+  background:var(--surface); border:1px solid var(--border);
+  color:var(--text-dark); padding:8px 14px; border-radius:10px;
+  font-size:15px; font-weight:600; outline:none;
+  box-shadow:0 2px 0 rgba(0,0,0,.08);
+}
+.date-row input[type="date"]:focus{border-color:var(--zippee-secondary); box-shadow:0 0 0 3px rgba(0,120,212,.2);}
+
+.stores-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+  margin-bottom:20px;
+}
+@media(max-width:900px){.stores-grid{grid-template-columns:1fr;}}
+
+.store-card{
+  background:var(--surface);
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 1px 0 rgba(255,255,255,.65) inset, 0 4px 0 rgba(0,0,0,.08), 0 10px 24px rgba(0,0,0,.12);
+}
+body.dark .store-card{box-shadow:0 1px 0 rgba(255,255,255,.06) inset, 0 4px 0 rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.35);}
+.store-card h3{
+  margin:0 0 10px; font-size:16px; display:flex; align-items:center; gap:8px;
+}
+.store-card h3 .dot{width:10px; height:10px; border-radius:50%;}
+.dot-malad{background:#3b82f6;}
+.dot-ghat{background:#8b5cf6;}
+.dot-vashi{background:#06b6d4;}
+
+.drop-area{
+  border:2px dashed rgba(0,48,94,.3);
+  border-radius:10px;
+  padding:18px 12px;
+  text-align:center;
+  cursor:pointer;
+  background:var(--surface2);
+  transition:all .2s;
+  min-height:90px;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+}
+.drop-area:hover, .drop-area.dragover{
+  border-color:var(--zippee-secondary);
+  background:rgba(0,120,212,.12);
+}
+.drop-area .icon{font-size:28px; margin-bottom:4px;}
+.drop-area p{margin:0; font-size:13px; font-weight:600;}
+.drop-area .small{font-size:11px; color:var(--muted); margin-top:3px;}
+
+.file-tag{
+  margin-top:10px; font-size:12.5px; font-weight:600;
+  background:rgba(0,120,212,.15); padding:5px 10px; border-radius:8px;
+  display:none; align-items:center; justify-content:space-between; gap:8px;
+}
+.file-tag.show{display:flex;}
+.file-tag button{
+  background:none; border:none; color:#dc2626;
+  cursor:pointer; font-size:13px; font-weight:700;
+}
+
+textarea{
+  width:100%; height:120px; margin-top:10px;
+  border:1px solid var(--border); border-radius:9px;
+  background:var(--surface2); color:var(--text-dark);
+  padding:10px; font-size:12px; font-family:ui-monospace,monospace;
+  resize:vertical; outline:none;
+}
+textarea:focus{border-color:var(--zippee-secondary);}
+textarea::placeholder{color:var(--muted); opacity:.7;}
+
+.gen-wrap{text-align:center; margin:8px 0 22px;}
+.btn-generate{
+  --rx:0deg; --ry:0deg; --mx:50%; --my:50%; --lift:0px; --depth:var(--edge-depth);
+  position:relative; overflow:hidden; border:none;
+  background:linear-gradient(160deg,var(--edge-top),#0a63c9 55%,#0757ad);
+  color:#fff; padding:14px 36px; border-radius:12px;
+  font-size:16px; font-weight:700; cursor:pointer;
+  transform-style:preserve-3d;
+  transform:perspective(var(--stage)) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(var(--lift));
+  box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.28) inset,
+             0 var(--depth) 0 var(--edge-bottom), 0 calc(var(--depth)+6px) 18px rgba(0,0,0,.3);
+  transition:transform .4s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease, --depth .3s ease;
+}
+.btn-generate:hover{--lift:12px; --depth:var(--edge-depth-hover);}
+.btn-generate:active{--lift:2px; --depth:2px;}
+
+.report-section{display:none;}
+.report-section.show{display:block; animation:fadeIn .3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.report-header{
+  display:flex; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; gap:10px; margin-bottom:14px;
+}
+.report-header h3{margin:0; font-size:17px;}
+.report-actions{display:flex; gap:8px;}
+
+.btn-sec{
+  background:linear-gradient(160deg,#4a6a8a,#2c4a6a); color:#fff;
+  border:none; padding:9px 16px; border-radius:10px; font-weight:700;
+  font-size:13px; cursor:pointer;
+  box-shadow:0 3px 0 #1a3048, 0 6px 14px rgba(0,0,0,.2);
+}
+.btn-sec:hover{transform:translateY(-2px);}
+
+.loc-tabs{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+.loc-tab{
+  padding:7px 14px; border-radius:999px; background:var(--surface2);
+  border:1px solid var(--border); color:var(--muted); cursor:pointer;
+  font-weight:600; font-size:13px;
+}
+.loc-tab.active{
+  background:linear-gradient(160deg,#2b8cff,#0757ad); color:#fff; border-color:transparent;
+  box-shadow:0 3px 0 #063f7d;
+}
+
+.table-wrap{
+  overflow:auto; border-radius:12px; border:1px solid var(--border);
+  max-height:420px; background:var(--surface2);
+}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th,td{padding:9px 12px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;}
+th{background:rgba(0,48,94,.1); position:sticky; top:0; font-weight:700; color:var(--muted); z-index:1;}
+body.dark th{background:rgba(0,80,160,.25);}
+td.num{text-align:right; font-variant-numeric:tabular-nums;}
+.total-row td{font-weight:800; background:rgba(0,120,212,.12);}
+
+.summary-cards{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:10px; margin-top:18px;
+}
+.summary-card{
+  background:var(--surface2); border-radius:12px; padding:14px; text-align:center;
+  box-shadow:0 2px 0 rgba(0,0,0,.08);
+}
+.summary-card .lbl{font-size:11.5px; color:var(--muted); font-weight:600;}
+.summary-card .val{font-size:24px; font-weight:800; margin-top:2px;}
+
+.msg{text-align:center; padding:12px; color:var(--muted); font-size:14px;}
+.msg.err{color:#dc2626; font-weight:600;}
+
+.footer-note{text-align:center; font-size:11.5px; opacity:.7; margin-top:20px;}
+
+.ticker-bar{
+  position:fixed; bottom:0; width:100%;
+  background:rgba(0,48,94,.94); color:#fff; padding:6px 0; overflow:hidden; z-index:5;
+}
+.ticker-content{white-space:nowrap; display:inline-block; padding-left:100%; animation:marq 38s linear infinite; font-size:12.5px;}
+@keyframes marq{to{transform:translateX(-100%)}}
+</style>
+</head>
+<body>
+
+<div class="toggle-dark" onclick="document.body.classList.toggle('dark')">🌙 / ☀️</div>
+
+<div class="header-main">
+  <span style="font-size:20px">📦</span>
+  <h1>Zilo – Hourly Pickup Report</h1>
+  <span class="header-badge">SASA</span>
+</div>
+
+<div class="container">
+  <h2>Pickup Tracking Report</h2>
+  <p class="subtitle">Dump data for each store → Select date → Click Generate → Get hourly report</p>
+
+  <div class="date-row">
+    <label for="reportDate">📅 Report Date:</label>
+    <input type="date" id="reportDate">
+  </div>
+
+  <div class="stores-grid">
+    <div class="store-card">
+      <h3><span class="dot dot-malad"></span> Malad</h3>
+      <div class="drop-area" id="drop-malad" data-loc="Malad">
+        <div class="icon">📁</div>
+        <p>Drop CSV or click</p>
+        <div class="small">or paste data below</div>
+        <input type="file" accept=".csv,text/csv" hidden id="file-malad">
+      </div>
+      <div class="file-tag" id="tag-malad">
+        <span id="name-malad"></span>
+        <button onclick="clearLoc('Malad')">✕</button>
+      </div>
+      <textarea id="paste-malad" placeholder="Paste CSV data here (with headers)..."></textarea>
+    </div>
+
+    <div class="store-card">
+      <h3><span class="dot dot-ghat"></span> Ghatkoper</h3>
+      <div class="drop-area" id="drop-ghat" data-loc="Ghatkoper">
+        <div class="icon">📁</div>
+        <p>Drop CSV or click</p>
+        <div class="small">or paste data below</div>
+        <input type="file" accept=".csv,text/csv" hidden id="file-ghat">
+      </div>
+      <div class="file-tag" id="tag-ghat">
+        <span id="name-ghat"></span>
+        <button onclick="clearLoc('Ghatkoper')">✕</button>
+      </div>
+      <textarea id="paste-ghat" placeholder="Paste CSV data here (with headers)..."></textarea>
+    </div>
+
+    <div class="store-card">
+      <h3><span class="dot dot-vashi"></span> Vashi</h3>
+      <div class="drop-area" id="drop-vashi" data-loc="Vashi">
+        <div class="icon">📁</div>
+        <p>Drop CSV or click</p>
+        <div class="small">or paste data below</div>
+        <input type="file" accept=".csv,text/csv" hidden id="file-vashi">
+      </div>
+      <div class="file-tag" id="tag-vashi">
+        <span id="name-vashi"></span>
+        <button onclick="clearLoc('Vashi')">✕</button>
+      </div>
+      <textarea id="paste-vashi" placeholder="Paste CSV data here (with headers)..."></textarea>
+    </div>
+  </div>
+
+  <div class="gen-wrap">
+    <button class="btn-generate" id="btnGenerate" onclick="generateReport()">⚡ Generate Hourly Report</button>
+  </div>
+
+  <div id="msg" class="msg"></div>
+
+  <div class="report-section" id="reportSection">
+    <div class="report-header">
+      <div>
+        <h3>Hourly Pickup Report</h3>
+        <div id="reportDateLabel" style="font-size:13px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <div class="report-actions">
+        <button class="btn-sec" onclick="exportCSV()">Export CSV</button>
+        <button class="btn-sec" onclick="exportXLSX()">Export Excel</button>
+      </div>
+    </div>
+
+    <div class="loc-tabs" id="locTabs"></div>
+    <div class="table-wrap" id="hourlyTable"></div>
+    <div class="summary-cards" id="summaryCards"></div>
+  </div>
+
+  <p class="footer-note">Exact Excel logic: CHOID starts with return_ + Not Cancelled + Fulfillment Status = Picked + Selected Date • Cancellation columns auto-removed</p>
+</div>
+
+<div class="ticker-bar">
+  <div class="ticker-content">Zilo Hourly Pickup Report • Dump data for Malad • Ghatkoper • Vashi → Select Date → Generate • Same logic as Excel SOP template • SASA / Zippee</div>
+</div>
+
+<script>
+/* ========== CONFIG ========== */
+const LOCATIONS = ["Malad", "Ghatkoper", "Vashi"];
+const HOUR_SLOTS = [
+  {label:"7:00–8:00",s:7,e:8},{label:"8:00–9:00",s:8,e:9},
+  {label:"9:00–10:00",s:9,e:10},{label:"10:00–11:00",s:10,e:11},
+  {label:"11:00–12:00",s:11,e:12},{label:"12:00–13:00",s:12,e:13},
+  {label:"13:00–14:00",s:13,e:14},{label:"14:00–15:00",s:14,e:15},
+  {label:"15:00–16:00",s:15,e:16},{label:"16:00–17:00",s:16,e:17},
+  {label:"17:00–18:00",s:17,e:18},{label:"18:00–19:00",s:18,e:19},
+  {label:"19:00–20:00",s:19,e:20},{label:"20:00–21:00",s:20,e:21},
+  {label:"21:00–22:00",s:21,e:22},{label:"22:00–23:00",s:22,e:23}
+];
+
+const STATE = {
+  data: { Malad: null, Ghatkoper: null, Vashi: null },
+  report: null,
+  currentLoc: "All"
+};
+
+// Default date = today
+(function(){
+  const inp = document.getElementById("reportDate");
+  if(inp){
+    const t = new Date();
+    inp.value = t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0");
+  }
+})();
+
+/* ========== AUTO DELETE CANCELLATION COLUMNS ========== */
+function cleanData(rows, headers) {
+  const removeList = [
+    "Cancellation Date", "Cancellation Source", "Cancellation Reason",
+    "Cancellation At Status", "Cancellation Reference ID"
+  ];
+  const toRemove = new Set();
+  headers.forEach(h => {
+    if (removeList.some(r => r.toLowerCase() === h.toLowerCase().trim()) ||
+        /cancellation\s*(date|source|reason|at\s*status|reference)/i.test(h)) {
+      toRemove.add(h);
+    }
+  });
+  const newHeaders = headers.filter(h => !toRemove.has(h));
+  const newRows = rows.map(row => {
+    const obj = {};
+    newHeaders.forEach(h => obj[h] = row[h]);
+    return obj;
+  });
+  return { rows: newRows, headers: newHeaders };
+}
+
+/* ========== FILE / PASTE ========== */
+LOCATIONS.forEach(loc => {
+  const key = loc === "Ghatkoper" ? "ghat" : loc.toLowerCase();
+  const drop = document.getElementById("drop-" + key);
+  const input = document.getElementById("file-" + key);
+  const paste = document.getElementById("paste-" + key);
+
+  drop.addEventListener("click", () => input.click());
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("dragover"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+  drop.addEventListener("drop", e => {
+    e.preventDefault(); drop.classList.remove("dragover");
+    if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0], loc);
+  });
+  input.addEventListener("change", () => { if (input.files.length) loadFile(input.files[0], loc); });
+
+  paste.addEventListener("paste", () => {
+    setTimeout(() => {
+      const text = paste.value.trim();
+      if (text) parseText(text, loc);
+    }, 80);
+  });
+});
+
+function loadFile(file, loc) {
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    showMsg("Please upload a .csv file for " + loc, true);
+    return;
+  }
+  showMsg("Loading " + loc + "... please wait");
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: false,
+    complete: res => {
+      if (!res.data || !res.data.length) {
+        showMsg("Empty CSV for " + loc, true);
+        return;
+      }
+      const cleaned = cleanData(res.data, res.meta.fields || Object.keys(res.data[0]));
+      STATE.data[loc] = { rows: cleaned.rows, headers: cleaned.headers, name: file.name };
+      showFileTag(loc, file.name, cleaned.rows.length);
+      showMsg(loc + " loaded • " + cleaned.rows.length + " rows (cancellation columns removed)");
+    },
+    error: err => showMsg("Parse error (" + loc + "): " + err.message, true)
+  });
+}
+
+function parseText(text, loc) {
+  Papa.parse(text, {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: false,
+    complete: res => {
+      if (!res.data || !res.data.length) return;
+      const cleaned = cleanData(res.data, res.meta.fields || Object.keys(res.data[0]));
+      STATE.data[loc] = { rows: cleaned.rows, headers: cleaned.headers, name: "Pasted" };
+      showFileTag(loc, "Pasted data", cleaned.rows.length);
+      showMsg(loc + " pasted • " + cleaned.rows.length + " rows");
+    }
+  });
+}
+
+function showFileTag(loc, name, count) {
+  const key = loc === "Ghatkoper" ? "ghat" : loc.toLowerCase();
+  document.getElementById("name-" + key).textContent = name + " • " + count + " rows";
+  document.getElementById("tag-" + key).classList.add("show");
+}
+
+function clearLoc(loc) {
+  STATE.data[loc] = null;
+  const key = loc === "Ghatkoper" ? "ghat" : loc.toLowerCase();
+  document.getElementById("tag-" + key).classList.remove("show");
+  document.getElementById("paste-" + key).value = "";
+  document.getElementById("file-" + key).value = "";
+}
+
+function showMsg(txt, isErr) {
+  const el = document.getElementById("msg");
+  el.textContent = txt || "";
+  el.className = "msg" + (isErr ? " err" : "");
+}
+
+/* ========== CORE LOGIC (FIXED) ========== */
+function parseDateTime(val) {
+  if (val == null || val === "") return null;
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) return d;
+  // try DD/MM/YYYY or similar
+  const m = String(val).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) {
+    const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    return new Date(y, +m[2] - 1, +m[1], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+  }
+  return null;
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function getSelectedDate() {
+  const inp = document.getElementById("reportDate");
+  if (!inp || !inp.value) {
+    const t = new Date(); t.setHours(0,0,0,0); return t;
+  }
+  const p = inp.value.split("-");
+  const d = new Date(+p[0], +p[1]-1, +p[2]);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function processLocation(loc, raw) {
+  if (!raw || !raw.rows.length) return [];
+
+  const headers = raw.headers;
+
+  // CRITICAL FIX: Prefer exact column names
+  const colCHOID = headers.find(h => h.toLowerCase().trim() === "choid") ||
+                   headers.find(h => /choid|order.?id/i.test(h));
+  const colFS    = headers.find(h => h.toLowerCase().trim() === "fulfillment status") ||
+                   headers.find(h => /fulfillment.?status/i.test(h));
+  const colPickup= headers.find(h => h.toLowerCase().trim() === "pickup time") ||
+                   headers.find(h => /pickup.?time/i.test(h));
+  const colStatus= headers.find(h => h.toLowerCase().trim() === "status");
+
+  if (!colFS || !colPickup) {
+    showMsg(loc + ": Missing Fulfillment Status or Pickup Time column", true);
+    return [];
+  }
+
+  const targetDate = getSelectedDate();
+  const result = [];
+
+  raw.rows.forEach(row => {
+    const choid = (row[colCHOID] || "").toString().trim();
+    const fs    = (row[colFS] || "").toString().trim().toUpperCase();
+    const status= colStatus ? (row[colStatus] || "").toString().trim().toLowerCase() : "";
+
+    // 1. Must start with return_
+    if (!choid.toLowerCase().startsWith("return_")) return;
+
+    // 2. Not cancelled
+    if (status === "cancelled") return;
+
+    // 3. Must be a picked status
+    const pickedStatuses = ["PICKED_UP", "DELIVERED", "REACHED_DELIVERY", "OUT_FOR_DELIVERY"];
+    if (!pickedStatuses.includes(fs)) return;
+
+    // 4. Has valid Pickup Time on the selected date
+    const dt = parseDateTime(row[colPickup]);
+    if (!dt || !isSameDay(dt, targetDate)) return;
+
+    const hour = dt.getHours() + dt.getMinutes() / 60;
+
+    result.push({
+      location: loc,
+      pickupHour: hour,
+      orderId: choid,
+      statusRaw: fs,
+      dt: dt
+    });
+  });
+
+  return result;
+}
+
+function generateReport() {
+  showMsg("");
+  const allPicked = [];
+  let hasAny = false;
+
+  LOCATIONS.forEach(loc => {
+    if (STATE.data[loc]) {
+      hasAny = true;
+      const picked = processLocation(loc, STATE.data[loc]);
+      allPicked.push(...picked);
+    }
+  });
+
+  if (!hasAny) {
+    showMsg("Please dump data for at least one store.", true);
+    return;
+  }
+
+  const report = {};
+  LOCATIONS.forEach(loc => {
+    report[loc] = HOUR_SLOTS.map(slot => {
+      const count = allPicked.filter(r =>
+        r.location === loc && r.pickupHour > slot.s && r.pickupHour <= slot.e
+      ).length;
+      return { ...slot, count };
+    });
+  });
+
+  report.Total = HOUR_SLOTS.map((slot, i) => {
+    let sum = 0;
+    LOCATIONS.forEach(loc => sum += report[loc][i].count);
+    return { ...slot, count: sum };
+  });
+
+  STATE.report = { data: report, allPicked };
+  renderReport();
+  document.getElementById("reportSection").classList.add("show");
+  document.getElementById("reportSection").scrollIntoView({ behavior: "smooth" });
+}
+
+/* ========== RENDER ========== */
+function renderReport() {
+  const { data } = STATE.report;
+  const targetDate = getSelectedDate();
+  document.getElementById("reportDateLabel").textContent =
+    "Report Date: " + targetDate.toLocaleDateString("en-IN", {weekday:"long", year:"numeric", month:"long", day:"numeric"}) +
+    " • Only CHOID starting with return_ counted";
+
+  const tabs = document.getElementById("locTabs");
+  tabs.innerHTML = `<button class="loc-tab active" data-loc="All">All / Total</button>` +
+    LOCATIONS.map(l => `<button class="loc-tab" data-loc="${l}">${l}</button>`).join("");
+
+  tabs.querySelectorAll(".loc-tab").forEach(btn => {
+    btn.onclick = () => {
+      tabs.querySelectorAll(".loc-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      STATE.currentLoc = btn.dataset.loc;
+      renderTable();
+    };
+  });
+  STATE.currentLoc = "All";
+  renderTable();
+  renderSummary();
+}
+
+function renderTable() {
+  const { data } = STATE.report;
+  let html = "<table><thead><tr><th>Time Slot</th>";
+  if (STATE.currentLoc === "All") {
+    LOCATIONS.forEach(l => html += `<th>${l}</th>`);
+    html += "<th>Total</th>";
+  } else {
+    html += `<th>${STATE.currentLoc}</th>`;
+  }
+  html += "</tr></thead><tbody>";
+
+  HOUR_SLOTS.forEach((slot, i) => {
+    html += `<tr><td>${slot.label}</td>`;
+    if (STATE.currentLoc === "All") {
+      LOCATIONS.forEach(l => html += `<td class="num">${data[l][i].count}</td>`);
+      html += `<td class="num"><strong>${data.Total[i].count}</strong></td>`;
+    } else {
+      html += `<td class="num">${data[STATE.currentLoc][i].count}</td>`;
+    }
+    html += "</tr>";
+  });
+
+  // TOTAL row
+  html += `<tr class="total-row"><td>TOTAL</td>`;
+  if (STATE.currentLoc === "All") {
+    LOCATIONS.forEach(l => {
+      html += `<td class="num">${data[l].reduce((a,b) => a + b.count, 0)}</td>`;
+    });
+    html += `<td class="num">${data.Total.reduce((a,b) => a + b.count, 0)}</td>`;
+  } else {
+    html += `<td class="num">${data[STATE.currentLoc].reduce((a,b) => a + b.count, 0)}</td>`;
+  }
+  html += "</tr></tbody></table>";
+  document.getElementById("hourlyTable").innerHTML = html;
+}
+
+function renderSummary() {
+  const { data } = STATE.report;
+  let html = "";
+  LOCATIONS.forEach(l => {
+    const t = data[l].reduce((a,b) => a + b.count, 0);
+    html += `<div class="summary-card"><div class="lbl">${l}</div><div class="val">${t}</div></div>`;
+  });
+  html += `<div class="summary-card"><div class="lbl">Grand Total</div><div class="val">${data.Total.reduce((a,b) => a + b.count, 0)}</div></div>`;
+  document.getElementById("summaryCards").innerHTML = html;
+}
+
+/* ========== EXPORT ========== */
+function exportCSV() {
+  if (!STATE.report) return;
+  const { data } = STATE.report;
+  let csv = "Time Slot,Malad,Ghatkoper,Vashi,Total\n";
+  HOUR_SLOTS.forEach((slot, i) => {
+    csv += `"${slot.label}",${data.Malad[i].count},${data.Ghatkoper[i].count},${data.Vashi[i].count},${data.Total[i].count}\n`;
+  });
+  csv += `TOTAL,${data.Malad.reduce((a,b)=>a+b.count,0)},${data.Ghatkoper.reduce((a,b)=>a+b.count,0)},${data.Vashi.reduce((a,b)=>a+b.count,0)},${data.Total.reduce((a,b)=>a+b.count,0)}\n`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+  const d = getSelectedDate();
+  a.download = `Pickup_Hourly_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.csv`;
+  a.click();
+}
+
+function exportXLSX() {
+  if (!STATE.report) return;
+  const { data } = STATE.report;
+  const aoa = [["Time Slot","Malad","Ghatkoper","Vashi","Total"]];
+  HOUR_SLOTS.forEach((slot, i) => {
+    aoa.push([slot.label, data.Malad[i].count, data.Ghatkoper[i].count, data.Vashi[i].count, data.Total[i].count]);
+  });
+  aoa.push(["TOTAL",
+    data.Malad.reduce((a,b)=>a+b.count,0),
+    data.Ghatkoper.reduce((a,b)=>a+b.count,0),
+    data.Vashi.reduce((a,b)=>a+b.count,0),
+    data.Total.reduce((a,b)=>a+b.count,0)
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Report");
+  const d = getSelectedDate();
+  XLSX.writeFile(wb, `Pickup_Hourly_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.xlsx`);
+}
+</script>
+</body>
+</html>
