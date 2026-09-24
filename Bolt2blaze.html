@@ -89,36 +89,49 @@ function combine(a,b){
   return a + ' ' + b;
 }
 
-// Bolt gives Creation Date as MM/DD/YYYY and Creation Time as 24-hour HH:mm.
-// Blaze expects them combined into one field, reordered to DD/MM/YYYY,
-// converted to 12-hour h:mm AM/PM, and wrapped as an Excel text-formula: ="..."
+// Creation Date
+// Bolt:  "Creation Date" = DD/MM/YYYY (day first, e.g. 24/09/2026)
+//        "Creation Time" = 24-hour HH:mm (e.g. 13:32)
+// Blaze: one field, ="DD/MM/YYYY h:mm AM/PM"  (e.g. ="24/09/2026 1:32 PM")
+//        hour not zero-padded, minutes always 2 digits, 00:xx -> 12:xx AM.
+// The date is already in Blaze's day-first order, so it is NOT reordered.
+// Rows whose values don't match these formats are counted and copied through as-is.
+let creationDateUnparsed = 0;
+
 function combineDateTime(dateStr, timeStr){
   dateStr = (dateStr == null ? '' : String(dateStr)).trim();
   timeStr = (timeStr == null ? '' : String(timeStr)).trim();
   if(!dateStr) return '';
 
-  const dParts = dateStr.split('/');
-  if(dParts.length !== 3) return dateStr; // unexpected format, pass through untouched
-
-  let [mm, dd, yyyy] = dParts.map(s => s.trim());
-  mm = mm.padStart(2,'0');
-  dd = dd.padStart(2,'0');
-  const ddmmyyyy = dd + '/' + mm + '/' + yyyy;
-
-  let timePart = '';
-  if(timeStr){
-    const tParts = timeStr.split(':');
-    let h = parseInt(tParts[0], 10);
-    const m = (tParts[1] || '00').padStart(2,'0');
-    if(!isNaN(h)){
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      let h12 = h % 12;
-      if(h12 === 0) h12 = 12;
-      timePart = ' ' + h12 + ':' + m + ' ' + ampm;
-    }
+  const d = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!d || +d[1] < 1 || +d[1] > 31 || +d[2] < 1 || +d[2] > 12){
+    creationDateUnparsed++;
+    return combine(dateStr, timeStr);
   }
+  const ddmmyyyy = d[1].padStart(2,'0') + '/' + d[2].padStart(2,'0') + '/' + d[3];
 
-  return '="' + ddmmyyyy + timePart + '"';
+  if(!timeStr) return '="' + ddmmyyyy + '"';
+
+  // HH:mm, optional :ss (dropped), optional AM/PM if the file was re-saved in Excel
+  const t = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
+  if(!t){
+    creationDateUnparsed++;
+    return '="' + ddmmyyyy + ' ' + timeStr + '"';
+  }
+  let h = +t[1];
+  const m = t[2];
+  if(t[3]){
+    if(h < 1 || h > 12){ creationDateUnparsed++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
+    h = (h % 12) + (t[3].toUpperCase() === 'PM' ? 12 : 0);
+  }
+  if(h > 23 || +m > 59){
+    creationDateUnparsed++;
+    return '="' + ddmmyyyy + ' ' + timeStr + '"';
+  }
+  const h12 = (h % 12) || 12;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+
+  return '="' + ddmmyyyy + ' ' + h12 + ':' + m + ' ' + ampm + '"';
 }
 
 function resetPage(){
@@ -140,6 +153,7 @@ async function convert(){
   try{
     s.className='status';
     s.textContent='Reading Bolt data...';
+    creationDateUnparsed = 0;
 
     const text = await file.text();
     const rows = parseCSV(text);
@@ -201,10 +215,13 @@ async function convert(){
     a.remove();
     URL.revokeObjectURL(url);
 
-    s.className='status good';
+    s.className = creationDateUnparsed ? 'status bad' : 'status good';
     s.textContent='Done.\nRows converted: ' + (output.length-1) +
       '\nOutput columns: ' + TARGET.length +
-      '\nCreation Date now combines Creation Date + Creation Time -> DD/MM/YYYY h:mm AM/PM.';
+      '\nCreation Date = Creation Date + Creation Time -> DD/MM/YYYY h:mm AM/PM.' +
+      (creationDateUnparsed
+        ? '\nWarning: ' + creationDateUnparsed + ' row(s) had a Creation Date/Time in an unexpected format and were copied as-is.'
+        : '');
   }catch(err){
     s.className='status bad';
     s.textContent='Error: ' + err.message;
