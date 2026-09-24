@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SASA – Zilo Overlapping Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --zippee-primary:#00305E;
+  --zippee-secondary:#0078D4;
+  --text-dark:#1d2a38;
+  --card-bg:rgba(255,255,255,.92);
+  --edge-top:#2b8cff;
+  --edge-bottom:#063f7d;
+  --muted:#5a6a7a;
+  --border:#d0d8e0;
+  --green:#16a34a;
+  --red:#dc2626;
+  --amber:#d97706;
+  --surface:#f4f7fb;
+}
+body.dark{
+  --zippee-primary:#dce9ff;
+  --text-dark:#f0f4f8;
+  --card-bg:rgba(15,22,35,.95);
+  --muted:#9aafc4;
+  --border:#2a3a4e;
+  --surface:#0f1623;
+  background:#0b1320 !important;
+  color:var(--text-dark);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:"Segoe UI",system-ui,sans-serif;
+  background:linear-gradient(160deg,#e8f1fb 0%,#f5f8fc 40%,#dfeaf6 100%);
+  min-height:100vh;
+  color:var(--text-dark);
+}
+body.dark{background:#0b1320;}
+
+/* HEADER */
+.header-main{
+  background:rgba(0,48,94,.92);
+  color:#fff;
+  position:sticky;top:0;z-index:50;
+  padding:12px 16px;
+  display:flex;justify-content:center;align-items:center;gap:12px;
+  box-shadow:0 1px 0 rgba(255,255,255,.2) inset,0 8px 24px rgba(0,0,0,.25);
+}
+.header-main h1{margin:0;font-size:1.15rem;font-weight:700;letter-spacing:.2px;}
+.header-badge{font-size:.7rem;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:99px;}
+
+.toggle-dark{
+  position:fixed;top:12px;right:14px;z-index:60;
+  background:#fff;border:none;border-radius:50px;padding:6px 12px;
+  cursor:pointer;font-size:13px;
+  box-shadow:0 3px 0 rgba(0,0,0,.2),0 8px 16px rgba(0,0,0,.2);
+}
+body.dark .toggle-dark{background:#1a2535;color:#fff;}
+
+/* LAYOUT */
+.wrap{max-width:1100px;margin:28px auto 60px;padding:0 16px;}
+.card{
+  background:var(--card-bg);
+  border-radius:16px;
+  padding:22px 20px;
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 36px rgba(0,0,0,.12);
+  margin-bottom:18px;
+}
+body.dark .card{box-shadow:0 12px 36px rgba(0,0,0,.4);}
+.card h2{font-size:1.1rem;color:var(--zippee-primary);margin-bottom:6px;}
+.card .sub{font-size:.85rem;color:var(--muted);margin-bottom:16px;line-height:1.45;}
+
+/* 3 STORE COLUMNS */
+.store-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:800px){.store-grid{grid-template-columns:1fr;}}
+.store-col{
+  border:1.5px solid var(--border);
+  border-radius:14px;
+  padding:14px;
+  text-align:center;
+  background:var(--surface);
+  transition:border-color .2s,box-shadow .2s;
+}
+.store-col.has-file{border-color:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.15);}
+.store-col-title{font-weight:700;font-size:1rem;color:var(--zippee-primary);}
+.store-col-id{font-size:.7rem;color:var(--muted);margin-bottom:10px;}
+.drop-zone{
+  border:2px dashed var(--border);
+  border-radius:12px;
+  padding:18px 10px;
+  cursor:pointer;
+  min-height:100px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:border-color .2s,background .2s;
+}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--zippee-secondary);background:rgba(0,120,212,.06);}
+.store-col.has-file .drop-zone{border-color:var(--green);background:rgba(22,163,74,.06);}
+.drop-icon{font-size:1.5rem;margin-bottom:4px;}
+.drop-title{font-size:.85rem;font-weight:600;}
+.drop-hint{font-size:.7rem;color:var(--muted);}
+.file-name{font-size:.72rem;color:var(--green);font-weight:600;margin-top:8px;word-break:break-all;}
+.file-input{display:none;}
+
+/* BUTTONS – SASA 3D style */
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px;}
+.sasa-btn{
+  position:relative;overflow:hidden;border:none;cursor:pointer;
+  background:linear-gradient(160deg,#2b8cff,#0a63c9 55%,#0757ad);
+  color:#fff;padding:12px 18px;border-radius:12px;
+  font-size:14px;font-weight:700;min-width:180px;
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 -2px 0 rgba(0,0,0,.25) inset,0 6px 0 #063f7d,0 12px 20px rgba(0,0,0,.25);
+  transition:transform .15s,box-shadow .15s;
+}
+.sasa-btn:hover{transform:translateY(-3px);box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 -2px 0 rgba(0,0,0,.25) inset,0 9px 0 #063f7d,0 16px 28px rgba(0,0,0,.3);}
+.sasa-btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 2px 0 #063f7d,0 6px 12px rgba(0,0,0,.25);}
+.sasa-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.sasa-btn.green{background:linear-gradient(160deg,#22c55e,#16a34a 55%,#15803d);box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 -2px 0 rgba(0,0,0,.2) inset,0 6px 0 #14532d,0 12px 20px rgba(0,0,0,.22);}
+.sasa-btn.green:hover{box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 -2px 0 rgba(0,0,0,.2) inset,0 9px 0 #14532d,0 16px 28px rgba(0,0,0,.28);}
+.sasa-btn.amber{background:linear-gradient(160deg,#f59e0b,#d97706 55%,#b45309);box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 -2px 0 rgba(0,0,0,.2) inset,0 6px 0 #92400e,0 12px 20px rgba(0,0,0,.22);}
+.sasa-btn.red{background:linear-gradient(160deg,#f87171,#dc2626 55%,#b91c1c);box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 -2px 0 rgba(0,0,0,.2) inset,0 6px 0 #7f1d1d,0 12px 20px rgba(0,0,0,.22);}
+.sasa-btn.ghost{background:var(--surface);color:var(--zippee-primary);border:1.5px solid var(--border);box-shadow:0 3px 0 var(--border);}
+
+.progress-wrap{display:none;max-width:480px;margin:16px auto 0;}
+.progress-bg{background:var(--border);border-radius:99px;height:7px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--zippee-secondary);border-radius:99px;width:0%;transition:width .25s;}
+.progress-label{font-size:.8rem;color:var(--muted);margin-top:6px;text-align:center;}
+
+/* DASHBOARD */
+#dashboard{display:none;}
+.filter-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px;}
+.filter-row label{font-size:.78rem;font-weight:600;color:var(--muted);}
+.filter-row input,.filter-row select{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-size:.82rem;color:var(--text-dark);outline:none;
+}
+.filter-row input:focus,.filter-row select:focus{border-color:var(--zippee-secondary);}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px;}
+.kpi{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;position:relative;overflow:hidden;
+}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--zippee-secondary);}
+.kpi.green::before{background:var(--green);}.kpi.red::before{background:var(--red);}.kpi.amber::before{background:var(--amber);}
+.kpi-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:4px;}
+.kpi-value{font-size:1.35rem;font-weight:800;letter-spacing:-.5px;}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.tab{
+  padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;
+  border:1.5px solid var(--border);background:transparent;color:var(--muted);
+}
+.tab.active{background:var(--zippee-primary);border-color:var(--zippee-primary);color:#fff;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+.table-wrap{overflow:auto;max-height:420px;border:1px solid var(--border);border-radius:10px;}
+table{width:100%;border-collapse:collapse;font-size:.78rem;}
+thead th{
+  position:sticky;top:0;z-index:2;background:var(--zippee-primary);color:#fff;
+  font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;text-align:left;white-space:nowrap;
+}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr:hover td{background:rgba(0,120,212,.06);}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.68rem;font-weight:700;}
+.badge-red{background:#fee2e2;color:#b91c1c;}
+.badge-green{background:#dcfce7;color:#15803d;}
+body.dark .badge-red{background:#7f1d1d55;color:#fca5a5;}
+body.dark .badge-green{background:#14532d55;color:#86efac;}
+
+.download-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;justify-content:center;}
+.section-title{font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.note{font-size:.78rem;color:var(--muted);}
+footer{text-align:center;font-size:12px;opacity:.75;margin:24px 0 40px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div class="toggle-dark" onclick="document.body.classList.toggle('dark')">🌙 / ☀️</div>
+
+<div class="header-main">
+  <h1>SASA – Zilo Overlapping Report</h1>
+  <span class="header-badge">Exact Excel Logic · ≤11 min batch</span>
+</div>
+
+<!-- UPLOAD -->
+<div id="upload-screen" class="wrap">
+  <div class="card">
+    <h2>Dump store CSVs one by one</h2>
+    <p class="sub">Upload raw order CSVs for Malad, Ghatkopar and Vashi. Full batching + exact Excel Overlapping Time · filters to <b>today</b> automatically.</p>
+
+    <div class="store-grid">
+      <div class="store-col" id="col-malad">
+        <div class="store-col-title">Malad</div>
+        <div class="store-col-id">Owner ID 14732</div>
+        <div class="drop-zone" id="dz-malad">
+          <div class="drop-icon">📦</div>
+          <div class="drop-title">Drop Malad CSV</div>
+          <div class="drop-hint">or click to browse</div>
+        </div>
+        <input type="file" class="file-input" id="fi-malad" accept=".csv"/>
+        <div class="file-name" id="fn-malad"></div>
+      </div>
+      <div class="store-col" id="col-ghatkopar">
+        <div class="store-col-title">Ghatkopar</div>
+        <div class="store-col-id">Owner ID 20964</div>
+        <div class="drop-zone" id="dz-ghatkopar">
+          <div class="drop-icon">📦</div>
+          <div class="drop-title">Drop Ghatkopar CSV</div>
+          <div class="drop-hint">or click to browse</div>
+        </div>
+        <input type="file" class="file-input" id="fi-ghatkopar" accept=".csv"/>
+        <div class="file-name" id="fn-ghatkopar"></div>
+      </div>
+      <div class="store-col" id="col-vashi">
+        <div class="store-col-title">Vashi</div>
+        <div class="store-col-id">Owner ID 26289</div>
+        <div class="drop-zone" id="dz-vashi">
+          <div class="drop-icon">📦</div>
+          <div class="drop-title">Drop Vashi CSV</div>
+          <div class="drop-hint">or click to browse</div>
+        </div>
+        <input type="file" class="file-input" id="fi-vashi" accept=".csv"/>
+        <div class="file-name" id="fn-vashi"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="sasa-btn" id="gen-btn" disabled onclick="startProcess()">Generate Overlapping Report →</button>
+    </div>
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bg"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">Processing…</div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="wrap">
+  <div class="card">
+    <div class="filter-row">
+      <label>Date</label>
+      <input type="date" id="date-filter" onchange="applyDateFilter()"/>
+      <label>Store</label>
+      <select id="store-filter" onchange="renderAll()"><option value="">All Stores</option></select>
+      <span class="note" id="filter-note"></span>
+      <button class="sasa-btn ghost" style="min-width:auto;padding:6px 12px;font-size:12px" onclick="location.reload()">← New Files</button>
+    </div>
+
+    <div class="kpi-grid" id="kpi-row"></div>
+
+    <!-- PER-STORE DOWNLOADS -->
+    <div class="section-title">Download Overlapping (per store)</div>
+    <div class="download-row" id="download-row">
+      <button class="sasa-btn" onclick="downloadOneStore('Malad')">⬇ Malad Overlapping</button>
+      <button class="sasa-btn" onclick="downloadOneStore('Ghatkopar')">⬇ Ghatkopar Overlapping</button>
+      <button class="sasa-btn" onclick="downloadOneStore('Vashi')">⬇ Vashi Overlapping</button>
+      <button class="sasa-btn green" onclick="downloadCombined()">⬇ Combined All Stores</button>
+      <button class="sasa-btn amber" onclick="downloadStoreExcel()">⬇ Store-wise Full Excel</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(event,'report')">Overlapping Report</button>
+      <button class="tab" onclick="switchTab(event,'dump')">Full Dump</button>
+      <button class="tab" onclick="switchTab(event,'summary')">By Store Summary</button>
+    </div>
+
+    <div class="tab-content active" id="tab-report">
+      <div class="section-title"><span>Overlapping Orders</span><span id="ov-count"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Store</th><th>Reference ID</th><th>Rider ID</th><th>Rider Name</th>
+            <th>Batch ID</th><th>Batch No.</th><th>Overlapping Time</th>
+            <th>Reached Delivery</th><th>Terminal Time</th><th>Order Type</th><th>Breach</th>
+          </tr></thead>
+          <tbody id="report-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-dump">
+      <div class="section-title"><span>Full Dump</span><span id="dump-count"></span></div>
+      <div class="table-wrap" style="max-height:500px">
+        <table>
+          <thead><tr>
+            <th>Reference ID</th><th>Store</th><th>Rider Name</th><th>Batch ID</th>
+            <th>Batch Status</th><th>Overlapping</th><th>Overlapping Time</th>
+            <th>Pickup</th><th>Reached</th><th>Terminal</th><th>C2T</th><th>Breach</th>
+          </tr></thead>
+          <tbody id="dump-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-summary">
+      <div class="section-title">Summary by Store</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Store</th><th>Total Orders</th><th>Batched</th><th>Overlapping</th><th>Overlap %</th><th>Riders</th>
+          </tr></thead>
+          <tbody id="summary-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>© 2026 SASA Automation — Zilo Overlapping Report | Exact Excel Logic</footer>
+
+<script>
+const STORE_MAP={14732:'Malad',20964:'Ghatkopar',24141:'Parel',25481:'Thane',26289:'Vashi'};
+const TARGET_STORES=new Set(['Malad','Ghatkopar','Vashi']);
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+let ALL_ROWS=[], FILTERED=[], TARGET_DATE=null;
+const storeFiles={Malad:null,Ghatkopar:null,Vashi:null};
+
+function parseAnyDT(s){
+  if(!s||!String(s).trim())return null;
+  s=String(s).trim();const sp=s.split(' ');
+  const d=sp[0].replace(/\//g,'-').split('-');if(d.length<3)return null;
+  let day,mon,yr;if(d[0].length===4){[yr,mon,day]=d.map(Number);}else{[day,mon,yr]=d.map(Number);}
+  let hh=0,mm=0,ss=0;if(sp[1]){const t=sp[1].split(':');hh=+t[0]||0;mm=+t[1]||0;ss=+t[2]||0;}
+  const dt=new Date(yr,mon-1,day,hh,mm,ss);return isNaN(dt.getTime())?null:dt;
+}
+function parseAnyDate(s){const dt=parseAnyDT(s);return dt?new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()):null;}
+function fmtDMY(dt){if(!dt)return'';return`${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;}
+function fmtDMYHM(dt){if(!dt)return'';return`${fmtDMY(dt)} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;}
+function fmtTimeOnly(dt){if(!dt)return null;return{h:dt.getHours(),m:dt.getMinutes(),s:dt.getSeconds()||0};}
+function timeToSeconds(t){if(!t)return null;return t.h*3600+t.m*60+t.s;}
+function secondsToHMS(sec){if(sec==null||isNaN(sec))return'00:00:00';sec=Math.abs(Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
+function isoWeek(dt){const start=new Date(dt.getFullYear(),0,1);const firstSun=new Date(start);firstSun.setDate(1-start.getDay());const dtSun=new Date(dt);dtSun.setDate(dt.getDate()-dt.getDay());return Math.round((dtSun-firstSun)/(7*86400000))+1;}
+function weekLabel(dt){const sun=new Date(dt);sun.setDate(dt.getDate()-dt.getDay());const sat=new Date(sun);sat.setDate(sun.getDate()+6);const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const f=d=>`${String(d.getDate()).padStart(2,'0')} ${m[d.getMonth()]}`;return`W${isoWeek(dt)}: ${f(sun)} - ${f(sat)}`;}
+function diffMins(a,b){if(!a||!b)return null;const v=(b-a)/60000;if(isNaN(v))return null;return Math.round(Math.min(Math.max(v,0),500)*10)/10;}
+function classifySlot(s){if(!s)return'Instant';const m=String(s).trim().match(/^(\d{2}:\d{2})-(\d{2}:\d{2})$/);return(m&&m[1].endsWith(':00')&&m[2].endsWith(':00'))?'Slotted':'Instant';}
+
+function setP(p,l){document.getElementById('progress-wrap').style.display='block';document.getElementById('progress-fill').style.width=p+'%';document.getElementById('progress-label').textContent=l;}
+function updateGenBtn(){document.getElementById('gen-btn').disabled=!Object.values(storeFiles).some(f=>f!==null);}
+function assignFile(store,file){if(!file)return;storeFiles[store]=file;const key=store.toLowerCase();document.getElementById('col-'+key).classList.add('has-file');document.getElementById('fn-'+key).textContent='✓ '+file.name+' ('+(file.size/1024/1024).toFixed(1)+' MB)';updateGenBtn();}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  [['malad','Malad'],['ghatkopar','Ghatkopar'],['vashi','Vashi']].forEach(([key,name])=>{
+    const dz=document.getElementById('dz-'+key),fi=document.getElementById('fi-'+key);
+    dz.addEventListener('click',()=>fi.click());
+    fi.addEventListener('change',e=>{if(e.target.files[0])assignFile(name,e.target.files[0]);});
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+    dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])assignFile(name,e.dataTransfer.files[0]);});
+  });
+});
+
+function startProcess(){
+  const files=Object.values(storeFiles).filter(f=>f);if(!files.length){alert('Drop at least one CSV');return;}
+  document.getElementById('gen-btn').disabled=true;setP(5,`Reading ${files.length} file(s)…`);
+  let allRaw=[],done=0;
+  files.forEach(file=>{
+    Papa.parse(file,{header:true,skipEmptyLines:true,complete:res=>{
+      allRaw=allRaw.concat(res.data);done++;
+      setP(5+Math.round(done/files.length*20),`Read ${done}/${files.length} · ${allRaw.length.toLocaleString()} rows`);
+      if(done===files.length)setTimeout(()=>processAll(allRaw),50);
+    },error:err=>alert('Parse error: '+err.message)});
+  });
+}
+
+function processAll(rawData){
+  setP(28,'Filtering…');
+  const filtered=rawData.filter(r=>{
+    const id=(r['Reference ID']||'').toString();
+    return !id.endsWith('-PD')&&!id.startsWith('RTV-')&&!id.startsWith('F-')&&!id.startsWith('return_')
+      &&r['Rider Name']&&String(r['Rider Name']).trim()!==''
+      &&r['Delivery Date']&&String(r['Delivery Date']).trim()!=='';
+  });
+  setP(35,`Enriching ${filtered.length.toLocaleString()}…`);
+  const rows=[];
+  filtered.forEach(r=>{
+    const dateObj=parseAnyDate(r['Delivery Date']);if(!dateObj)return;
+    const dateStr=fmtDMY(dateObj),dow=DAYS[dateObj.getDay()],month=MONTHS[dateObj.getMonth()];
+    const weekNum=isoWeek(dateObj),wkLabel=weekLabel(dateObj);
+    const storeId=parseInt(r['Owner ID'])||14732,store=STORE_MAP[storeId]||String(storeId);
+    const orderType=(r['Reference ID']||'').startsWith('HT-')?'Home Trial':'Standard';
+    const delivType=classifySlot(r['Delivery Slot']),slot=(r['Delivery Slot']||'').trim();
+    let delivEndDt=null;if(slot.length>=5){const[eh,em]=slot.slice(-5).split(':').map(Number);delivEndDt=new Date(dateObj.getFullYear(),dateObj.getMonth(),dateObj.getDate(),eh,em);}
+    const delivEndStr=delivEndDt?fmtDMYHM(delivEndDt):null;
+    let pour=null;if(delivEndDt){const h=delivEndDt.getHours(),mn=delivEndDt.getMinutes();const s=mn===0?h-1:h,e=mn===0?h:h+1;pour=`${String(s).padStart(2,'0')}:00-${String(e).padStart(2,'0')}:00`;}
+    const manifested=parseAnyDT(r['Manifested Time']),outForPickup=parseAnyDT(r['Out For Pickup Time']);
+    const reachedPickup=parseAnyDT(r['Reached Pickup Time']),pickup=parseAnyDT(r['Pickup Time']);
+    const ofd=parseAnyDT(r['Out For Delivery Time']),reached=parseAnyDT(r['Reached Delivery Time']),terminal=parseAnyDT(r['Terminal Time']);
+    let breachStatus=null,breachBucket=null;
+    if(delivEndDt&&reached){const th=new Date(delivEndDt.getTime()+15*60000);if(reached<=th){breachStatus='No Breach';breachBucket='No Breach';}else{breachStatus='Breach';const diff=(reached-delivEndDt)/60000;breachBucket=diff<=30?'15-30 Mins':diff<=60?'30-60 Mins':diff<=120?'60-120 Mins':'120+ Mins';}}
+    const c2p=diffMins(manifested,pickup),p2ofd=diffMins(pickup,ofd),ofd2rd=diffMins(ofd,reached),rd2t=diffMins(reached,terminal);
+    const dist=parseFloat(r['Pickup to Drop Distance(Kms)'])||0;
+    rows.push({
+      'Reference ID':r['Reference ID']||'','Delivery Date':dateStr,'Day of Week':dow,'Week Number':weekNum,'Week Label':wkLabel,'Month':month,
+      'Store':store,'Rider ID':r['Rider ID']||'','Rider Name':String(r['Rider Name']||'').trim(),'Owner ID':storeId,
+      'Order Type':orderType,'Delivery Type':delivType,'Delivery Slot':slot,'Delivery End Time':delivEndStr,'Delivery Hourly Pour':pour,
+      'Fulfillment Status':r['Fulfillment Status']||'','Breach Status':breachStatus,'Breach Bucket':breachBucket,
+      'Batch Status':'Single','Batch ID':null,'Overlapping Order':'No','Orders in Same Batch':null,
+      'C2P':c2p,'P2OFD':p2ofd,'OFD2RD':ofd2rd,'RD2T':rd2t,'C2T':null,'RTS':null,'Pickup to Drop Distance(Kms)':dist,
+      'Manifested Time':fmtDMYHM(manifested),'Out For Pickup Time':fmtDMYHM(outForPickup),'Reached Pickup Time':fmtDMYHM(reachedPickup),
+      'Pickup Time':fmtDMYHM(pickup),'Out For Delivery Time':fmtDMYHM(ofd),'Reached Delivery Time':fmtDMYHM(reached),'Terminal Time':fmtDMYHM(terminal),
+      _dateObj:dateObj,_pickup:pickup,_reached:reached,_terminal:terminal,_manifested:manifested,_dist:dist,_batchKey:null,_orderNum:0
+    });
+  });
+  setP(55,'Computing batches…');applyBatching(rows);
+  setP(70,'Finalising metrics…');finaliseMetrics(rows);
+  setP(82,'Excel Overlapping Time…');applyExcelOverlapping(rows);
+  ALL_ROWS=rows;TARGET_DATE=new Date();TARGET_DATE=new Date(TARGET_DATE.getFullYear(),TARGET_DATE.getMonth(),TARGET_DATE.getDate());
+  const di=document.getElementById('date-filter');
+  di.value=`${TARGET_DATE.getFullYear()}-${String(TARGET_DATE.getMonth()+1).padStart(2,'0')}-${String(TARGET_DATE.getDate()).padStart(2,'0')}`;
+  setP(95,'Rendering…');populateStoreFilter();applyDateFilter();setP(100,'Done!');
+  setTimeout(()=>{document.getElementById('upload-screen').style.display='none';document.getElementById('dashboard').style.display='block';},200);
+}
+
+function applyBatching(rows){
+  const byKey={};rows.forEach((r,i)=>{const k=(r['Rider Name']||'').toLowerCase()+'|'+r['Delivery Date'];if(!byKey[k])byKey[k]=[];byKey[k].push(i);});
+  Object.values(byKey).forEach(idxs=>{
+    idxs.sort((a,b)=>(rows[a]._pickup||new Date(0))-(rows[b]._pickup||new Date(0)));
+    const n=idxs.length,parent=Array.from({length:n},(_,i)=>i);
+    const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+    const union=(a,b)=>{parent[find(a)]=find(b);};
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+      const pi=rows[idxs[i]]._pickup,pj=rows[idxs[j]]._pickup;
+      // ≤11 min so 10.1 min edge cases (e.g. hamid jafri) are batched
+      if(pi&&pj&&Math.abs(pi-pj)/60000<=11)union(i,j);
+    }
+    const clusters={};for(let i=0;i<n;i++){const r=find(i);if(!clusters[r])clusters[r]=[];clusters[r].push(i);}
+    const dateStr=rows[idxs[0]]['Delivery Date'],ddmm=dateStr.replace(/-/g,'').slice(0,4),riderId=rows[idxs[0]]['Rider ID']||'X';
+    const clusterArr=Object.values(clusters).filter(c=>c.length>1);
+    clusterArr.sort((a,b)=>(rows[idxs[a[0]]]._pickup||new Date(9e15))-(rows[idxs[b[0]]]._pickup||new Date(9e15)));
+    clusterArr.forEach((cluster,ti)=>{
+      const batchKey=`Batch_${ddmm}_${riderId}_${ti+1}`;
+      const byReach=[...cluster].sort((a,b)=>(rows[idxs[a]]._reached||new Date(9e15))-(rows[idxs[b]]._reached||new Date(9e15)));
+      const refIds=byReach.map(ci=>rows[idxs[ci]]['Reference ID']);
+      byReach.forEach((ci,oi)=>{const gi=idxs[ci];rows[gi]['Batch Status']='Batch';rows[gi]['Batch ID']=`${batchKey}_${oi+1}`;rows[gi]._batchKey=batchKey;rows[gi]._orderNum=oi+1;rows[gi]['Orders in Same Batch']=refIds.join(', ');});
+    });
+  });
+}
+
+function finaliseMetrics(rows){
+  const bGroups={};rows.forEach((r,i)=>{if(r._batchKey){if(!bGroups[r._batchKey])bGroups[r._batchKey]=[];bGroups[r._batchKey].push(i);}});
+  for(const key in bGroups){
+    const idxs=bGroups[key],grp=idxs.map(i=>rows[i]);
+    const pickup0=grp[0]._pickup;let minMan=null;grp.forEach(r=>{if(r._manifested&&(!minMan||r._manifested<minMan))minMan=r._manifested;});
+    const storeMs=pickup0&&minMan?(pickup0-minMan):null;
+    const c2pAvg=storeMs!==null?Math.min(Math.round(storeMs/60000/grp.length*10)/10,500):null;
+    const lastGI=idxs.reduce((m,i)=>rows[i]._orderNum>rows[m]._orderNum?i:m,idxs[0]);
+    const lastDist=rows[lastGI]._dist,lastRTS=lastDist>0?Math.round(lastDist/20*60*10)/10:null;
+    const sorted=[...idxs].sort((a,b)=>rows[a]._orderNum-rows[b]._orderNum);
+    sorted.forEach((gi,pos)=>{
+      rows[gi]['C2P']=c2pAvg;rows[gi]['RTS']=(gi===lastGI)?lastRTS:null;
+      if(pos>0){const prev=rows[sorted[pos-1]],cur=rows[gi];
+        if(prev._terminal&&cur._reached&&cur._reached<prev._terminal){
+          cur['Overlapping Order']='Yes';
+          cur._preOverlapSec=Math.abs(Math.round((prev._terminal-cur._reached)/1000));
+        }
+      }
+    });
+  }
+  rows.forEach(r=>{
+    if(r['Batch Status']==='Single')r['RTS']=r._dist>0?Math.round(r._dist/20*60*10)/10:null;
+    const comps=[r['C2P'],r['P2OFD'],r['OFD2RD'],r['RD2T']];
+    r['C2T']=comps.every(x=>x!==null&&!isNaN(x))?Math.round(comps.reduce((a,b)=>a+b,0)*10)/10:null;
+  });
+}
+
+function applyExcelOverlapping(rows){
+  rows.forEach(r=>{
+    const bid=r['Batch ID']||'';let bno='',boid='';
+    if(bid&&bid.includes('_')){const parts=bid.split('_');boid=parts.pop();bno=parts.join('_');}
+    r['Batch No.']=bno;r['Batch Order ID']=boid;
+    r['Reached Delivery Time only']=r._reached?fmtTimeOnly(r._reached):null;
+    r['Terminal Time only']=r._terminal?fmtTimeOnly(r._terminal):null;
+    r['Time Diff']=0;r['Time Diff HMS']='00:00:00';r['Overlapping Time']=0;r['Overlapping Time HMS']='00:00:00';
+  });
+  const byBatchNo={};
+  rows.forEach((r,i)=>{if(!r['Batch No.'])return;if(!byBatchNo[r['Batch No.']])byBatchNo[r['Batch No.']]=[];byBatchNo[r['Batch No.']].push(i);});
+  Object.values(byBatchNo).forEach(idxs=>{
+    idxs.sort((a,b)=>{
+      const oa=parseInt(rows[a]['Batch Order ID'])||rows[a]._orderNum||0;
+      const ob=parseInt(rows[b]['Batch Order ID'])||rows[b]._orderNum||0;
+      if(oa!==ob)return oa-ob;
+      return(rows[a]._reached||new Date(9e15))-(rows[b]._reached||new Date(9e15));
+    });
+    for(let p=1;p<idxs.length;p++){
+      const prev=rows[idxs[p-1]],cur=rows[idxs[p]];
+      let timeDiffSec=0;
+      if(prev['Terminal Time only']&&cur['Reached Delivery Time only'])
+        timeDiffSec=Math.abs(timeToSeconds(prev['Terminal Time only'])-timeToSeconds(cur['Reached Delivery Time only']));
+      cur['Time Diff']=timeDiffSec;cur['Time Diff HMS']=secondsToHMS(timeDiffSec);
+      let isOverlap=false;
+      if(prev._terminal&&cur._reached)isOverlap=cur._reached<prev._terminal;
+      else if(prev['Terminal Time only']&&cur['Reached Delivery Time only'])
+        isOverlap=timeToSeconds(cur['Reached Delivery Time only'])<timeToSeconds(prev['Terminal Time only']);
+      if(isOverlap){cur['Overlapping Time']=timeDiffSec;cur['Overlapping Time HMS']=secondsToHMS(timeDiffSec);cur['Overlapping Order']='Yes';}
+    }
+  });
+  rows.forEach(r=>{
+    if(r['Overlapping Order']==='Yes'&&(!r['Overlapping Time']||r['Overlapping Time']===0)){
+      const sec=r._preOverlapSec||0;
+      if(sec>0){r['Overlapping Time']=sec;r['Overlapping Time HMS']=secondsToHMS(sec);r['Time Diff']=sec;r['Time Diff HMS']=secondsToHMS(sec);}
+    }
+  });
+  rows.sort((a,b)=>{const ka=a['Batch ID']||'ZZZ',kb=b['Batch ID']||'ZZZ';return ka<kb?-1:ka>kb?1:0;});
+}
+
+function populateStoreFilter(){
+  const stores=[...new Set(ALL_ROWS.map(r=>r.Store))].sort();
+  document.getElementById('store-filter').innerHTML='<option value="">All Stores</option>'+stores.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+function applyDateFilter(){
+  const di=document.getElementById('date-filter');
+  if(di.value){const[y,m,d]=di.value.split('-').map(Number);TARGET_DATE=new Date(y,m-1,d);}
+  renderAll();
+}
+function getFiltered(){
+  const storeSel=document.getElementById('store-filter').value,targetStr=fmtDMY(TARGET_DATE);
+  return ALL_ROWS.filter(r=>{if(r['Delivery Date']!==targetStr)return false;if(storeSel&&r.Store!==storeSel)return false;return true;});
+}
+function kpi(label,val,color=''){return`<div class="kpi ${color}"><div class="kpi-label">${label}</div><div class="kpi-value">${val}</div></div>`;}
+
+function renderAll(){
+  FILTERED=getFiltered();
+  const ov=FILTERED.filter(r=>r['Overlapping Order']==='Yes');
+  const stores=[...new Set(FILTERED.map(r=>r.Store))];
+  document.getElementById('kpi-row').innerHTML=
+    kpi('Total Orders',FILTERED.length)+
+    kpi('Batched',FILTERED.filter(r=>r['Batch Status']==='Batch').length,'amber')+
+    kpi('Overlapping',ov.length,'red')+
+    kpi('Overlap Rate',FILTERED.length?(ov.length/FILTERED.length*100).toFixed(1)+'%':'0%','red')+
+    kpi('Riders',new Set(FILTERED.map(r=>r['Rider Name'])).size)+
+    kpi('Stores',stores.length,'green');
+  document.getElementById('filter-note').textContent=`${fmtDMY(TARGET_DATE)} · ${FILTERED.length} orders`;
+  document.getElementById('ov-count').textContent=ov.length+' rows';
+  const rtbody=document.getElementById('report-tbody');rtbody.innerHTML='';
+  ov.sort((a,b)=>{if(a.Store!==b.Store)return a.Store.localeCompare(b.Store);if(a['Rider Name']!==b['Rider Name'])return a['Rider Name'].localeCompare(b['Rider Name']);return(b['Overlapping Time']||0)-(a['Overlapping Time']||0);})
+    .forEach(r=>{rtbody.innerHTML+=`<tr>
+      <td>${r.Store}</td><td>${r['Reference ID']}</td><td>${r['Rider ID']}</td><td>${r['Rider Name']}</td>
+      <td>${r['Batch ID']||''}</td><td>${r['Batch No.']||''}</td>
+      <td><span class="badge badge-red">${r['Overlapping Time HMS']||'00:00:00'}</span></td>
+      <td>${r['Reached Delivery Time']||''}</td><td>${r['Terminal Time']||''}</td>
+      <td>${r['Order Type']}</td><td>${r['Breach Status']||''}</td></tr>`;});
+  document.getElementById('dump-count').textContent=FILTERED.length+' rows';
+  const dtbody=document.getElementById('dump-tbody');dtbody.innerHTML='';
+  FILTERED.slice(0,2500).forEach(r=>{
+    const badge=r['Overlapping Order']==='Yes'?`<span class="badge badge-red">Yes · ${r['Overlapping Time HMS']}</span>`:`<span class="badge badge-green">No</span>`;
+    dtbody.innerHTML+=`<tr>
+      <td>${r['Reference ID']}</td><td>${r.Store}</td><td>${r['Rider Name']}</td><td>${r['Batch ID']||''}</td>
+      <td>${r['Batch Status']}</td><td>${badge}</td><td>${r['Overlapping Time HMS']||''}</td>
+      <td>${r['Pickup Time']||''}</td><td>${r['Reached Delivery Time']||''}</td><td>${r['Terminal Time']||''}</td>
+      <td>${r['C2T']!=null?r['C2T']+'m':''}</td><td>${r['Breach Status']||''}</td></tr>`;
+  });
+  if(FILTERED.length>2500)dtbody.innerHTML+=`<tr><td colspan="12" style="text-align:center;color:var(--muted)">… first 2500 of ${FILTERED.length}. Full data in Excel.</td></tr>`;
+  const stbody=document.getElementById('summary-tbody');stbody.innerHTML='';
+  const byStore={};FILTERED.forEach(r=>{if(!byStore[r.Store])byStore[r.Store]={total:0,batched:0,ov:0,riders:new Set()};byStore[r.Store].total++;if(r['Batch Status']==='Batch')byStore[r.Store].batched++;if(r['Overlapping Order']==='Yes')byStore[r.Store].ov++;byStore[r.Store].riders.add(r['Rider Name']);});
+  Object.keys(byStore).sort().forEach(s=>{const d=byStore[s];const rate=d.total?(d.ov/d.total*100).toFixed(1):'0';
+    stbody.innerHTML+=`<tr><td>${s}</td><td>${d.total}</td><td>${d.batched}</td><td><span class="badge badge-red">${d.ov}</span></td><td>${rate}%</td><td>${d.riders.size}</td></tr>`;});
+}
+
+function switchTab(e,name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  e.target.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+}
+
+const DUMP_COLS=['Reference ID','Delivery Date','Day of Week','Week Number','Week Label','Month','Store','Rider ID','Rider Name','Owner ID','Order Type','Delivery Type','Delivery Slot','Delivery End Time','Delivery Hourly Pour','Fulfillment Status','Breach Status','Breach Bucket','Batch Status','Batch ID','Overlapping Order','Orders in Same Batch','C2P','P2OFD','OFD2RD','RD2T','C2T','RTS','Pickup to Drop Distance(Kms)','Manifested Time','Out For Pickup Time','Reached Pickup Time','Pickup Time','Out For Delivery Time','Reached Delivery Time','Terminal Time','Batch No.','Batch Order ID','Overlapping Time HMS','Time Diff HMS'];
+function rowToObj(r){const o={};DUMP_COLS.forEach(c=>{if(c==='Overlapping Time HMS')o['Overlapping Time']=r['Overlapping Time HMS']||'00:00:00';else if(c==='Time Diff HMS')o['Time Diff']=r['Time Diff HMS']||'00:00:00';else o[c]=r[c]!=null?r[c]:'';});return o;}
+function ovRow(r){return{Store:r.Store,'Reference ID':r['Reference ID'],'Rider ID':r['Rider ID'],'Rider Name':r['Rider Name'],'Batch ID':r['Batch ID']||'','Batch No.':r['Batch No.']||'','Overlapping Time':r['Overlapping Time HMS']||'00:00:00','Reached Delivery Time':r['Reached Delivery Time']||'','Terminal Time':r['Terminal Time']||'','Order Type':r['Order Type'],'Breach Status':r['Breach Status']||''};}
+
+function downloadOneStore(store){
+  const targetStr=fmtDMY(TARGET_DATE);
+  const rows=ALL_ROWS.filter(r=>r['Delivery Date']===targetStr&&r.Store===store);
+  const ov=rows.filter(r=>r['Overlapping Order']==='Yes');
+  if(!ov.length&&!rows.length){alert('No data for '+store+' on '+targetStr);return;}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ov.map(ovRow)),'Overlapping Report');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.map(rowToObj)),'dump sheet');
+  const tag=targetStr.replace(/-/g,'');
+  XLSX.writeFile(wb,`Overlapping_${store}_${tag}.xlsx`);
+}
+
+function downloadCombined(){
+  const data=getFiltered();if(!data.length){alert('No data');return;}
+  const ov=data.filter(r=>r['Overlapping Order']==='Yes');
+  const tag=fmtDMY(TARGET_DATE).replace(/-/g,'');
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ov.map(ovRow)),'Combined Overlapping');
+  const byStore={};data.forEach(r=>{if(!byStore[r.Store])byStore[r.Store]={total:0,batched:0,ov:0,riders:new Set()};byStore[r.Store].total++;if(r['Batch Status']==='Batch')byStore[r.Store].batched++;if(r['Overlapping Order']==='Yes')byStore[r.Store].ov++;byStore[r.Store].riders.add(r['Rider Name']);});
+  const sumRows=Object.keys(byStore).sort().map(s=>{const d=byStore[s];return{Store:s,'Total Orders':d.total,'Batched Orders':d.batched,'Overlapping Orders':d.ov,'Overlap Rate %':d.total?+(d.ov/d.total*100).toFixed(1):0,'Unique Riders':d.riders.size};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sumRows),'Summary by Store');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data.map(rowToObj)),'Full Dump');
+  XLSX.writeFile(wb,`Overlapping_COMBINED_${tag}.xlsx`);
+}
+
+function downloadStoreExcel(){
+  const data=getFiltered();if(!data.length){alert('No data');return;}
+  const byStore={};data.forEach(r=>{if(!byStore[r.Store])byStore[r.Store]=[];byStore[r.Store].push(r);});
+  const tag=fmtDMY(TARGET_DATE).replace(/-/g,'');
+  Object.keys(byStore).forEach(store=>{
+    const rows=byStore[store],ov=rows.filter(r=>r['Overlapping Order']==='Yes');
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.map(rowToObj)),'dump sheet');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ov.map(ovRow)),'Overlapping Report');
+    XLSX.writeFile(wb,`Overlapping_${store.replace(/\s+/g,'_')}_${tag}.xlsx`);
+  });
+}
+</script>
+</body>
+</html>
