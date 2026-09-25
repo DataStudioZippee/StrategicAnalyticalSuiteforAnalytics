@@ -378,7 +378,7 @@ input[type=date]{
             <b>Not_D0_Dispatched Orders</b> = Current Status = READY<br>
             <b>D0_Dispatched Orders</b> = Total Orders - (READY Orders with 0 attempt)<br>
             <b>Cancelled Orders</b> = Current Status = CANCELLED<br>
-            <b>FASR</b> = (DELIVERED Orders having Attempt = 0 / Total Orders) &times; 100
+            <b>FASR%</b> = (Delivered Orders / Processed Orders) &times; 100
         </div>
 
         <div style="text-align:right; margin-bottom:15px; margin-top:20px;">
@@ -812,8 +812,8 @@ function pctColour(pct){
 /* ------------------------------------------------------------
    KAPIVA — manual "Total Orders" override.
 
-   Every other brand computes D0%/FASR%/Delivered% against its own
-   ACTUAL processed count (s.total). For Kapiva, the person enters
+   Every other brand computes D0% / FASR% against its own ACTUAL
+   processed count (s.total). For Kapiva, the person enters
    Total Orders by hand per darkstore, and those percentages are
    computed against that manual number instead, via a Generate
    button rather than live as they type (matching the reference).
@@ -1143,7 +1143,7 @@ function render(){
     const ready     = rows.filter(r => r.status === "READY").length;
     const readyZero = rows.filter(r => r.status === "READY" && r.attempts === 0).length;
     const cancelled = rows.filter(r => r.status === "CANCELLED").length;
-    const fasr      = rows.filter(r => r.status === "DELIVERED" && r.attempts === 0).length;
+    const delivered = rows.filter(r => r.status === "DELIVERED").length;
 
     const pct = (n) => total > 0 ? ((n / total) * 100).toFixed(0) + "%" : "–";
 
@@ -1159,8 +1159,8 @@ function render(){
             <td>Total - (READY with 0 attempt)</td></tr>
         <tr><td><b>Cancelled</b></td><td>${cancelled} (${pct(cancelled)})</td>
             <td>Current Status = CANCELLED</td></tr>
-        <tr><td><b>FASR</b></td><td>${fasr} (${pct(fasr)})</td>
-            <td>DELIVERED with 0 attempt / Total</td></tr>
+        <tr><td><b>FASR%</b></td><td>${pct(delivered)} (${delivered} delivered)</td>
+            <td>Delivered / Total</td></tr>
     `;
 
     if(total === 0){
@@ -1211,7 +1211,7 @@ function render(){
         if(!store[dsKey]){
             store[dsKey] = {
                 total:0, readyZeroAttempt:0, cancelled:0,
-                fasrDelivered:0, delivered:0, notDispatched:0
+                delivered:0, notDispatched:0
             };
         }
 
@@ -1223,10 +1223,7 @@ function render(){
             if(r.attempts === 0) s.readyZeroAttempt++;
         }
         if(r.status === "CANCELLED") s.cancelled++;
-        if(r.status === "DELIVERED"){
-            s.delivered++;
-            if(r.attempts === 0) s.fasrDelivered++;
-        }
+        if(r.status === "DELIVERED") s.delivered++;
     });
 
     /* ---- build one table per brand, in sheet order ---- */
@@ -1325,10 +1322,8 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
             html += plainRowK("Processed",      s => s.total);
             html += plainRowK("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
             html += pctRowK  ("D0_Dispatched %","d0Pct");
-            html += plainRowK("FASR",           s => s.fasrDelivered);
-            html += pctRowK  ("FASR%",          "fasrPct");
             html += plainRowK("Delivered",      s => s.delivered);
-            html += pctRowK  ("Delivered%",     "delPct");
+            html += pctRowK  ("FASR%",          "delPct");   // FASR% = Delivered / Total Orders
             html += plainRowK("Cancelled",      s => s.cancelled);
 
             /* Wire the inputs + Generate button once this table is in the DOM */
@@ -1346,7 +1341,7 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
                 });
 
                 function doGenerate(){
-                    let sumOrders = 0, sumD0 = 0, sumFasr = 0, sumDelivered = 0;
+                    let sumOrders = 0, sumD0 = 0, sumDelivered = 0;
 
                     darkstores.forEach(ds => {
                         const s = brandStats[brand][ds];
@@ -1355,20 +1350,17 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
 
                         sumOrders    += totalOrders;
                         sumD0        += (s.total - s.readyZeroAttempt);
-                        sumFasr      += s.fasrDelivered;
                         sumDelivered += s.delivered;
 
-                        setKapivaPctCell(`d0Pct_${brandKey}_${dk(ds)}`,   s.total - s.readyZeroAttempt, totalOrders);
-                        setKapivaPctCell(`fasrPct_${brandKey}_${dk(ds)}`, s.fasrDelivered,              totalOrders);
-                        setKapivaPctCell(`delPct_${brandKey}_${dk(ds)}`,  s.delivered,                  totalOrders);
+                        setKapivaPctCell(`d0Pct_${brandKey}_${dk(ds)}`,  s.total - s.readyZeroAttempt, totalOrders);
+                        setKapivaPctCell(`delPct_${brandKey}_${dk(ds)}`, s.delivered,                  totalOrders);
                     });
 
                     const sumCell = document.getElementById(`totalOrdersSum_${brandKey}`);
                     if(sumCell) sumCell.innerHTML = `<b>${sumOrders}</b>`;
 
-                    setKapivaPctCell(`d0Pct_${brandKey}_total`,   sumD0,        sumOrders);
-                    setKapivaPctCell(`fasrPct_${brandKey}_total`, sumFasr,      sumOrders);
-                    setKapivaPctCell(`delPct_${brandKey}_total`,  sumDelivered, sumOrders);
+                    setKapivaPctCell(`d0Pct_${brandKey}_total`,  sumD0,        sumOrders);
+                    setKapivaPctCell(`delPct_${brandKey}_total`, sumDelivered, sumOrders);
                 }
 
                 const genBtn = document.querySelector(`button[data-generate-table="${tableId}"]`);
@@ -1399,10 +1391,8 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
             html += plainRow("Processed",      s => s.total);
             html += plainRow("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
             html += pctRow  ("D0_Dispatched %",s => s.total - s.readyZeroAttempt);
-            html += plainRow("FASR",           s => s.fasrDelivered);
-            html += pctRow  ("FASR%",          s => s.fasrDelivered);
             html += plainRow("Delivered",      s => s.delivered);
-            html += pctRow  ("Delivered%",     s => s.delivered);
+            html += pctRow  ("FASR%",          s => s.delivered);   // FASR% = Delivered / Processed
             html += plainRow("Cancelled",      s => s.cancelled);
         }
 
@@ -1510,7 +1500,7 @@ function renderDarkstoreWiseReport(dateVal){
         if(!mainStats[dsKey]){
             mainStats[dsKey] = {
                 total:0, readyZeroAttempt:0, cancelled:0,
-                fasrDelivered:0, delivered:0, notDispatched:0,
+                delivered:0, notDispatched:0,
                 riderIds: new Set()
             };
         }
@@ -1524,10 +1514,7 @@ function renderDarkstoreWiseReport(dateVal){
             if(r.attempts === 0) s.readyZeroAttempt++;
         }
         if(r.status === "CANCELLED") s.cancelled++;
-        if(r.status === "DELIVERED"){
-            s.delivered++;
-            if(r.attempts === 0) s.fasrDelivered++;
-        }
+        if(r.status === "DELIVERED") s.delivered++;
     });
 
     /* ---- render main table ---- */
@@ -1537,20 +1524,20 @@ function renderDarkstoreWiseReport(dateVal){
         return a.localeCompare(b);
     });
 
-    let totalProcessed = 0, totalD0 = 0, totalFasr = 0, totalDelivered = 0;
+    let totalProcessed = 0, totalD0 = 0, totalDelivered = 0;
     let totalNotDispatched = 0, totalNotDispatchedZero = 0, totalCancelled = 0;
     const totalRiders = new Set();
 
     let html = `
 <table class="eod-table">
 <tr>
-    <th colspan="12" style="background:#4ea6d8;color:#000;font-size:22px;font-weight:800;">
+    <th colspan="10" style="background:#4ea6d8;color:#000;font-size:22px;font-weight:800;">
         ZIPPEE &harr; DARKSTORE-WISE EOD REPORT | ${esc(formattedDate)}
     </th>
 </tr>
 <tr>
     <th>Darkstore</th><th>Processed</th><th>D0_Dispatched %</th><th>D0_Dispatched</th>
-    <th>FASR%</th><th>FASR</th><th>Delivered%</th><th>Delivered</th>
+    <th>FASR%</th><th>Delivered</th>
     <th>Cancelled</th><th>Not Dispatched</th><th>Not Dispatched + 0 Attempt</th><th>Unique Riders</th>
 </tr>`;
 
@@ -1560,14 +1547,12 @@ function renderDarkstoreWiseReport(dateVal){
         const uniqueRiders = s.riderIds.size;
         s.riderIds.forEach(id => totalRiders.add(id));
 
-        const d0Pct  = s.total ? (((s.total - s.readyZeroAttempt) / s.total) * 100).toFixed(2) : 0;
-        const fasrPct = s.total ? ((s.fasrDelivered / s.total) * 100).toFixed(2) : 0;
-        const delPct  = s.total ? ((s.delivered / s.total) * 100).toFixed(2) : 0;
+        const d0Pct   = s.total ? (((s.total - s.readyZeroAttempt) / s.total) * 100).toFixed(2) : 0;
+        const fasrPct = s.total ? ((s.delivered / s.total) * 100).toFixed(2) : 0;   // FASR% = Delivered / Processed
 
         totalProcessed += s.total;
         totalD0 += (s.total - s.readyZeroAttempt);
         totalCancelled += s.cancelled;
-        totalFasr += s.fasrDelivered;
         totalDelivered += s.delivered;
         totalNotDispatched += s.notDispatched;
         totalNotDispatchedZero += s.readyZeroAttempt;
@@ -1579,8 +1564,6 @@ function renderDarkstoreWiseReport(dateVal){
     <td>${d0Pct}%</td>
     <td>${s.total - s.readyZeroAttempt}</td>
     <td>${fasrPct}%</td>
-    <td>${s.fasrDelivered}</td>
-    <td>${delPct}%</td>
     <td>${s.delivered}</td>
     <td>${s.cancelled}</td>
     <td>${s.notDispatched}</td>
@@ -1595,8 +1578,6 @@ function renderDarkstoreWiseReport(dateVal){
     <td><b>${totalProcessed}</b></td>
     <td><b>${totalProcessed ? ((totalD0 / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
     <td><b>${totalD0}</b></td>
-    <td><b>${totalProcessed ? ((totalFasr / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
-    <td><b>${totalFasr}</b></td>
     <td><b>${totalProcessed ? ((totalDelivered / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
     <td><b>${totalDelivered}</b></td>
     <td><b>${totalCancelled}</b></td>
@@ -1605,7 +1586,7 @@ function renderDarkstoreWiseReport(dateVal){
     <td><b>${totalRiders.size}</b></td>
 </tr>
 <tr>
-    <td colspan="12" style="background:#D3D3D3;font-weight:700;text-align:center;padding:12px;">
+    <td colspan="10" style="background:#D3D3D3;font-weight:700;text-align:center;padding:12px;">
         Powered by SASA Automation | Zippee
     </td>
 </tr>
