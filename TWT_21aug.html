@@ -316,24 +316,6 @@ tr:hover td{
 
         <!-- SUMMARY TABLE -->
 
-        <div class="table-box">
-
-            <table>
-
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>Value</th>
-                        <th>Logic</th>
-                    </tr>
-                </thead>
-
-                <tbody id="summaryTable">
-                </tbody>
-
-            </table>
-
-</div>
 
         </div>
 
@@ -351,7 +333,7 @@ tr:hover td{
 
             <b>Cancelled Orders</b> = Current Status = CANCELLED<br>
 
-            <b>FASR</b> = (DELIVERED Orders having Attempt = 0 / Total Orders) × 100
+            <b>FASR%</b> = (Delivered Orders / Processed Orders) × 100
 
         </div>
 
@@ -538,7 +520,6 @@ if(!brandStats[brand][darkstore]){
         total:0,
         readyZeroAttempt:0,
         cancelled:0,
-        fasrDelivered:0,
         delivered:0,
         notDispatched:0,
     };
@@ -555,9 +536,6 @@ if(status === "READY"){
         brandStats[brand][darkstore].cancelled++;
     }
 
-    if(status === "DELIVERED" && attempts === "0"){
-    brandStats[brand][darkstore].fasrDelivered++;
-}
 if(status === "DELIVERED"){
     brandStats[brand][darkstore].delivered++;
 }
@@ -727,58 +705,6 @@ html += `
 html += `</tr>`;
 
 
-
-/* FASR Orders */
-
-html += `<tr><td class="yellow"><b>FASR</b></td>`;
-
-darkstores.forEach(ds => {
-
-    const s = brandStats[brand][ds];
-
-    html += `<td>${s.fasrDelivered}</td>`;
-});
-
-html += `</tr>`;
-
-
-/* FASR% */
-
-html += `<tr><td class="yellow"><b>FASR%</b></td>`;
-
-darkstores.forEach(ds => {
-
-    const s = brandStats[brand][ds];
-
-    const pct =
-        s.total > 0
-        ? ((s.fasrDelivered / s.total) * 100).toFixed(0)
-        : 0;
-
-    let bgColor = "";
-
-if(pct > 75){
-    bgColor = "#90EE90";   // Green
-}
-else if(pct >= 60){
-    bgColor = "#FFFF00";   // Yellow
-}
-else if(pct >= 50){
-    bgColor = "#F4A460";   // Orange
-}
-else {
-    bgColor = "#FF7F7F";   // Red
-}
-
-html += `
-<td style="background:${bgColor};font-weight:700;">
-    ${pct}%
-</td>`;
-});
-
-html += `</tr>`;
-
-
 /* Delivered */
 
 html += `<tr><td class="yellow"><b>Delivered</b></td>`;
@@ -793,9 +719,9 @@ darkstores.forEach(ds => {
 html += `</tr>`;
 
 
-/* Delivered% */
+/* FASR% (= Delivered / Processed) */
 
-html += `<tr><td class="yellow"><b>Delivered%</b></td>`;
+html += `<tr><td class="yellow"><b>FASR%</b></td>`;
 
 darkstores.forEach(ds => {
 
