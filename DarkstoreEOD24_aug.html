@@ -260,6 +260,21 @@ tr:hover td{
     font-weight:700;
 }
 
+.status{
+    margin-top:14px;
+    padding:12px 16px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+    line-height:1.6;
+    background:rgba(255,255,255,0.8);
+    color:#333;
+}
+
+.status.err{ background:#ffe2e2; color:#9b1c1c; }
+.status.ok{ background:#e3f7e8; color:#14632b; }
+.status.warn{ background:#fff4d6; color:#8a5a00; }
+
 .footer{
     text-align:center;
     margin-top:28px;
@@ -343,6 +358,9 @@ tr:hover td{
                    id="fileInput"
                    accept=".xlsx,.xls,.csv">
 
+            <div class="status" id="darkstoreStatus">Loading darkstore list from Google Sheet&hellip;</div>
+            <div class="status" id="dataStatus">No file loaded yet.</div>
+
         </div>
 
 
@@ -380,7 +398,7 @@ tr:hover td{
 
             <b>Cancelled Orders</b> = Current Status = CANCELLED<br>
 
-            <b>FASR</b> = (DELIVERED Orders having Attempt = 0 / Total Orders) × 100
+            <b>FASR%</b> = (Delivered Orders / Total Orders) × 100
 
         </div>
 
@@ -446,33 +464,171 @@ tr:hover td{
 
 <script>
 
+// ============================================================
+// DARKSTORE SHEET (published CSV)
+//   Column A = raw Darkstore value as it appears in the file
+//   Column B = the name to show in the report
+// Only darkstores listed in Column A are included.
+// Darkstores sharing the same Column B name are merged into
+// one row (e.g. the six Delhi stores -> Delhi_Hub).
+// Rows appear in the order their name first appears in the sheet.
+// ============================================================
+
+const DARKSTORE_SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=972734607&single=true&output=csv";
+
+let darkstoreMap   = new Map(); // lowercase raw darkstore -> report name
+let darkstoreOrder = [];        // report names, in sheet order
+
+function setStatus(id, msg, cls){
+    const el = document.getElementById(id);
+    el.className = "status" + (cls ? " " + cls : "");
+    el.innerHTML = msg;
+}
+
+function esc(s){
+    return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+}
+
+function cleanCell(v){
+    if(v === null || v === undefined) return "";
+    let s = String(v).trim();
+    if(s.startsWith('="') && s.endsWith('"')) s = s.slice(2, -1);
+    else if(s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1);
+    return s.trim();
+}
+
+// CSV parser that copes with quoted fields, commas and line breaks inside cells
+function parseCSV(text){
+    const rows = [];
+    let field = "", row = [], inQuotes = false;
+
+    for(let i = 0; i < text.length; i++){
+        const c = text[i];
+        if(inQuotes){
+            if(c === '"'){
+                if(text[i+1] === '"'){ field += '"'; i++; }
+                else inQuotes = false;
+            } else field += c;
+        } else {
+            if(c === '"') inQuotes = true;
+            else if(c === ',') { row.push(field); field = ""; }
+            else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; }
+            else if(c === '\r'){ }
+            else field += c;
+        }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows;
+}
+
+async function loadDarkstoreMap(){
+
+    setStatus("darkstoreStatus", "Loading darkstore list from Google Sheet&hellip;");
+
+    const res = await fetch(DARKSTORE_SHEET_URL + "&cacheBust=" + Date.now(), { cache:"no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+
+    const records = parseCSV(await res.text()).filter(r => r.some(f => cleanCell(f) !== ""));
+
+    // skip the header row ("Darkstore | Name")
+    if(records.length && /^darkstore$/i.test(cleanCell(records[0][0]))) records.shift();
+
+    const map = new Map();
+    const order = [];
+    const nameByKey = new Map();   // lowercase name -> first spelling seen
+    const missingName = [];
+
+    records.forEach(r => {
+        const raw  = cleanCell(r[0]).toLowerCase();
+        let   name = cleanCell(r[1]);
+        if(!raw) return;
+        if(!name){ missingName.push(cleanCell(r[0])); return; }
+
+        // same name typed with different capitals still merges
+        const key = name.toLowerCase();
+        if(!nameByKey.has(key)){ nameByKey.set(key, name); order.push(name); }
+        name = nameByKey.get(key);
+
+        if(!map.has(raw)) map.set(raw, name);
+    });
+
+    if(!map.size) throw new Error("the sheet has no darkstores in Column A");
+
+    darkstoreMap   = map;
+    darkstoreOrder = order;
+
+    let msg = "<b>" + map.size + " darkstore(s)</b> loaded, merged into <b>" +
+              order.length + "</b> report row(s): " + esc(order.join(", "));
+    let cls = "ok";
+
+    if(missingName.length){
+        msg += "<br>No name in Column B for: <b>" + esc(missingName.join(", ")) +
+               "</b> &mdash; these are left out.";
+        cls = "warn";
+    }
+
+    setStatus("darkstoreStatus", msg, cls);
+}
+
+function darkstoreLoadError(err){
+    setStatus("darkstoreStatus",
+        "<b>Could not load the darkstore sheet.</b> " + esc(err.message) +
+        "<br>If you opened this file directly from disk (file://), serve it over http instead &mdash; " +
+        "the browser blocks the request otherwise.", "err");
+}
+
 document.getElementById('fileInput')
 .addEventListener('change', handleFile);
 
 function handleFile(e){
 
     const file = e.target.files[0];
+    if(!file) return;
+
+    setStatus("dataStatus", "Reading <b>" + esc(file.name) + "</b>&hellip;");
 
     const reader = new FileReader();
 
-    reader.onload = function(event){
+    reader.onerror = () => setStatus("dataStatus", "Could not read that file.", "err");
 
-        const data = new Uint8Array(event.target.result);
+    reader.onload = async function(event){
 
-        const workbook = XLSX.read(data, {
-            type:'array'
-        });
+        // always re-read the sheet so the latest darkstore list is used
+        try{
+            await loadDarkstoreMap();
+        }catch(err){
+            darkstoreLoadError(err);
+            setStatus("dataStatus", "File not processed &mdash; the darkstore sheet is unavailable.", "err");
+            return;
+        }
 
-        const sheetName = workbook.SheetNames[0];
+        try{
+            const data = new Uint8Array(event.target.result);
 
-        const sheet = workbook.Sheets[sheetName];
+            const workbook = XLSX.read(data, {
+                type:'array'
+            });
 
-        const json = XLSX.utils.sheet_to_json(sheet);
+            const sheetName = workbook.SheetNames[0];
 
-        processData(json);
+            const sheet = workbook.Sheets[sheetName];
+
+            const json = XLSX.utils.sheet_to_json(sheet);
+
+            processData(json);
+
+        }catch(err){
+            setStatus("dataStatus", "Failed to process that file: " + esc(err.message), "err");
+        }
     };
 
     reader.readAsArrayBuffer(file);
+
+    // allow re-selecting the same file
+    e.target.value = "";
 }
 
 function processData(data){
@@ -521,6 +677,10 @@ const formattedDate =
 const darkstoreStats = {};
 const uniqueRiderStats = {};
 
+let includedRows = 0;
+let skippedRows = 0;
+const skippedStores = new Set();
+
 data.forEach(row => {
 
     const status = String(row["Current Status"] || "")
@@ -535,35 +695,24 @@ data.forEach(row => {
         "0"
     ).trim();
 
-    let darkstore = String(row["Darkstore"] || "").trim();
-    const allowedDarkstores = [
-    "zippee_okhla_sdd",
-    "zippee_ghaziabad_sdd",
-    "zippee_wazirpur_sdd",
-    "zippee_dwarka_sdd",
-    "zippee_gurugram_sdd",
-    "zipppee_noida_sdd",
-"koregaon park",
-    "zippee_horamavu_sdd",
-    "zippee_koramangala_sdd",
-    "zippee_andheri_sdd",
-    "zippee_koregaonpark_sdd",
-    "zippee_matunga_valkyriesdd",
-    "zippee_topsia_valkyriesdd",
-    "zippee_manikonda_sdd",
-    "zippee_periyamet_sdd",
-    "zippee_kalyannagar_sdd",
-    "zippee_topsia_valkyriesdd"
-];
+    const rawDarkstore = String(row["Darkstore"] || "").trim();
 
-if (!allowedDarkstores.includes(darkstore.toLowerCase())) {
-    return;
-}
-// ---------- UNIQUE RIDER REPORT (NO DELHI HUB) ----------
+    // Only darkstores listed in Column A of the sheet; renamed (and merged) by Column B
+    const darkstore = darkstoreMap.get(rawDarkstore.toLowerCase());
 
-if (!uniqueRiderStats[darkstore]) {
+    if (!darkstore) {
+        skippedRows++;
+        if (rawDarkstore) skippedStores.add(rawDarkstore);
+        return;
+    }
 
-    uniqueRiderStats[darkstore] = {
+    includedRows++;
+
+// ---------- UNIQUE RIDER REPORT (individual darkstores, not merged) ----------
+
+if (!uniqueRiderStats[rawDarkstore]) {
+
+    uniqueRiderStats[rawDarkstore] = {
         riderIds: new Set()
     };
 
@@ -573,29 +722,15 @@ const originalRiderId = String(row["Rider ID"] || "").trim();
 
 if (originalRiderId !== "") {
 
-    uniqueRiderStats[darkstore].riderIds.add(originalRiderId);
+    uniqueRiderStats[rawDarkstore].riderIds.add(originalRiderId);
 
 }
-
-    const delhiHubStores = [
-        "zippee_okhla_sdd",
-        "zippee_ghaziabad_sdd",
-        "zippee_wazirpur_sdd",
-        "zippee_dwarka_sdd",
-        "zippee_gurugram_sdd",
-        "zipppee_noida_sdd"
-    ];
-
-    if(delhiHubStores.includes(darkstore.toLowerCase())){
-        darkstore = "DEL_HUB";
-    }
 
     if(!darkstoreStats[darkstore]){
     darkstoreStats[darkstore] = {
         total:0,
         readyZeroAttempt:0,
         cancelled:0,
-        fasrDelivered:0,
         delivered:0,
         notDispatched:0,
         riderIds:new Set()
@@ -619,39 +754,37 @@ if(status==="READY")
 if(status==="CANCELLED")
     s.cancelled++;
 
-if(status==="DELIVERED" && attempts==="0")
-    s.fasrDelivered++;
-
 if(status==="DELIVERED")
     s.delivered++;});
 
 const eodTable =
     document.getElementById("reportTable");
 
-const darkstores = Object.keys(darkstoreStats).sort((a, b) => {
+// rows in the same order as their names first appear in the sheet
+const darkstores = darkstoreOrder.filter(name => darkstoreStats[name]);
 
-    if (a === "DEL_HUB") return -1;
-    if (b === "DEL_HUB") return 1;
+if (!darkstores.length) {
+    eodTable.innerHTML = "";
+    document.getElementById("uniqueRiderReport").innerHTML = "";
+    setStatus("dataStatus",
+        "Loaded <b>" + data.length + "</b> rows, but none belong to a darkstore listed in the sheet.", "warn");
+    return;
+}
 
-    return a.localeCompare(b);
-
-});
 let totalProcessed = 0;
 let totalD0Dispatched = 0;
-let totalFasr = 0;
 let totalDelivered = 0;
 let totalNotDispatched = 0;
 let totalNotDispatchedZeroAttempt = 0;
 let totalCancelled = 0;
 let totalD0Pct = 0;
-let totalFasrPct = 0;
 let totalUniqueRiders = new Set();
 let html = `
 <table class="eod-table">
     
 
 <tr>
-<th colspan="12"
+<th colspan="10"
 style="
 background:#4ea6d8;
 color:#000;
@@ -668,8 +801,6 @@ ZIPPEE ↔ EOD REPORT (${formattedDate})
 <th>D0_Dispatched %</th>
 <th>D0_Dispatched</th>
 <th>FASR%</th>
-<th>FASR</th>
-<th>Delivered%</th>
 <th>Delivered</th>
 <th>Cancelled</th>
 <th>Not Dispatched</th>
@@ -690,38 +821,18 @@ s.riderIds.forEach(id => totalUniqueRiders.add(id));
         ? (((s.total-s.readyZeroAttempt)/s.total)*100).toFixed(2)
         : 0;
 
-    const fasrPct = s.total
-        ? ((s.fasrDelivered/s.total)*100).toFixed(2)
-        : 0;
 const deliveredPct = s.total
     ? ((s.delivered/s.total)*100).toFixed(2)
     : 0;
 totalProcessed += s.total;
 totalD0Dispatched += (s.total - s.readyZeroAttempt);
 totalCancelled += s.cancelled;
-totalFasr += s.fasrDelivered;
 totalDelivered += s.delivered;
 totalNotDispatched += s.notDispatched;
 totalNotDispatchedZeroAttempt += s.readyZeroAttempt;
 
 totalD0Pct += Number(d0Pct);
-totalFasrPct += Number(fasrPct);
-    let name = ds;
-
-    if(name !== "DEL_HUB"){
-
-        name = name
-            .replace("zippee_","")
-            .replace(/_sdd$/i,"")
-            .replace(/_/g," ")
-            .replace(/\b\w/g,c=>c.toUpperCase());
-
-        if(name==="Matunga Valkyriesdd")
-            name="Matunga";
-
-        if(name==="Topsia Valkyriesdd")
-            name="Kolkata";
-    }
+    const name = esc(ds);
 
    html += `
 <tr>
@@ -733,10 +844,6 @@ totalFasrPct += Number(fasrPct);
     <td>${d0Pct}%</td>
 
     <td>${s.total-s.readyZeroAttempt}</td>
-
-    <td>${fasrPct}%</td>
-
-    <td>${s.fasrDelivered}</td>
 
     <td>${deliveredPct}%</td>
 
@@ -772,14 +879,6 @@ html += `
     <td><b>${totalD0Dispatched}</b></td>
 
     <td><b>${
-    totalProcessed
-        ? ((totalFasr / totalProcessed) * 100).toFixed(2)
-        : 0
-}%</b></td>
-
-    <td><b>${totalFasr}</b></td>
-
-    <td><b>${
         totalProcessed
             ? ((totalDelivered / totalProcessed) * 100).toFixed(2)
             : 0
@@ -800,7 +899,7 @@ html += `
 
 html += `
 <tr>
-<td colspan="12"
+<td colspan="10"
 style="
 background:#D3D3D3;
 font-weight:700;
@@ -866,7 +965,7 @@ riderStores.forEach(ds => {
     let displayName = ds;
 
     displayName = displayName
-        .replace("zippee_","")
+        .replace(/^zipp+ee_/i,"")
         .replace(/_sdd$/i,"")
         .replace(/_/g," ")
         .replace(/\b\w/g,c=>c.toUpperCase());
@@ -886,7 +985,7 @@ riderStores.forEach(ds => {
     riderHtml += `
 <tr>
 
-<td><b>${displayName}</b></td>
+<td><b>${esc(displayName)}</b></td>
 
 <td>${riderCount}</td>
 
@@ -921,6 +1020,18 @@ Powered by SASA Automation | Zippee
 </table>
 `;
 uniqueTable.innerHTML = riderHtml;
+
+let statusMsg = "Loaded <b>" + data.length + "</b> rows | <b>" + includedRows +
+    "</b> from darkstores in the sheet | <b>" + darkstores.length + "</b> report row(s).";
+let statusCls = "ok";
+
+if (skippedRows) {
+    statusMsg += "<br><b>" + skippedRows + "</b> row(s) left out &mdash; darkstore not in the sheet: " +
+        esc([...skippedStores].sort().join(", "));
+    statusCls = "warn";
+}
+
+setStatus("dataStatus", statusMsg, statusCls);
 }
 
 function downloadPNG(){
@@ -977,6 +1088,8 @@ window.addEventListener("load", () => {
         yesterday.getFullYear() + "-" +
         String(yesterday.getMonth() + 1).padStart(2,"0") + "-" +
         String(yesterday.getDate()).padStart(2,"0");
+
+    loadDarkstoreMap().catch(darkstoreLoadError);
 });
 </script>
 
