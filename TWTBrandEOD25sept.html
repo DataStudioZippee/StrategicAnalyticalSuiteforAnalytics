@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Zippee – SDD EOD Dashboard</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+
+:root{
+    --primary-900:#003f8c;
+    --glass-bg:rgba(255,255,255,0.16);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.25);
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI", Arial, sans-serif;
+}
+
+body{
+    background:url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1920&auto=format&fit=crop') center/cover fixed no-repeat;
+    min-height:100vh;
+    padding:30px;
+}
+
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,.22);
+    backdrop-filter:blur(7px);
+    z-index:-1;
+}
+
+.container{
+    max-width:1500px;
+    margin:auto;
+}
+
+.header{
+    background:linear-gradient(90deg,rgba(0,63,140,.88),rgba(0,89,179,.88));
+    color:white;
+    padding:20px 35px;
+    border-radius:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:var(--card-shadow);
+    margin-bottom:28px;
+}
+
+.header h1{
+    font-size:30px;
+    font-weight:800;
+}
+
+.logo{
+    height:50px;
+}
+
+.main-card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(10px) saturate(120%);
+    border-radius:22px;
+    padding:30px;
+    box-shadow:var(--card-shadow);
+}
+
+.upload-section{
+    margin-bottom:30px;
+}
+
+.upload-title{
+    font-size:22px;
+    font-weight:700;
+    color:var(--primary-900);
+    margin-bottom:16px;
+}
+
+input[type=file]{
+    width:100%;
+    padding:16px;
+    border-radius:14px;
+    border:2px dashed #5b7cff;
+    background:rgba(255,255,255,0.55);
+    font-size:15px;
+    cursor:pointer;
+}
+
+/* Darkstore mapping status strip */
+.map-status{
+    margin-top:14px;
+    background:rgba(255,255,255,0.72);
+    border-radius:12px;
+    padding:12px 16px;
+    font-size:14px;
+    color:#2d3b52;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+.map-status b{
+    color:var(--primary-900);
+}
+
+.map-status button{
+    background:#003f8c;
+    color:white;
+    border:none;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.map-status .warn{
+    color:#b3261e;
+    font-weight:700;
+}
+
+/* Google Sheet link note */
+.sheet-note{
+    margin-top:12px;
+    background:rgba(255,255,255,0.72);
+    border-left:5px solid #003f8c;
+    border-radius:12px;
+    padding:14px 16px;
+    font-size:14px;
+    color:#2d3b52;
+    line-height:1.6;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+.sheet-note b{
+    color:var(--primary-900);
+}
+
+.sheet-link-row{
+    margin-top:10px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.sheet-link-row a{
+    flex:1 1 320px;
+    min-width:0;
+    color:#1565c0;
+    font-size:13px;
+    word-break:break-all;
+    background:rgba(255,255,255,0.85);
+    border:1px solid #c9d6e8;
+    border-radius:8px;
+    padding:8px 10px;
+}
+
+.copy-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    background:#003f8c;
+    color:white;
+    border:none;
+    padding:9px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
+}
+
+.copy-btn:hover{
+    background:#0056bf;
+}
+
+.copy-btn.copied{
+    background:#00a651;
+}
+
+.cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:22px;
+    margin-bottom:35px;
+}
+
+.card{
+    background:rgba(255,255,255,0.82);
+    backdrop-filter:blur(8px);
+    border-radius:20px;
+    padding:24px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.12);
+    transition:0.3s;
+}
+
+.card:hover{
+    transform:translateY(-6px);
+}
+
+.card-title{
+    font-size:15px;
+    color:#666;
+    margin-bottom:12px;
+    font-weight:600;
+}
+
+.card-value{
+    font-size:42px;
+    font-weight:800;
+}
+
+.success{
+    color:#00a651;
+}
+
+.danger{
+    color:#e53935;
+}
+
+.info{
+    color:#1565c0;
+}
+
+.warning{
+    color:#ff9800;
+}
+
+.table-box{
+    overflow:auto;
+    margin-top:20px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+}
+
+th{
+    background:#003f8c;
+    color:white;
+    padding:14px;
+    text-align:center;
+    font-size:14px;
+}
+
+td{
+    padding:13px;
+    font-size:14px;
+    text-align:center;
+    border:1px solid #808080;
+}
+
+tr:hover td{
+    background:#f8fbff;
+}
+
+.formula{
+    margin-top:24px;
+    background:rgba(255,255,255,0.72);
+    padding:20px;
+    border-radius:16px;
+    line-height:1.9;
+    box-shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+
+.formula b{
+    color:#003f8c;
+}
+
+.eod-table{
+    margin-top:40px;
+    width:auto;
+    table-layout:auto;
+}
+.eod-table th,
+.eod-table td{
+    min-width:90px;
+    padding:12px;
+    border:1px solid #808080;
+}
+
+.eod-table th:first-child,
+.eod-table td:first-child{
+    min-width:160px;
+}
+.eod-title{
+    background:#355c8a !important;
+    color:white;
+    text-align:center;
+    font-size:22px;
+    font-weight:800;
+}
+
+.yellow{
+    background:#ffffff;
+    color:#000000;
+    font-weight:700;
+}
+
+.orange{
+    background:#f4a460;
+    font-weight:700;
+}
+
+.gray{
+    background:#f2f2f2;
+    font-weight:700;
+}
+
+.footer{
+    text-align:center;
+    margin-top:28px;
+    color:#ffffff;
+    font-weight:700;
+    font-size:13px;
+}
+
+@media(max-width:768px){
+
+    .header{
+        flex-direction:column;
+        gap:14px;
+        text-align:center;
+    }
+
+    .header h1{
+        font-size:24px;
+    }
+
+    .card-value{
+        font-size:34px;
+    }
+
+    .eod-table{
+        width:100%;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- HEADER -->
+
+    <div class="header">
+        <h1>Zippee – SDD EOD Dashboard</h1>
+
+        <img class="logo"
+        src="SASA.png"  >
+    </div>
+
+    <!-- MAIN CARD -->
+
+    <div class="main-card">
+
+        <!-- FILE UPLOAD -->
+
+        <div class="upload-section">
+
+            <div class="upload-title">
+                Upload Shipment CSV / Excel File
+            </div>
+            <div style="margin-bottom:15px;">
+
+    <label style="
+        font-weight:700;
+        color:#003f8c;
+        margin-right:10px;
+        font-size:16px;
+    ">
+        Select Report Date:
+    </label>
+
+    <input type="date"
+           id="reportDate"
+           style="
+            padding:10px;
+            border-radius:10px;
+            border:none;
+            font-size:15px;
+           ">
+
+</div>
+
+
+            <input type="file"
+                   id="fileInput"
+                   accept=".xlsx,.xls,.csv">
+
+            <!-- DARKSTORE MAPPING STATUS -->
+            <div class="map-status" id="mapStatus">
+                <span id="mapStatusText">Loading darkstore names from Google Sheet…</span>
+                <button onclick="refreshMapping()">Reload darkstore list</button>
+                <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                    <input type="checkbox" id="includeUnmapped" onchange="rebuildReport()">
+                    Show darkstores that are not in the sheet
+                </label>
+            </div>
+
+            <!-- GOOGLE SHEET NOTE -->
+            <div class="sheet-note">
+
+                <div class="sheet-note-text">
+                    Darkstore names live in the <b>SDD Brand EOD</b> sheet, Darkstore tab.
+                    To add a new darkstore, put the exact value from the shipment file in
+                    column A and the name you want on the report in column B, then press
+                    “Reload darkstore list” here.
+                </div>
+
+                <div class="sheet-link-row">
+
+                    <a id="sheetLink"
+                       href="https://docs.google.com/spreadsheets/d/1Wd2p0PlCk58Y-hLmu9gS9oKo8oJyqivwzzt7BlKQlWE/edit?gid=972734607#gid=972734607"
+                       target="_blank"
+                       rel="noopener">
+                        https://docs.google.com/spreadsheets/d/1Wd2p0PlCk58Y-hLmu9gS9oKo8oJyqivwzzt7BlKQlWE/edit?gid=972734607#gid=972734607
+                    </a>
+
+                    <button class="copy-btn"
+                            id="copySheetBtn"
+                            onclick="copySheetLink()"
+                            title="Copy sheet link"
+                            aria-label="Copy sheet link">
+                        <svg viewBox="0 0 24 24" width="16" height="16"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        <span id="copySheetLabel">Copy link</span>
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- SUMMARY TABLE -->
+
+
+        </div>
+
+        <!-- FORMULA -->
+
+        <div class="formula">
+
+            <b>Metrics Logic:</b><br><br>
+
+            <b>Total Orders</b> = Count of all rows/orders<br>
+
+            <b>Not_D0_Dispatched Orders</b> = Current Status = READY<br>
+
+            <b>D0_Dispatched Orders</b> = Total Orders - (READY Orders with 0 attempt) <br>
+
+            <b>Cancelled Orders</b> = Current Status = CANCELLED<br>
+
+            <b>FASR%</b> = (Delivered Orders / Processed Orders) × 100<br>
+
+            <b>Columns</b> = Darkstore names come from the published Google Sheet; darkstores sharing a name are added together
+
+        </div>
+
+        <!-- FINAL EOD TABLE -->
+        <div style="text-align:right; margin-bottom:15px;">
+
+    <button onclick="downloadPNG()"
+        style="
+            background:#003f8c;
+            color:white;
+            border:none;
+            padding:12px 22px;
+            border-radius:10px;
+            font-size:15px;
+            font-weight:700;
+            cursor:pointer;
+        ">
+
+        Download Report PNG
+
+    </button>
+
+</div>
+        <div class="table-box" id="reportTable">
+</div>
+    </div>
+
+    <!-- FOOTER -->
+
+    <div class="footer">
+        Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee
+    </div>
+
+</div>
+
+<script>
+
+/* ============================================================
+   DARKSTORE NAME MAPPING (from published Google Sheet CSV)
+   Sheet columns: "Darkstore" (raw value) | "Name" (display name)
+   Several raw darkstores may share one Name -> their numbers add up.
+   ============================================================ */
+
+const MAPPING_CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=972734607&single=true&output=csv";
+
+let darkstoreMap   = {};   // normalised raw -> "Delhi_Hub"
+let darkstoreCore  = {};   // core key (prefix/suffix stripped) -> name
+let darkstoreOrder = [];   // display names, in sheet order (column order)
+let mappingReady   = null; // promise, awaited before a file is processed
+let unmappedSeen   = {};   // raw values in the upload with no sheet entry -> count
+let lastData       = null; // rows from the last uploaded file
+
+/* "zippee_Okhla_SDD " , "gurugram-clinikally" -> letters+digits only */
+function normKey(s){
+    return String(s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g,"");
+}
+
+/* same, minus the zippee_ prefix and the sdd / valkyriesdd suffix */
+function coreKey(s){
+    return normKey(s)
+        .replace(/^zip+ee/,"")
+        .replace(/valkyriesdd$/,"")
+        .replace(/sdd$/,"");
+}
+
+/* read a column whatever its spacing / capitalisation in the header */
+function getField(row, names){
+
+    for(const n of names){
+        if(row[n] !== undefined && row[n] !== null && row[n] !== ""){
+            return row[n];
+        }
+    }
+
+    const wanted = names.map(normKey);
+
+    for(const key in row){
+        if(wanted.includes(normKey(key))){
+            return row[key];
+        }
+    }
+
+    return "";
+}
+
+function setMapStatus(html){
+    document.getElementById("mapStatusText").innerHTML = html;
+}
+
+function loadDarkstoreMapping(){
+
+    setMapStatus("Loading darkstore names from Google Sheet…");
+
+    mappingReady = fetch(MAPPING_CSV_URL + "&t=" + Date.now(), {cache:"no-store"})
+
+        .then(res => {
+            if(!res.ok){
+                throw new Error("HTTP " + res.status);
+            }
+            return res.text();
+        })
+
+        .then(text => {
+
+            const wb = XLSX.read(text, {type:"string"});
+
+            const rows = XLSX.utils.sheet_to_json(
+                wb.Sheets[wb.SheetNames[0]]
+            );
+
+            darkstoreMap   = {};
+            darkstoreCore  = {};
+            darkstoreOrder = [];
+
+            rows.forEach(r => {
+
+                const raw  = String(getField(r, ["Darkstore"])).trim();
+                const name = String(getField(r, ["Name"])).trim();
+
+                if(!raw || !name){
+                    return;
+                }
+
+                darkstoreMap[normKey(raw)] = name;
+
+                /* looser key – only kept when it is unambiguous */
+                const core = coreKey(raw);
+
+                if(core){
+                    darkstoreCore[core] =
+                        (darkstoreCore[core] && darkstoreCore[core] !== name)
+                        ? ""
+                        : name;
+                }
+
+                if(!darkstoreOrder.includes(name)){
+                    darkstoreOrder.push(name);
+                }
+            });
+
+            setMapStatus(
+                "Darkstore names loaded: <b>" +
+                Object.keys(darkstoreMap).length +
+                "</b> darkstores grouped into <b>" +
+                darkstoreOrder.length +
+                "</b> columns."
+            );
+        })
+
+        .catch(err => {
+
+            darkstoreMap   = {};
+            darkstoreOrder = [];
+
+            setMapStatus(
+                "<span class='warn'>Could not load the darkstore sheet (" +
+                err.message +
+                ").</span> Reports will use the raw darkstore names from the file. " +
+                "Open this page through a local server (VS Code “Go Live”) rather than double-clicking the file, then reload the list."
+            );
+        });
+
+    return mappingReady;
+}
+
+/* copy the Google Sheet link to the clipboard */
+function copySheetLink(){
+
+    const url =
+        document.getElementById("sheetLink").href;
+
+    const btn   = document.getElementById("copySheetBtn");
+    const label = document.getElementById("copySheetLabel");
+
+    const done = ok => {
+
+        label.textContent = ok ? "Copied" : "Press Ctrl+C";
+
+        btn.classList.toggle("copied", ok);
+
+        setTimeout(() => {
+            label.textContent = "Copy link";
+            btn.classList.remove("copied");
+        }, 2000);
+    };
+
+    if(navigator.clipboard && window.isSecureContext){
+
+        navigator.clipboard.writeText(url)
+            .then(() => done(true))
+            .catch(() => done(legacyCopy(url)));
+    }
+    else {
+        done(legacyCopy(url));
+    }
+}
+
+function legacyCopy(text){
+
+    const box = document.createElement("textarea");
+
+    box.value = text;
+    box.style.position = "fixed";
+    box.style.opacity  = "0";
+
+    document.body.appendChild(box);
+    box.select();
+
+    let ok = false;
+
+    try {
+        ok = document.execCommand("copy");
+    }
+    catch(e){
+        ok = false;
+    }
+
+    document.body.removeChild(box);
+
+    return ok;
+}
+
+function refreshMapping(){
+    loadDarkstoreMapping().then(() => {
+        rebuildReport();
+    });
+}
+
+/* redraw the tables from the file already uploaded */
+function rebuildReport(){
+    if(lastData){
+        processData(lastData);
+    }
+}
+
+/* Used only when a darkstore is missing from the sheet */
+function fallbackName(raw){
+
+    let s = raw
+        .replace(/^zip+ee[_\s-]*/i,"")
+        .replace(/[_\s-]*valkyriesdd$/i,"")
+        .replace(/[_\s-]*sdd$/i,"")
+        .replace(/[_\s-]+/g," ")
+        .trim();
+
+    if(!s){
+        return "Unmapped";
+    }
+
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/* Raw darkstore value -> column name shown in the report */
+function displayDarkstore(raw){
+
+    const value = String(raw || "").trim();
+
+    /* 1. exact match, ignoring case, spaces, _ and - */
+    const key = normKey(value);
+
+    if(darkstoreMap[key]){
+        return darkstoreMap[key];
+    }
+
+    /* 2. match after dropping the zippee_ prefix and _sdd suffix */
+    const core = coreKey(value);
+
+    if(core && darkstoreCore[core]){
+        return darkstoreCore[core];
+    }
+
+    /* 3. not in the sheet – count it, then leave it out of the report
+          (unless the "include" box is ticked) */
+    if(value){
+        unmappedSeen[value] = (unmappedSeen[value] || 0) + 1;
+    }
+
+    const includeBox =
+        document.getElementById("includeUnmapped");
+
+    if(includeBox && includeBox.checked){
+        return fallbackName(value);
+    }
+
+    return "";
+}
+
+
+/* ============================================================
+   FILE HANDLING
+   ============================================================ */
+
+document.getElementById('fileInput')
+.addEventListener('change', handleFile);
+
+async function handleFile(e){
+
+    const file = e.target.files[0];
+
+    if(!file){
+        return;
+    }
+
+    /* make sure the darkstore names are in before building tables */
+    await mappingReady;
+
+    const reader = new FileReader();
+
+    reader.onload = function(event){
+
+        const data = new Uint8Array(event.target.result);
+
+        const workbook = XLSX.read(data, {
+            type:'array'
+        });
+
+        const sheetName = workbook.SheetNames[0];
+
+        const sheet = workbook.Sheets[sheetName];
+
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        lastData = json;
+
+        processData(json);
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function processData(data){
+
+    unmappedSeen = {};
+
+    const allowedBrands = [
+        "The Whole Truth"
+    ];
+
+    /* ---------- REPORT DATE ---------- */
+
+    const creationDates = data
+        .map(row => String(row["Creation Date"] || "").trim())
+        .filter(x => x);
+
+    let maxDate = null;
+
+    creationDates.forEach(dt => {
+
+        const datePart = dt.split(" ")[0];
+
+        const [dd, mm, yyyy] = datePart.split("/");
+
+        if(!dd || !mm || !yyyy){
+            return;
+        }
+
+        const currentDate =
+            new Date(`${yyyy}-${mm}-${dd}`);
+
+        if(isNaN(currentDate)){
+            return;
+        }
+
+        if(!maxDate || currentDate > maxDate){
+            maxDate = currentDate;
+        }
+    });
+
+    const selectedDate =
+        document.getElementById("reportDate").value;
+
+    let formattedDate;
+
+    if(selectedDate){
+        formattedDate =
+            new Date(selectedDate).toLocaleDateString("en-GB");
+    }
+    else if(maxDate){
+        formattedDate =
+            String(maxDate.getDate()).padStart(2,"0") + "/" +
+            String(maxDate.getMonth()+1).padStart(2,"0") + "/" +
+            maxDate.getFullYear();
+    }
+    else {
+        formattedDate =
+            new Date().toLocaleDateString("en-GB");
+    }
+
+
+    /* ---------- BRAND x DARKSTORE STATS ---------- */
+
+    const brandStats = {};
+
+    data.forEach(row => {
+
+        const brand =
+            String(getField(row, ["Brand Name"])).trim();
+
+        if(!allowedBrands.includes(brand)){
+            return;
+        }
+
+        const status =
+            String(getField(row, ["Current Status"]))
+            .trim()
+            .toUpperCase();
+
+        const attempts = String(
+            row["No. of Attempts"] ??
+            row["No. of Attemp"] ??
+            row["No Of Attempts"] ??
+            row["Attempt"] ??
+            "0"
+        ).trim();
+
+        /* raw darkstore -> name from the Google Sheet.
+           Two raw darkstores with the same name land on the
+           same key here, so their counts add up automatically. */
+        const darkstore =
+            displayDarkstore(getField(row, ["Darkstore"]));
+
+        /* darkstore not listed in the Google Sheet -> leave the order out */
+        if(!darkstore){
+            return;
+        }
+
+        if(!brandStats[brand]){
+            brandStats[brand] = {};
+        }
+
+        if(!brandStats[brand][darkstore]){
+
+            brandStats[brand][darkstore] = {
+                total:0,
+                readyZeroAttempt:0,
+                cancelled:0,
+                delivered:0,
+                notDispatched:0
+            };
+        }
+
+        brandStats[brand][darkstore].total++;
+
+        if(status === "READY" && attempts === "0"){
+            brandStats[brand][darkstore].readyZeroAttempt++;
+        }
+
+        if(status === "READY"){
+            brandStats[brand][darkstore].notDispatched++;
+        }
+
+        if(status === "CANCELLED"){
+            brandStats[brand][darkstore].cancelled++;
+        }
+
+        if(status === "DELIVERED"){
+            brandStats[brand][darkstore].delivered++;
+        }
+    });
+
+
+    /* ---------- RENDER ---------- */
+
+    const eodTable =
+        document.getElementById("reportTable");
+
+    let html = "";
+
+    allowedBrands.forEach(brand => {
+
+        const present =
+            Object.keys(brandStats[brand] || {});
+
+        if(present.length === 0){
+            return;
+        }
+
+        /* columns follow the sheet order; anything not in the
+           sheet is appended at the end, alphabetically */
+        const darkstores =
+            darkstoreOrder.filter(n => present.includes(n))
+            .concat(
+                present
+                    .filter(n => !darkstoreOrder.includes(n))
+                    .sort()
+            );
+
+        html += `
+<div style="
+    margin-bottom:40px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+">
+
+<button
+    onclick="downloadBrandReport('${brand}')"
+    style="
+        margin-bottom:10px;
+        background:#003f8c;
+        color:white;
+        border:none;
+        padding:10px 18px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:700;
+    ">
+    Download ${brand} PNG
+</button>
+
+<table
+    id="report-${brand.replace(/[^a-zA-Z0-9]/g,'')}"
+    class="eod-table"
+    style="width:auto;">
+
+<tr>
+    <th colspan="${darkstores.length + 1}"
+    style="
+        font-size:22px;
+        padding:18px;
+        background:#ffffff;
+        color:#000000;
+        text-align:center;
+        font-weight:800;
+        border-bottom:2px solid #dcdcdc;
+    ">
+        ZIPPEE ↔ ${brand} EOD REPORT | ${formattedDate}
+    </th>
+</tr>
+
+<tr>
+    <td class="yellow"><b>Metric</b></td>
+`;
+
+        /* Header row – names exactly as in the Google Sheet */
+
+        darkstores.forEach(ds => {
+            html += `<td class="yellow"><b>${ds}</b></td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* Processed */
+
+        html += `<tr><td class="yellow"><b>Processed</b></td>`;
+
+        darkstores.forEach(ds => {
+            html += `<td>${brandStats[brand][ds].total}</td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* D0 Dispatched */
+
+        html += `<tr><td class="yellow"><b>D0_Dispatched</b></td>`;
+
+        darkstores.forEach(ds => {
+
+            const s = brandStats[brand][ds];
+
+            html += `<td>${s.total - s.readyZeroAttempt}</td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* D0 % */
+
+        html += `<tr><td class="yellow"><b>D0_Dispatched %</b></td>`;
+
+        darkstores.forEach(ds => {
+
+            const s = brandStats[brand][ds];
+
+            const pct =
+                s.total > 0
+                ? (((s.total - s.readyZeroAttempt) / s.total) * 100).toFixed(0)
+                : 0;
+
+            html += `
+<td style="background:${pctColor(pct)};font-weight:700;">
+    ${pct}%
+</td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* Delivered */
+
+        html += `<tr><td class="yellow"><b>Delivered</b></td>`;
+
+        darkstores.forEach(ds => {
+            html += `<td>${brandStats[brand][ds].delivered}</td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* FASR% (= Delivered / Processed) */
+
+        html += `<tr><td class="yellow"><b>FASR%</b></td>`;
+
+        darkstores.forEach(ds => {
+
+            const s = brandStats[brand][ds];
+
+            const pct =
+                s.total > 0
+                ? ((s.delivered / s.total) * 100).toFixed(0)
+                : 0;
+
+            html += `
+    <td style="background:${pctColor(pct)};font-weight:700;">
+        ${pct}%
+    </td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* Cancelled */
+
+        html += `<tr><td class="yellow"><b>Cancelled</b></td>`;
+
+        darkstores.forEach(ds => {
+            html += `<td>${brandStats[brand][ds].cancelled}</td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* Not Dispatched */
+
+        html += `<tr><td class="yellow"><b>Not Dispatched</b></td>`;
+
+        darkstores.forEach(ds => {
+            html += `<td>${brandStats[brand][ds].notDispatched}</td>`;
+        });
+
+        html += `</tr>`;
+
+
+        /* Not Dispatched + 0 Attempt */
+
+        html += `<tr><td class="yellow"><b>Not Dispatched + 0 Attempt</b></td>`;
+
+        darkstores.forEach(ds => {
+
+            const s = brandStats[brand][ds];
+
+            html += `<td>${s.readyZeroAttempt}</td>`;
+        });
+
+        html += `</tr>`;
+
+        html += `
+<tr>
+    <td colspan="${darkstores.length + 1}"
+        style="
+            background:#D3D3D3;
+            color:#000000;
+            font-size:13px;
+            font-weight:700;
+            letter-spacing:0.5px;
+            text-align:center;
+            padding:12px;
+        ">
+        Powered by SASA Automation | Zippee
+    </td>
+</tr>
+
+</table>
+</div>
+`;
+    });
+
+    eodTable.innerHTML = html;
+
+    /* tell the user which darkstores are missing from the sheet */
+    const missing = Object.keys(unmappedSeen);
+
+    const includeBox =
+        document.getElementById("includeUnmapped");
+
+    const showing = includeBox && includeBox.checked;
+
+    if(missing.length){
+
+        setMapStatus(
+            "Darkstore names loaded: <b>" +
+            Object.keys(darkstoreMap).length +
+            "</b> darkstores in <b>" +
+            darkstoreOrder.length +
+            "</b> columns. <span class='warn'>" +
+            (showing ? "Shown but not in the sheet: " : "Left out, not in the sheet: ") +
+            missing
+                .map(m => m + " (" + unmappedSeen[m] + " orders)")
+                .join(", ") +
+            "</span> – add these exact values to the sheet, republish, then reload the list."
+        );
+    }
+    else {
+
+        setMapStatus(
+            "Darkstore names loaded: <b>" +
+            Object.keys(darkstoreMap).length +
+            "</b> darkstores in <b>" +
+            darkstoreOrder.length +
+            "</b> columns. Every darkstore in the file is in the sheet."
+        );
+    }
+}
+
+function pctColor(pct){
+
+    const v = Number(pct);
+
+    if(v > 75){
+        return "#90EE90";   // Green
+    }
+    if(v >= 60){
+        return "#FFFF00";   // Yellow
+    }
+    if(v >= 50){
+        return "#F4A460";   // Orange
+    }
+    return "#FF7F7F";       // Red
+}
+
+function downloadBrandReport(brand){
+
+    const tableId =
+        "report-" +
+        brand.replace(/[^a-zA-Z0-9]/g,'');
+
+    const report =
+        document.getElementById(tableId);
+
+    html2canvas(report,{
+        scale:3,
+        useCORS:true,
+        scrollX:0,
+        scrollY:0
+    }).then(canvas => {
+
+        const link =
+            document.createElement("a");
+
+        link.download =
+            brand.replace(/[^a-zA-Z0-9]/g,'_') +
+            "_EOD_Report.png";
+
+        link.href =
+            canvas.toDataURL("image/png");
+
+        link.click();
+    });
+}
+
+function downloadPNG(){
+
+    const report =
+        document.getElementById("reportTable");
+
+    html2canvas(report, {
+        scale:2
+    }).then(canvas => {
+
+        const link =
+            document.createElement("a");
+
+        link.download =
+            "Zippee_SDD_EOD_Report.png";
+
+        link.href =
+            canvas.toDataURL("image/png");
+
+        link.click();
+    });
+}
+
+window.addEventListener("load", () => {
+
+    const yesterday = new Date();
+
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    document.getElementById("reportDate").value =
+        yesterday.getFullYear() + "-" +
+        String(yesterday.getMonth() + 1).padStart(2,"0") + "-" +
+        String(yesterday.getDate()).padStart(2,"0");
+
+    loadDarkstoreMapping();
+});
+</script>
+
+</body>
+</html>
