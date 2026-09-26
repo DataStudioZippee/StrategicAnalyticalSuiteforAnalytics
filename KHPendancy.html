@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SDD PAN India Pendency</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:"Segoe UI";
+  background:url('Zippee.png') center/cover fixed no-repeat;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:rgba(255,255,255,.2);
+  backdrop-filter:blur(6px);
+  z-index:-1;
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(90deg,rgba(0,63,140,.85),rgba(0,89,179,.85));
+  color:white;
+  padding:18px 36px;
+}
+
+/* CARD */
+.card{
+  background:rgba(255,255,255,0.16);
+  backdrop-filter:blur(10px);
+  margin:40px auto;
+  width:fit-content;
+  max-width:calc(100% - 40px);
+  overflow-x:auto;
+  padding:30px;
+  border-radius:18px;
+  text-align:left;
+  box-sizing:border-box;
+}
+
+/* UPLOAD ROW */
+.upload-row{
+  display:flex;
+  gap:24px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.upload-box{
+  background:rgba(255,255,255,0.55);
+  border:1px dashed #062e44;
+  border-radius:10px;
+  padding:12px 16px;
+  min-width:260px;
+}
+.upload-box label{
+  display:block;
+  font-weight:700;
+  font-size:13px;
+  color:#062e44;
+  margin-bottom:6px;
+}
+.upload-status{
+  font-size:11px;
+  margin-top:6px;
+  color:#0a5c36;
+  font-weight:600;
+}
+
+/* FILTER */
+.filter-box{
+  margin-top:15px;
+}
+
+/* TABLE */
+table{
+  width:100%;
+  max-width:700px;
+  margin:auto;
+  border-collapse:collapse;
+  border-radius:0 0 6px 6px;
+  overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,0.2);
+}
+th,td{
+  border:1px solid #ddd;
+  padding:5px 6px;
+  font-size:12px;
+  text-align:center;
+}
+th{
+  background:#062e44;
+  color:white;
+}
+.downloadArea{
+  display:block;
+  width:max-content;      /* shrink to the table's natural width */
+  max-width:100%;
+  padding:0;
+  background:#ffffff;
+  border-radius:5px;
+  overflow:hidden;
+}
+.downloadArea .table-header-bar{
+  caption-side:top;
+  margin:0;
+  max-width:none;
+  width:auto;
+  padding:12px 16px;
+  font-size:16px;
+  white-space:normal;
+  box-shadow:none;
+  border-radius:5px 5px 0 0;
+}
+.downloadArea table{
+  margin:0;
+  max-width:none;
+  width:auto;             /* size to content, not to the container */
+  box-shadow:none;
+}
+.downloadArea th,
+.downloadArea td{
+  white-space:nowrap;
+  padding:5px 12px;
+}
+.downloadArea .watermark{
+  margin:0;
+  padding:10px 0;
+  max-width:none;
+  width:auto;
+}
+.total{
+  background:#dee2e6;
+  font-weight:bold;
+}
+.table-header-bar{
+  background:#2f3e46;
+  color:white;
+  padding:14px 0;
+  text-align:center;
+  font-weight:800;
+  font-size:20px;
+  letter-spacing:0.5px;
+  width:100%;
+  max-width:700px;
+  margin:30px auto 0;
+  border-radius:6px 6px 0 0;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+.watermark{
+  width:100%;
+  max-width:700px;
+  margin:10px auto 30px;
+  text-align:center;
+  font-weight:bold;
+}
+.source-tag{
+  display:inline-block;
+  font-size:9px;
+  font-weight:700;
+  padding:1px 5px;
+  border-radius:4px;
+  margin-left:4px;
+  vertical-align:middle;
+}
+.source-blaze{ background:#ffe08a; color:#5c4300; }
+.source-bolt{ background:#b7e4c7; color:#0a3d20; }
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+  <h2>SDD – Pendency Report</h2>
+</div>
+
+<button onclick="downloadImage('report1')" style="
+  margin:15px 0 15px 20px;
+  padding:8px 16px;
+  background:#062e44;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Report 1
+</button>
+<button onclick="downloadImage('report2')" style="
+  margin:15px 0 15px 20px;
+  padding:8px 16px;
+  background:#062e44;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Report 2
+</button>
+<button onclick="downloadImage('report3')" style="
+  margin:15px 0 15px 20px;
+  padding:8px 16px;
+  background:#062e44;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Report 3
+</button>
+
+<button onclick="downloadCSV()" style="
+  margin:10px 0 15px 20px;
+  padding:8px 16px;
+  background:#0a5c36;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Filtered CSV
+</button>
+
+<div class="card">
+
+<div class="upload-row">
+  <div class="upload-box">
+    <label>Blaze File (legacy format)</label>
+    <input type="file" id="blazeFileInput" accept=".csv">
+    <div class="upload-status" id="blazeStatus">No file loaded</div>
+  </div>
+  <div class="upload-box">
+    <label>Bolt File (new format)</label>
+    <input type="file" id="boltFileInput" accept=".csv">
+    <div class="upload-status" id="boltStatus">No file loaded</div>
+  </div>
+</div>
+
+<div class="filter-box" id="filterBox"></div>
+
+<div id="tableContainer"></div>
+
+</div>
+
+<script>
+
+/* ========================= CONFIG ========================= */
+
+// Fixed Blaze darkstore whitelist
+const blazeAllowedStores = [
+  "zippee_andheri_sdd",
+  "zippee_horamavu_sdd",
+  "zippee_okhla_sdd",
+  "zippee_koramangala_sdd",
+  "zippee_koregaonpark_sdd",
+  "zippee_manikonda_sdd",
+  "zippee_matunga_valkyriesdd",
+  "zippee_periyamet_sdd",
+  "zippee_kolkata_sdd",
+  "zippee_ghaziabad_sdd",
+  "zippee_wazirpur_sdd",
+  "zippee_dwarka_sdd",
+  "zippee_gurugram_sdd",
+  "zipppee_noida_sdd"
+];
+
+// Display names for known store slugs. Anything not listed here falls
+// back to a prettified version of the raw warehouse name.
+const storeNameMap = {
+  "zippee_andheri_sdd": "Mumbai | Andheri",
+  "zippee_horamavu_sdd": "Bangalore | Horamavu",
+  "zippee_okhla_sdd": "Delhi | Okhla",
+  "zippee_ghaziabad_sdd": "Delhi | Ghaziabad",
+  "zippee_wazirpur_sdd": "Delhi | Wazirpur",
+  "zippee_dwarka_sdd": "Delhi | Dwarka",
+  "zippee_gurugram_sdd": "Delhi | Gurugram",
+  "zipppee_noida_sdd": "Delhi | Noida",
+  "zippee_koramangala_sdd": "Bangalore | Koramangala",
+  "zippee_kalyannagar_sdd": "Bangalore | Kalyan Nagar",
+  "zippee_koregaonpark_sdd": "Pune | Koregaon Park",
+  "zippee_manikonda_sdd": "Hyderabad | Manikonda",
+  "zippee_matunga_valkyriesdd": "Mumbai | Matunga",
+  "zippee_periyamet_sdd": "Chennai | Periyamet",
+  "zippee_kolkata_sdd": "Kolkata | Topsia",
+  "zippee_topsia_valkyriesdd": "Kolkata | Topsia",
+  "zippee_krishna_herbal_indorewh": "Indore | Krishna Herbal",
+  "zippee_krishna_herbal_jodhpurwh": "Jodhpur | Krishna Herbal"
+};
+
+// Only these Bolt warehouses are included in the report. Everything else
+// in a Bolt upload (test stores, other clients' warehouses, etc.) is
+// excluded. Add/remove slugs here as needed.
+const boltAllowedStores = [
+  "zippee_krishna_herbal_indorewh",
+  "zippee_krishna_herbal_jodhpurwh",
+  "zippee_periyamet_sdd",
+  "zippee_topsia_valkyriesdd",
+  "zippee_koramangala_sdd",
+  "zippee_horamavu_sdd",
+  "zippee_manikonda_sdd",
+  "zippee_kalyannagar_sdd",
+  "healthkart-ludhiana"
+];
+
+// Same-day cutoff hour (24h) per store. Any order created today, after
+// this hour, is excluded from pendency. Default is 4pm for every store
+// (Bolt and Blaze); Krishna Herbal Indore/Jodhpur use 11am.
+const defaultCutoffHour = 16;
+const storeCutoffHours = {
+  "zippee_krishna_herbal_indorewh": 11,
+  "zippee_krishna_herbal_jodhpurwh": 11
+};
+
+// Brand whitelist per source (matched case-insensitively against the raw
+// "Brand Name" column). Only rows whose brand is in the list for its
+// source are kept. Set a list to null to allow all brands for that source.
+const allowedBrands = {
+  blaze: ["sandipani healthcare"],
+  bolt:  ["krishna's hebral & ayurveda"]
+};
+
+// Brands excluded regardless of source (applied after the whitelist).
+const excludedBrands = ["testing_fabbox", "supertails"];
+
+// Statuses Reports 2 & 3 show by default, in this column order. Any other
+// status ticked in the filter is appended after these.
+const priorityStatuses = [
+  "DELIVERY_ATTEMPTED",
+  "PICKUP_PENDING",
+  "PICKUP_IN_PROGRESS",
+  "READY",
+  "DELIVERY_IN_PROGRESS"
+];
+
+const statusesList = [
+  "READY",
+  "DELIVERED",
+  "DELIVERY_ATTEMPTED",
+  "PICKUP_COMPLETED",
+  "PICKUP_PENDING",
+  "PICKUP_IN_PROGRESS",
+  "ALLOCATION_PENDING",
+  "OUT_FOR_DELIVERY",
+  "DELIVERY_IN_PROGRESS",
+  "REACHED_DELIVERY"
+];
+
+/* ========================= STATE ========================= */
+
+let blazeNormalized = [];
+let boltNormalized = [];
+
+/* ========================= HELPERS ========================= */
+
+function prettifyStoreName(raw){
+  if(storeNameMap[raw]) return storeNameMap[raw];
+  return raw
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Blaze: single field like ="17/08/2026 5:16 PM" -> dd/mm/yyyy hh:mm AM/PM
+function parseBlazeDate(raw){
+  raw = (raw || "").trim().replace(/^="|"$/g, "");
+  if(!raw) return null;
+  let parts = raw.split(/[\s/:]/);
+  if(parts.length < 6) return null;
+  let day = parseInt(parts[0]);
+  let month = parseInt(parts[1]) - 1;
+  let year = parseInt(parts[2]);
+  let hour = parseInt(parts[3]);
+  let minute = parseInt(parts[4]);
+  let ampm = parts[5];
+  if(ampm === "PM" && hour !== 12) hour += 12;
+  if(ampm === "AM" && hour === 12) hour = 0;
+  let d = new Date(year, month, day, hour, minute);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Bolt: separate fields, Creation Date = DD/MM/YYYY, Creation Time = HH:MM (24h)
+function parseBoltDate(dateRaw, timeRaw){
+  dateRaw = (dateRaw || "").trim();
+  if(!dateRaw) return null;
+  let dparts = dateRaw.split("/");
+  if(dparts.length < 3) return null;
+  let day = parseInt(dparts[0]);
+  let month = parseInt(dparts[1]) - 1;
+  let year = parseInt(dparts[2]);
+  let hour = 0, minute = 0;
+  if(timeRaw){
+    let tparts = timeRaw.trim().split(":");
+    hour = parseInt(tparts[0]) || 0;
+    minute = parseInt(tparts[1]) || 0;
+  }
+  let d = new Date(year, month, day, hour, minute);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function normalizeBlazeRow(row){
+  return {
+    source: "blaze",
+    store: (row["Darkstore"] || "").trim(),
+    awb: (row["AWB Number"] || "").trim(),
+    orderNumber: (row["Order Number"] || "").trim(),
+    brand: (row["Brand Name"] || "").trim().toLowerCase(),
+    trip: (row["Trip ID"] || "").toString().trim(),
+    attempts: parseInt(row["No. of Attempts"]) || 0,
+    status: (row["Current Status"] || "").trim().toUpperCase(),
+    creationDate: parseBlazeDate(row["Creation Date"]),
+    customerName: (row["Customer Name"] || "").trim(),
+    customerMobile: (row["Customer Mobile"] || "").trim(),
+    deliveryAddress: (row["Delivery Address"] || "").trim(),
+    deliveryPincode: (row["Delivery Pincode"] || "").trim(),
+    riderName: (row["Rider Name"] || "").trim()
+  };
+}
+
+function normalizeBoltRow(row){
+  return {
+    source: "bolt",
+    store: (row["Warehouse Name"] || "").trim(),
+    awb: (row["Zippee AWB"] || "").trim(),
+    orderNumber: (row["Order Number"] || "").trim(),
+    brand: (row["Brand Name"] || "").trim().toLowerCase(),
+    trip: (row["Trip Code"] || "").toString().trim(),
+    attempts: parseInt(row["Total Attempt Count"]) || 0,
+    status: (row["Current Status"] || "").trim().toUpperCase(),
+    creationDate: parseBoltDate(row["Creation Date"], row["Creation Time"]),
+    customerName: (row["Customer Name"] || "").trim(),
+    customerMobile: (row["Customer Mobile"] || "").trim(),
+    deliveryAddress: (row["Delivery Address"] || "").trim(),
+    deliveryPincode: (row["Delivery Pincode"] || "").trim(),
+    riderName: (row["Rider Name"] || "").trim()
+  };
+}
+
+// Single shared filter, used by both the table and the CSV export so
+// they can never disagree with each other.
+function passesFilters(nrow, includeTrips){
+  if(!nrow.store) return false;
+
+  if(nrow.source === "blaze" && !blazeAllowedStores.includes(nrow.store)) return false;
+  if(nrow.source === "bolt" && !boltAllowedStores.includes(nrow.store)) return false;
+
+  let brandList = allowedBrands[nrow.source];
+  if(brandList && !brandList.includes(nrow.brand)) return false;
+
+  if(excludedBrands.includes(nrow.brand)) return false;
+
+  if(!includeTrips && nrow.trip !== "") return false;
+
+  if(nrow.attempts > 3) return false;
+  if(!nrow.awb) return false;
+  if(nrow.status === "RTO") return false;
+
+  if(nrow.creationDate){
+    let now = new Date();
+    let isToday =
+      nrow.creationDate.getDate() === now.getDate() &&
+      nrow.creationDate.getMonth() === now.getMonth() &&
+      nrow.creationDate.getFullYear() === now.getFullYear();
+    let cutoffHour = storeCutoffHours[nrow.store] ?? defaultCutoffHour;
+    let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), cutoffHour, 0, 0);
+    if(isToday && nrow.creationDate > cutoff) return false;
+  }
+
+  return true;
+}
+
+// Filters + dedupes by AWB (keeps the row with the highest attempt count
+// per AWB, across both sources combined).
+function getFilteredDeduped(){
+  let includeTrips = document.getElementById("tripToggle")?.checked || false;
+  let combined = blazeNormalized.concat(boltNormalized);
+
+  let latestMap = {};
+  combined.forEach(nrow=>{
+    if(!passesFilters(nrow, includeTrips)) return;
+    if(!latestMap[nrow.awb] || nrow.attempts > latestMap[nrow.awb].attempts){
+      latestMap[nrow.awb] = nrow;
+    }
+  });
+
+  return Object.values(latestMap);
+}
+
+/* ========================= FILE HANDLING ========================= */
+
+document.getElementById("blazeFileInput").addEventListener("change", function(e){
+  if(!e.target.files[0]) return;
+  Papa.parse(e.target.files[0], {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(res){
+      blazeNormalized = res.data.map(normalizeBlazeRow);
+      document.getElementById("blazeStatus").textContent =
+        `Loaded ${blazeNormalized.length} rows`;
+      renderTable(getSelectedStatuses());
+    }
+  });
+});
+
+document.getElementById("boltFileInput").addEventListener("change", function(e){
+  if(!e.target.files[0]) return;
+  Papa.parse(e.target.files[0], {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(res){
+      boltNormalized = res.data.map(normalizeBoltRow);
+      document.getElementById("boltStatus").textContent =
+        `Loaded ${boltNormalized.length} rows`;
+      renderTable(getSelectedStatuses());
+    }
+  });
+});
+
+/* ========================= FILTER UI ========================= */
+
+function createFilter(){
+  let html = "<b>Status Filter:</b><br>";
+
+  html += `
+  <br><b>Trip Filter:</b><br>
+  <label>
+    <input type="checkbox" id="tripToggle" onchange="updateTable()">
+    Include Trip Orders
+  </label><br><br>
+  `;
+
+  statusesList.forEach(s=>{
+    html += `<label>
+      <input type="checkbox" value="${s}" ${priorityStatuses.includes(s)?"checked":""}
+      onchange="updateTable()"> ${s}
+    </label>`;
+  });
+
+  document.getElementById("filterBox").innerHTML = html;
+}
+
+function getSelectedStatuses(){
+  let selected = [];
+  document.querySelectorAll('#filterBox input[type="checkbox"][value]:checked')
+    .forEach(cb => selected.push(cb.value));
+  return selected;
+}
+
+function updateTable(){
+  renderTable(getSelectedStatuses());
+}
+
+/* ========================= RENDER ========================= */
+
+function fmtDate(d){
+  if(!d) return "Unknown";
+  let dd = String(d.getDate()).padStart(2,"0");
+  let mm = String(d.getMonth()+1).padStart(2,"0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+function dateSortKey(d){ return d ? d.getTime() : Infinity; }
+
+// Generic nested pivot renderer.
+//  levels : [{header, key(row), label(row), sort(row)}]  — row groupings, outermost first
+//  columns: [{header, match(row)}]                        — column buckets
+// Produces rowspan-merged rows, a Subtotal per outermost group, and a grand Total.
+function renderPivot(containerId, title, rows, levels, columns){
+  // Drop any column with no orders at all, so empty statuses don't appear.
+  columns = columns.filter(c => rows.some(r => c.match(r)));
+
+  // Build nested tree: node = {label, sort, children:{}, counts:[]}
+  let root = {children:{}};
+  rows.forEach(r=>{
+    let node = root;
+    levels.forEach(lv=>{
+      let k = lv.key(r);
+      if(!node.children[k]){
+        node.children[k] = {label: lv.label(r), sort: lv.sort(r), children:{}, counts: columns.map(()=>0)};
+        if(node === root){
+          node.children[k].tagClass = r.source === "bolt" ? "source-bolt" : "source-blaze";
+          node.children[k].tagText  = r.source === "bolt" ? "BOLT" : "BLAZE";
+        }
+      }
+      node = node.children[k];
+      columns.forEach((c,i)=>{ if(c.match(r)) node.counts[i]++; });
+    });
+  });
+
+  function sortedKids(node){
+    return Object.values(node.children).sort((a,b)=>
+      a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : a.label.localeCompare(b.label));
+  }
+  function leafCount(node, depth){
+    if(depth === levels.length-1) return 1;
+    return sortedKids(node).reduce((s,k)=>s+leafCount(k, depth+1), 0);
+  }
+  function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
+  function cell(v){ return v === 0 ? "" : v; }   // zero counts render blank
+
+  let html = `
+  <div class="downloadArea" id="${containerId}">
+  <table>
+    <caption class="table-header-bar">${title}</caption>
+    <tr>
+      ${levels.map(l=>`<th>${l.header}</th>`).join("")}
+      ${columns.map(c=>`<th>${c.header}</th>`).join("")}
+      <th>Total</th>
+    </tr>`;
+
+  let grand = columns.map(()=>0);
+
+  function emitRows(node, depth, cells){
+    // cells: array of pending <td> strings for outer levels, emitted on the first leaf row
+    let kids = sortedKids(node);
+    kids.forEach(kid=>{
+      let total = sum(kid.counts);
+      if(total === 0) return;
+      let td = `<td rowspan="${leafCount(kid, depth)}" style="font-weight:600;">${kid.label}</td>`;
+      if(depth === levels.length-1){
+        html += `<tr>${cells.join("")}${td}`;
+        kid.counts.forEach(v=>{ html += `<td>${cell(v)}</td>`; });
+        html += `<td>${total}</td></tr>`;
+        cells.length = 0;
+      }else{
+        emitRows(kid, depth+1, cells.concat([td]));
+        cells.length = 0;
+      }
+    });
+  }
+
+  sortedKids(root).forEach(top=>{
+    let total = sum(top.counts);
+    if(total === 0) return;
+    let storeCell = `<td rowspan="${leafCount(top,0)}">
+      <span style="font-weight:600;font-size:12px;">${top.label}</span>
+      <span class="source-tag ${top.tagClass}">${top.tagText}</span></td>`;
+    if(levels.length === 1){
+      html += `<tr>${storeCell}`;
+      top.counts.forEach(v=>{ html += `<td>${cell(v)}</td>`; });
+      html += `<td>${total}</td></tr>`;
+    }else{
+      emitRows(top, 1, [storeCell]);
+    }
+    html += `<tr style="background:#f1f3f5;font-weight:600;font-size:12px;">
+      <td colspan="${levels.length}">Subtotal</td>`;
+    top.counts.forEach((v,i)=>{ grand[i]+=v; html += `<td>${cell(v)}</td>`; });
+    html += `<td>${total}</td></tr>`;
+  });
+
+  html += `<tr class="total"><td colspan="${levels.length}"><b>Total</b></td>`;
+  grand.forEach(v=>{ html += `<td>${cell(v)}</td>`; });
+  html += `<td>${sum(grand)}</td></tr></table>
+  <div class="watermark">Powered by SASA Automation | Zippee</div>
+  </div>`;
+
+  return html;
+}
+
+// Warehouse level, shared by all three reports. Store label carries the
+// BLAZE/BOLT tag; the same store on both sources stays as two rows.
+function storeLevel(){
+  return {
+    header: "Darkstore",
+    key: r => r.store + "|" + r.source,
+    label: r => prettifyStoreName(r.store),
+    sort: r => prettifyStoreName(r.store) + "|" + r.source
+  };
+}
+function dateLevel(){
+  return {
+    header: "Creation Date",
+    key: r => fmtDate(r.creationDate),
+    label: r => fmtDate(r.creationDate),
+    sort: r => dateSortKey(r.creationDate)
+  };
+}
+function attemptLevel(){
+  return {
+    header: "No. of Attempts",
+    key: r => String(r.attempts),
+    label: r => `${r.attempts} Attempts`,
+    sort: r => r.attempts
+  };
+}
+
+function renderTable(statuses){
+  // Nothing to show until at least one file has been loaded.
+  if(blazeNormalized.length === 0 && boltNormalized.length === 0){
+    document.getElementById("tableContainer").innerHTML = "";
+    return;
+  }
+  let filtered = getFilteredDeduped();
+  let sl = storeLevel();
+
+  // Report 1: READY orders only, regardless of the status filter.
+  let readyRows = filtered.filter(r => r.status === "READY");
+  let attemptsPresent = [...new Set(readyRows.map(r=>r.attempts))].sort((a,b)=>a-b);
+  let attemptCols = attemptsPresent.map(a=>({header:`${a} Attempts`, match: r=>r.attempts===a}));
+
+  // Reports 2 & 3: ticked statuses, priority ones first in their fixed order.
+  let ordered = priorityStatuses.filter(s => statuses.includes(s))
+    .concat(statuses.filter(s => !priorityStatuses.includes(s)));
+  let deduped = filtered.filter(r => ordered.includes(r.status));
+  let statusCols = ordered.map(s=>({header:s, match: r=>r.status===s}));
+
+  let html = "";
+  html += renderPivot("report1", "Krishna Herbal Pendancy Report",
+                      readyRows, [sl, dateLevel()], attemptCols);
+  html += `<div style="height:30px"></div>`;
+  html += renderPivot("report2", "Krishna Herbal Order Status Report",
+                      deduped, [sl, dateLevel()], statusCols);
+  html += `<div style="height:30px"></div>`;
+  html += renderPivot("report3", "Krishna Herbal Order Status Report",
+                      deduped, [sl, dateLevel(), attemptLevel()], statusCols);
+
+  document.getElementById("tableContainer").innerHTML = html;
+}
+
+/* ========================= EXPORTS ========================= */
+
+function downloadImage(id){
+  let area = document.getElementById(id);
+  if(!area) return;
+  html2canvas(area, {
+    scale: 3,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    width: area.offsetWidth,
+    height: area.offsetHeight,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    windowWidth: document.documentElement.offsetWidth
+  }).then(canvas=>{
+    let link = document.createElement("a");
+    link.download = id + ".png";
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
+
+function downloadCSV(){
+  let selectedStatuses = getSelectedStatuses();
+
+  let deduped = getFilteredDeduped()
+    .filter(nrow => selectedStatuses.includes(nrow.status));
+
+  let exportRows = deduped.map(nrow => ({
+    "Source": nrow.source.toUpperCase(),
+    "Darkstore": prettifyStoreName(nrow.store),
+    "Raw Warehouse Value": nrow.store,
+    "AWB": nrow.awb,
+    "Order Number": nrow.orderNumber,
+    "Brand": nrow.brand,
+    "Trip": nrow.trip,
+    "Attempts": nrow.attempts,
+    "Status": nrow.status,
+    "Creation Date": nrow.creationDate ? nrow.creationDate.toLocaleString() : "",
+    "Customer Name": nrow.customerName,
+    "Customer Mobile": nrow.customerMobile,
+    "Delivery Address": nrow.deliveryAddress,
+    "Delivery Pincode": nrow.deliveryPincode,
+    "Rider Name": nrow.riderName
+  }));
+
+  let csv = Papa.unparse(exportRows);
+  let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "filtered_data.csv";
+  link.click();
+}
+
+/* ========================= INIT ========================= */
+
+createFilter();
+renderTable(getSelectedStatuses());
+
+</script>
+
+</body>
+</html>
