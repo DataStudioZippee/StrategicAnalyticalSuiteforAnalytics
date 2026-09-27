@@ -44,12 +44,13 @@ body::before{
   box-sizing:border-box;
 }
 
-/* UPLOAD ROW */
+/* UPLOAD / INPUT ROW */
 .upload-row{
   display:flex;
   gap:24px;
   flex-wrap:wrap;
   margin-bottom:10px;
+  align-items:flex-start;
 }
 .upload-box{
   background:rgba(255,255,255,0.55);
@@ -71,10 +72,52 @@ body::before{
   color:#0a5c36;
   font-weight:600;
 }
+.upload-hint{
+  font-size:11px;
+  color:#334;
+  margin-bottom:6px;
+}
+.krishna-box textarea{
+  width:320px;
+  max-width:100%;
+  height:110px;
+  box-sizing:border-box;
+  font-family:Consolas, "Courier New", monospace;
+  font-size:12px;
+  padding:6px 8px;
+  border:1px solid #9aa9b3;
+  border-radius:6px;
+  resize:vertical;
+}
+.krishna-box .upload-status.warn{ color:#8a1c1c; }
+.krishna-box button{
+  margin-top:6px;
+  padding:4px 10px;
+  font-size:11px;
+  border:1px solid #062e44;
+  background:white;
+  color:#062e44;
+  border-radius:5px;
+  cursor:pointer;
+}
+.krishna-box button:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible{
+  outline:2px solid #0059b3;
+  outline-offset:2px;
+}
 
 /* FILTER */
 .filter-box{
   margin-top:15px;
+}
+.cutoff-note{
+  display:block;
+  font-size:11px;
+  font-weight:600;
+  color:#7a1f1f;
+  margin-top:4px;
 }
 
 /* TABLE */
@@ -128,6 +171,12 @@ th{
   white-space:nowrap;
   padding:5px 12px;
 }
+.downloadArea td[onclick]{
+  cursor:pointer;
+}
+.downloadArea td[onclick]:hover{
+  background:#eaf2fb;
+}
 .downloadArea .watermark{
   margin:0;
   padding:10px 0;
@@ -159,17 +208,67 @@ th{
   text-align:center;
   font-weight:bold;
 }
-.source-tag{
-  display:inline-block;
-  font-size:9px;
-  font-weight:700;
-  padding:1px 5px;
-  border-radius:4px;
-  margin-left:4px;
-  vertical-align:middle;
+
+/* DRILL-DOWN MODAL */
+.drill-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  z-index:1000;
+  align-items:center;
+  justify-content:center;
 }
-.source-blaze{ background:#ffe08a; color:#5c4300; }
-.source-bolt{ background:#b7e4c7; color:#0a3d20; }
+.drill-modal{
+  background:white;
+  border-radius:10px;
+  width:min(900px, 92vw);
+  max-height:80vh;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 12px 40px rgba(0,0,0,0.3);
+}
+.drill-modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 18px;
+  border-bottom:1px solid #e3e6e8;
+}
+.drill-modal-header h3{
+  margin:0;
+  font-size:15px;
+  color:#062e44;
+}
+.drill-modal-header button{
+  border:none;
+  background:#062e44;
+  color:white;
+  border-radius:6px;
+  padding:5px 12px;
+  cursor:pointer;
+  font-size:12px;
+}
+.drill-modal-header button + button{
+  margin-left:8px;
+}
+.drill-modal-header button.copied{
+  background:#0a5c36;
+}
+.drill-modal-body{
+  padding:12px 18px 18px;
+  overflow:auto;
+}
+.drill-modal-body table{
+  width:100%;
+  max-width:none;
+  box-shadow:none;
+  font-size:11px;
+}
+.drill-modal-body th{
+  position:sticky;
+  top:0;
+}
 </style>
 
 </head>
@@ -190,6 +289,17 @@ th{
   cursor:pointer;
 ">
 Download Report 1
+</button>
+<button onclick="downloadReport1CSV()" style="
+  margin:15px 0 15px 0;
+  padding:8px 16px;
+  background:#0a5c36;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+">
+Download Report 1 Data (CSV)
 </button>
 <button onclick="downloadImage('report2')" style="
   margin:15px 0 15px 20px;
@@ -230,47 +340,57 @@ Download Filtered CSV
 
 <div class="upload-row">
   <div class="upload-box">
-    <label>Blaze File (legacy format)</label>
+    <label for="blazeFileInput">Blaze File</label>
     <input type="file" id="blazeFileInput" accept=".csv">
     <div class="upload-status" id="blazeStatus">No file loaded</div>
   </div>
-  <div class="upload-box">
-    <label>Bolt File (new format)</label>
-    <input type="file" id="boltFileInput" accept=".csv">
-    <div class="upload-status" id="boltStatus">No file loaded</div>
+
+  <div class="upload-box krishna-box">
+    <label for="krishnaIds">Krishna Herbal orders (Indore &amp; Jodhpur)</label>
+    <div class="upload-hint">Paste AWB Numbers or Order Numbers — one per line, or separated by commas or spaces.</div>
+    <textarea id="krishnaIds" placeholder="KHBGIUBIBRJPZ68&#10;6812596_KRIS123380"></textarea>
+    <div class="upload-status" id="krishnaStatus">No numbers entered — no Krishna Herbal orders will be shown</div>
+    <button type="button" onclick="clearKrishnaIds()">Clear</button>
   </div>
 </div>
 
 <div class="filter-box" id="filterBox"></div>
 
+<div class="upload-hint">Tip: click any darkstore, date, attempt or count value in a table below to see the underlying AWB / Order Numbers.</div>
+
 <div id="tableContainer"></div>
 
+</div>
+
+<div class="drill-overlay" id="drillOverlay">
+  <div class="drill-modal">
+    <div class="drill-modal-header">
+      <h3 id="drillTitle">Orders</h3>
+      <div>
+        <button type="button" onclick="copyDrillData(event)">Copy</button>
+        <button type="button" onclick="closeDrill()">Close</button>
+      </div>
+    </div>
+    <div class="drill-modal-body" id="drillBody"></div>
+  </div>
 </div>
 
 <script>
 
 /* ========================= CONFIG ========================= */
 
-// Fixed Blaze darkstore whitelist
-const blazeAllowedStores = [
-  "zippee_andheri_sdd",
-  "zippee_horamavu_sdd",
-  "zippee_okhla_sdd",
-  "zippee_koramangala_sdd",
-  "zippee_koregaonpark_sdd",
-  "zippee_manikonda_sdd",
-  "zippee_matunga_valkyriesdd",
-  "zippee_periyamet_sdd",
-  "zippee_kolkata_sdd",
-  "zippee_ghaziabad_sdd",
-  "zippee_wazirpur_sdd",
-  "zippee_dwarka_sdd",
-  "zippee_gurugram_sdd",
-  "zipppee_noida_sdd"
+// Krishna Herbal warehouses. For these two stores ONLY the orders whose
+// AWB Number or Order Number is entered in the box are counted, and NO
+// other filter applies to them (no cutoff, trip, attempts, RTO, brand
+// or status filter).
+const krishnaStores = [
+  "zippee_krishna_herbal_indorewh",
+  "zippee_krishna_herbal_jodhpurwh"
 ];
 
+
 // Display names for known store slugs. Anything not listed here falls
-// back to a prettified version of the raw warehouse name.
+// back to a prettified version of the raw darkstore name.
 const storeNameMap = {
   "zippee_andheri_sdd": "Mumbai | Andheri",
   "zippee_horamavu_sdd": "Bangalore | Horamavu",
@@ -281,50 +401,47 @@ const storeNameMap = {
   "zippee_gurugram_sdd": "Delhi | Gurugram",
   "zipppee_noida_sdd": "Delhi | Noida",
   "zippee_koramangala_sdd": "Bangalore | Koramangala",
-  "zippee_kalyannagar_sdd": "Bangalore | Kalyan Nagar",
   "zippee_koregaonpark_sdd": "Pune | Koregaon Park",
   "zippee_manikonda_sdd": "Hyderabad | Manikonda",
   "zippee_matunga_valkyriesdd": "Mumbai | Matunga",
   "zippee_periyamet_sdd": "Chennai | Periyamet",
   "zippee_kolkata_sdd": "Kolkata | Topsia",
-  "zippee_topsia_valkyriesdd": "Kolkata | Topsia",
   "zippee_krishna_herbal_indorewh": "Indore | Krishna Herbal",
   "zippee_krishna_herbal_jodhpurwh": "Jodhpur | Krishna Herbal"
 };
 
-// Only these Bolt warehouses are included in the report. Everything else
-// in a Bolt upload (test stores, other clients' warehouses, etc.) is
-// excluded. Add/remove slugs here as needed.
-const boltAllowedStores = [
-  "zippee_krishna_herbal_indorewh",
-  "zippee_krishna_herbal_jodhpurwh",
-  "zippee_periyamet_sdd",
-  "zippee_topsia_valkyriesdd",
-  "zippee_koramangala_sdd",
-  "zippee_horamavu_sdd",
-  "zippee_manikonda_sdd",
-  "zippee_kalyannagar_sdd",
-  "healthkart-ludhiana"
-];
-
-// Same-day cutoff hour (24h) per store. Any order created today, after
-// this hour, is excluded from pendency. Default is 4pm for every store
-// (Bolt and Blaze); Krishna Herbal Indore/Jodhpur use 11am.
-const defaultCutoffHour = 16;
-const storeCutoffHours = {
-  "zippee_krishna_herbal_indorewh": 11,
-  "zippee_krishna_herbal_jodhpurwh": 11
+// Stores merged into a single group row in the reports (their orders are
+// added together under the group name; the individual store no longer
+// appears as its own row). Anything not listed here keeps its own row.
+const storeGroups = {
+  "zippee_okhla_sdd": "Delhi_Hub",
+  "zippee_wazirpur_sdd": "Delhi_Hub",
+  "zippee_gurugram_sdd": "Delhi_Hub",
+  "zipppee_noida_sdd": "Delhi_Hub",
+  "zippee_dwarka_sdd": "Delhi_Hub",
+  "zippee_ghaziabad_sdd": "Delhi_Hub",
+  "zippee_matunga_valkyriesdd": "Mumbai",
+  "zippee_andheri_sdd": "Mumbai"
 };
 
-// Brand whitelist per source (matched case-insensitively against the raw
-// "Brand Name" column). Only rows whose brand is in the list for its
-// source are kept. Set a list to null to allow all brands for that source.
-const allowedBrands = {
-  blaze: ["sandipani healthcare"],
-  bolt:  ["krishna's hebral & ayurveda"]
-};
+// The label used in reports/CSV for a store: its group name if it's
+// grouped, otherwise its usual prettified name.
+function storeDisplayName(raw){
+  return storeGroups[raw] || prettifyStoreName(raw);
+}
 
-// Brands excluded regardless of source (applied after the whitelist).
+// Cutoff hour (24h). For every store except Krishna Herbal, orders created
+// after <Report Date − 1 day> at this hour are excluded.
+// e.g. Report Date 28/09 → exclude everything after 27/09 4:00 PM.
+const cutoffHour = 16;
+
+// Brand whitelist (matched case-insensitively against "Brand Name").
+// "Sandipani Healthcare" and "Krishna's Hebral & Ayurveda" are the same
+// brand under two different names — both are allowed through.
+// Set to null to allow all brands. Not applied to Krishna Herbal stores.
+const allowedBrands = ["sandipani healthcare", "krishna's hebral & ayurveda"];
+
+// Brands always excluded (not applied to Krishna Herbal stores).
 const excludedBrands = ["testing_fabbox", "supertails"];
 
 // Statuses Reports 2 & 3 show by default, in this column order. Any other
@@ -334,12 +451,13 @@ const priorityStatuses = [
   "PICKUP_PENDING",
   "PICKUP_IN_PROGRESS",
   "READY",
+  "PICKUP_COMPLETED",
+  "ALLOCATION_PENDING",
   "DELIVERY_IN_PROGRESS"
 ];
 
 const statusesList = [
   "READY",
-  "DELIVERED",
   "DELIVERY_ATTEMPTED",
   "PICKUP_COMPLETED",
   "PICKUP_PENDING",
@@ -353,7 +471,7 @@ const statusesList = [
 /* ========================= STATE ========================= */
 
 let blazeNormalized = [];
-let boltNormalized = [];
+let lastReadyRows = [];       // rows feeding Report 1, kept for its CSV download
 
 /* ========================= HELPERS ========================= */
 
@@ -362,6 +480,10 @@ function prettifyStoreName(raw){
   return raw
     .replace(/_/g, " ")
     .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function isKrishna(nrow){
+  return krishnaStores.includes(nrow.store);
 }
 
 // Blaze: single field like ="17/08/2026 5:16 PM" -> dd/mm/yyyy hh:mm AM/PM
@@ -382,28 +504,8 @@ function parseBlazeDate(raw){
   return isNaN(d.getTime()) ? null : d;
 }
 
-// Bolt: separate fields, Creation Date = DD/MM/YYYY, Creation Time = HH:MM (24h)
-function parseBoltDate(dateRaw, timeRaw){
-  dateRaw = (dateRaw || "").trim();
-  if(!dateRaw) return null;
-  let dparts = dateRaw.split("/");
-  if(dparts.length < 3) return null;
-  let day = parseInt(dparts[0]);
-  let month = parseInt(dparts[1]) - 1;
-  let year = parseInt(dparts[2]);
-  let hour = 0, minute = 0;
-  if(timeRaw){
-    let tparts = timeRaw.trim().split(":");
-    hour = parseInt(tparts[0]) || 0;
-    minute = parseInt(tparts[1]) || 0;
-  }
-  let d = new Date(year, month, day, hour, minute);
-  return isNaN(d.getTime()) ? null : d;
-}
-
 function normalizeBlazeRow(row){
   return {
-    source: "blaze",
     store: (row["Darkstore"] || "").trim(),
     awb: (row["AWB Number"] || "").trim(),
     orderNumber: (row["Order Number"] || "").trim(),
@@ -420,73 +522,163 @@ function normalizeBlazeRow(row){
   };
 }
 
-function normalizeBoltRow(row){
-  return {
-    source: "bolt",
-    store: (row["Warehouse Name"] || "").trim(),
-    awb: (row["Zippee AWB"] || "").trim(),
-    orderNumber: (row["Order Number"] || "").trim(),
-    brand: (row["Brand Name"] || "").trim().toLowerCase(),
-    trip: (row["Trip Code"] || "").toString().trim(),
-    attempts: parseInt(row["Total Attempt Count"]) || 0,
-    status: (row["Current Status"] || "").trim().toUpperCase(),
-    creationDate: parseBoltDate(row["Creation Date"], row["Creation Time"]),
-    customerName: (row["Customer Name"] || "").trim(),
-    customerMobile: (row["Customer Mobile"] || "").trim(),
-    deliveryAddress: (row["Delivery Address"] || "").trim(),
-    deliveryPincode: (row["Delivery Pincode"] || "").trim(),
-    riderName: (row["Rider Name"] || "").trim()
-  };
+/* ---------- Report date & cutoff (Option B) ---------- */
+
+// yyyy-mm-dd in LOCAL time (toISOString would use UTC and can shift the
+// day in IST around midnight).
+function toInputDate(d){
+  let y = d.getFullYear();
+  let m = String(d.getMonth()+1).padStart(2,"0");
+  let day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
 }
 
-// Single shared filter, used by both the table and the CSV export so
+// Selected report date; defaults to today if the picker is empty.
+function getReportDate(){
+  let v = document.getElementById("reportDate")?.value;
+  if(v){
+    let [y, m, d] = v.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  let now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// Cutoff = (report date − 1 day) at cutoffHour:00.
+function getCutoff(){
+  let r = getReportDate();
+  return new Date(r.getFullYear(), r.getMonth(), r.getDate() - 1, cutoffHour, 0, 0);
+}
+
+function fmtHour(h){
+  let suffix = h >= 12 ? "PM" : "AM";
+  let h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:00 ${suffix}`;
+}
+
+function updateCutoffNote(){
+  let note = document.getElementById("cutoffNote");
+  if(!note) return;
+  note.textContent =
+    `Excluding orders created after ${fmtDate(getCutoff())} ${fmtHour(cutoffHour)} ` +
+    `(not applied to Krishna Herbal stores)`;
+}
+
+/* ---------- Krishna Herbal AWB / Order Number list ---------- */
+
+function normId(s){
+  return (s || "").trim().replace(/^="|"$/g, "").replace(/^["']|["']$/g, "").toUpperCase();
+}
+
+// Unique, normalised entries from the box.
+function getKrishnaIdList(){
+  let raw = document.getElementById("krishnaIds")?.value || "";
+  return [...new Set(raw.split(/[\s,;]+/).map(normId).filter(Boolean))];
+}
+
+function krishnaMatches(nrow, idSet){
+  return idSet.has(normId(nrow.awb)) || idSet.has(normId(nrow.orderNumber));
+}
+
+function updateKrishnaStatus(){
+  let el = document.getElementById("krishnaStatus");
+  if(!el) return;
+  let ids = getKrishnaIdList();
+  el.classList.remove("warn");
+
+  if(ids.length === 0){
+    el.textContent = "No numbers entered — no Krishna Herbal orders will be shown";
+    return;
+  }
+  if(blazeNormalized.length === 0){
+    el.textContent = `${ids.length} number${ids.length === 1 ? "" : "s"} entered — load the Blaze file to match`;
+    return;
+  }
+
+  let found = new Set();
+  blazeNormalized.forEach(r=>{
+    if(!isKrishna(r)) return;
+    let a = normId(r.awb), o = normId(r.orderNumber);
+    if(ids.includes(a)) found.add(a);
+    if(ids.includes(o)) found.add(o);
+  });
+  let missing = ids.filter(id => !found.has(id));
+
+  el.textContent = `${ids.length} entered, ${found.size} matched`;
+  if(missing.length){
+    el.classList.add("warn");
+    let shown = missing.slice(0, 5).join(", ");
+    el.textContent += `. Not found in Krishna Herbal stores: ${shown}` +
+      (missing.length > 5 ? ` and ${missing.length - 5} more` : "");
+  }
+}
+
+function clearKrishnaIds(){
+  document.getElementById("krishnaIds").value = "";
+  updateTable();
+}
+
+let krishnaTimer = null;
+document.getElementById("krishnaIds").addEventListener("input", ()=>{
+  clearTimeout(krishnaTimer);
+  krishnaTimer = setTimeout(updateTable, 300);
+});
+
+/* ---------- Filtering ---------- */
+
+// Single shared filter, used by both the tables and the CSV export so
 // they can never disagree with each other.
-function passesFilters(nrow, includeTrips){
+//   ctx = { cutoff, krishnaIdSet }
+function passesFilters(nrow, ctx){
   if(!nrow.store) return false;
 
-  if(nrow.source === "blaze" && !blazeAllowedStores.includes(nrow.store)) return false;
-  if(nrow.source === "bolt" && !boltAllowedStores.includes(nrow.store)) return false;
+  // Krishna Herbal: only the entered AWB / Order Numbers, nothing else
+  // (no cutoff, brand, attempts, RTO or status filter).
+  if(isKrishna(nrow)) return krishnaMatches(nrow, ctx.krishnaIdSet);
 
-  let brandList = allowedBrands[nrow.source];
-  if(brandList && !brandList.includes(nrow.brand)) return false;
-
+  if(allowedBrands && !allowedBrands.includes(nrow.brand)) return false;
   if(excludedBrands.includes(nrow.brand)) return false;
 
-  if(!includeTrips && nrow.trip !== "") return false;
-
-  if(nrow.attempts > 3) return false;
+  if(nrow.attempts > 5) return false;
   if(!nrow.awb) return false;
   if(nrow.status === "RTO") return false;
 
-  if(nrow.creationDate){
-    let now = new Date();
-    let isToday =
-      nrow.creationDate.getDate() === now.getDate() &&
-      nrow.creationDate.getMonth() === now.getMonth() &&
-      nrow.creationDate.getFullYear() === now.getFullYear();
-    let cutoffHour = storeCutoffHours[nrow.store] ?? defaultCutoffHour;
-    let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), cutoffHour, 0, 0);
-    if(isToday && nrow.creationDate > cutoff) return false;
-  }
+  if(nrow.creationDate && nrow.creationDate > ctx.cutoff) return false;
 
   return true;
 }
 
-// Filters + dedupes by AWB (keeps the row with the highest attempt count
-// per AWB, across both sources combined).
+// Filters + dedupes by AWB (falls back to Order Number when AWB is blank),
+// keeping the row with the highest attempt count.
 function getFilteredDeduped(){
-  let includeTrips = document.getElementById("tripToggle")?.checked || false;
-  let combined = blazeNormalized.concat(boltNormalized);
+  let ctx = {
+    cutoff: getCutoff(),
+    krishnaIdSet: new Set(getKrishnaIdList())
+  };
 
   let latestMap = {};
-  combined.forEach(nrow=>{
-    if(!passesFilters(nrow, includeTrips)) return;
-    if(!latestMap[nrow.awb] || nrow.attempts > latestMap[nrow.awb].attempts){
-      latestMap[nrow.awb] = nrow;
+  blazeNormalized.forEach(nrow=>{
+    if(!passesFilters(nrow, ctx)) return;
+    let key = nrow.awb || ("ORDER:" + nrow.orderNumber);
+    if(!latestMap[key] || nrow.attempts > latestMap[key].attempts){
+      latestMap[key] = nrow;
     }
   });
 
   return Object.values(latestMap);
+}
+
+// Rows for Reports 2 & 3 and the CSV: only rows whose status is ticked
+// in the Status Filter — Krishna Herbal orders included. Statuses that
+// aren't ticked (e.g. DELIVERED, RTO, CANCELLED) never get a column or
+// appear in these two reports; tick them in the filter to see them.
+function getStatusRows(filtered, selectedStatuses){
+  let ordered = priorityStatuses.filter(s => selectedStatuses.includes(s))
+    .concat(selectedStatuses.filter(s => !priorityStatuses.includes(s)));
+
+  let rows = filtered.filter(r => ordered.includes(r.status));
+
+  return { rows, statuses: ordered };
 }
 
 /* ========================= FILE HANDLING ========================= */
@@ -500,21 +692,7 @@ document.getElementById("blazeFileInput").addEventListener("change", function(e)
       blazeNormalized = res.data.map(normalizeBlazeRow);
       document.getElementById("blazeStatus").textContent =
         `Loaded ${blazeNormalized.length} rows`;
-      renderTable(getSelectedStatuses());
-    }
-  });
-});
-
-document.getElementById("boltFileInput").addEventListener("change", function(e){
-  if(!e.target.files[0]) return;
-  Papa.parse(e.target.files[0], {
-    header: true,
-    skipEmptyLines: true,
-    complete: function(res){
-      boltNormalized = res.data.map(normalizeBoltRow);
-      document.getElementById("boltStatus").textContent =
-        `Loaded ${boltNormalized.length} rows`;
-      renderTable(getSelectedStatuses());
+      updateTable();
     }
   });
 });
@@ -522,15 +700,18 @@ document.getElementById("boltFileInput").addEventListener("change", function(e){
 /* ========================= FILTER UI ========================= */
 
 function createFilter(){
-  let html = "<b>Status Filter:</b><br>";
+  let html = "";
 
   html += `
-  <br><b>Trip Filter:</b><br>
-  <label>
-    <input type="checkbox" id="tripToggle" onchange="updateTable()">
-    Include Trip Orders
-  </label><br><br>
+  <b><label for="reportDate">Report Date:</label></b><br>
+  <input type="date" id="reportDate" value="${toInputDate(new Date())}" onchange="updateTable()">
+  <span class="cutoff-note" id="cutoffNote"></span>
+  <br>
   `;
+
+  html += "<b>Status Filter:</b><br>";
+
+  html += `<br>`;
 
   statusesList.forEach(s=>{
     html += `<label>
@@ -540,6 +721,7 @@ function createFilter(){
   });
 
   document.getElementById("filterBox").innerHTML = html;
+  updateCutoffNote();
 }
 
 function getSelectedStatuses(){
@@ -550,8 +732,130 @@ function getSelectedStatuses(){
 }
 
 function updateTable(){
+  updateCutoffNote();
+  updateKrishnaStatus();
   renderTable(getSelectedStatuses());
 }
+
+/* ========================= DRILL-DOWN ========================= */
+
+// Populated fresh on every renderTable() call: id -> array of plain
+// order summaries. Cells in the pivot tables register the rows they
+// represent here and reference the id via onclick="showDrill('id')".
+let drillRegistry = {};
+let drillCounter = 0;
+let currentDrillId = null;   // id of the popup currently on screen, for Copy
+
+function registerDrill(rowsArr){
+  let id = "d" + (drillCounter++);
+  drillRegistry[id] = rowsArr.map(r => ({
+    store: storeDisplayName(r.store),
+    awb: r.awb,
+    orderNumber: r.orderNumber,
+    status: r.status,
+    attempts: r.attempts,
+    creationDate: r.creationDate ? fmtDate(r.creationDate) : "",
+    customerName: r.customerName,
+    customerMobile: r.customerMobile
+  }));
+  return id;
+}
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+function showDrill(id){
+  let rows = drillRegistry[id] || [];
+  currentDrillId = id;
+  let title = document.getElementById("drillTitle");
+  let body = document.getElementById("drillBody");
+  title.textContent = `${rows.length} order${rows.length === 1 ? "" : "s"}`;
+
+  if(rows.length === 0){
+    body.innerHTML = "<p>No orders under this cell.</p>";
+  }else{
+    let html = `<table><tr>
+      <th>AWB</th><th>Order Number</th><th>Darkstore</th><th>Status</th>
+      <th>Attempts</th><th>Creation Date</th><th>Customer</th><th>Mobile</th>
+    </tr>`;
+    rows.forEach(r=>{
+      html += `<tr>
+        <td>${escapeHtml(r.awb)}</td>
+        <td>${escapeHtml(r.orderNumber)}</td>
+        <td>${escapeHtml(r.store)}</td>
+        <td>${escapeHtml(r.status)}</td>
+        <td>${r.attempts}</td>
+        <td>${escapeHtml(r.creationDate)}</td>
+        <td>${escapeHtml(r.customerName)}</td>
+        <td>${escapeHtml(r.customerMobile)}</td>
+      </tr>`;
+    });
+    html += "</table>";
+    body.innerHTML = html;
+  }
+  document.getElementById("drillOverlay").style.display = "flex";
+}
+
+function closeDrill(){
+  document.getElementById("drillOverlay").style.display = "none";
+  currentDrillId = null;
+}
+
+// Copies every row currently shown in the popup as tab-separated text
+// (header row + one line per order), so it pastes cleanly into Excel,
+// Sheets, WhatsApp or a plain text file.
+function drillDataAsTsv(){
+  let rows = drillRegistry[currentDrillId] || [];
+  let header = ["AWB","Order Number","Darkstore","Status","Attempts","Creation Date","Customer","Mobile"];
+  let lines = [header.join("\t")];
+  rows.forEach(r=>{
+    lines.push([
+      r.awb, r.orderNumber, r.store, r.status, r.attempts, r.creationDate, r.customerName, r.customerMobile
+    ].map(v => v ?? "").join("\t"));
+  });
+  return lines.join("\n");
+}
+
+function copyDrillData(evt){
+  let text = drillDataAsTsv();
+  let btn = evt?.currentTarget;
+
+  function flashCopied(){
+    if(!btn) return;
+    let original = btn.textContent;
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(()=>{ btn.textContent = original; btn.classList.remove("copied"); }, 1500);
+  }
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(flashCopied, ()=>fallbackCopy(text, flashCopied));
+  }else{
+    fallbackCopy(text, flashCopied);
+  }
+}
+
+// Fallback for browsers/contexts where navigator.clipboard is unavailable
+// (e.g. non-HTTPS pages opened as a local file).
+function fallbackCopy(text, onDone){
+  let ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try{ document.execCommand("copy"); }catch(e){}
+  document.body.removeChild(ta);
+  if(onDone) onDone();
+}
+
+document.getElementById("drillOverlay").addEventListener("click", function(e){
+  if(e.target === this) closeDrill();
+});
 
 /* ========================= RENDER ========================= */
 
@@ -567,25 +871,29 @@ function dateSortKey(d){ return d ? d.getTime() : Infinity; }
 //  levels : [{header, key(row), label(row), sort(row)}]  — row groupings, outermost first
 //  columns: [{header, match(row)}]                        — column buckets
 // Produces rowspan-merged rows, a Subtotal per outermost group, and a grand Total.
+// Every darkstore/date/attempt label and every non-zero count/subtotal/total
+// cell is clickable, opening a modal with the underlying AWB / Order Numbers.
 function renderPivot(containerId, title, rows, levels, columns){
   // Drop any column with no orders at all, so empty statuses don't appear.
   columns = columns.filter(c => rows.some(r => c.match(r)));
 
-  // Build nested tree: node = {label, sort, children:{}, counts:[]}
+  // Build nested tree: node = {label, sort, children:{}, counts:[], rowsList:[], colRowsList:[[]]}
   let root = {children:{}};
   rows.forEach(r=>{
     let node = root;
     levels.forEach(lv=>{
       let k = lv.key(r);
       if(!node.children[k]){
-        node.children[k] = {label: lv.label(r), sort: lv.sort(r), children:{}, counts: columns.map(()=>0)};
-        if(node === root){
-          node.children[k].tagClass = r.source === "bolt" ? "source-bolt" : "source-blaze";
-          node.children[k].tagText  = r.source === "bolt" ? "BOLT" : "BLAZE";
-        }
+        node.children[k] = {
+          label: lv.label(r), sort: lv.sort(r), children:{},
+          counts: columns.map(()=>0),
+          rowsList: [],
+          colRowsList: columns.map(()=>[])
+        };
       }
       node = node.children[k];
-      columns.forEach((c,i)=>{ if(c.match(r)) node.counts[i]++; });
+      node.rowsList.push(r);
+      columns.forEach((c,i)=>{ if(c.match(r)){ node.counts[i]++; node.colRowsList[i].push(r); } });
     });
   });
 
@@ -599,6 +907,11 @@ function renderPivot(containerId, title, rows, levels, columns){
   }
   function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
   function cell(v){ return v === 0 ? "" : v; }   // zero counts render blank
+  function clickableCell(v, rowsForCell){
+    if(v === 0) return "<td></td>";
+    let id = registerDrill(rowsForCell);
+    return `<td onclick="showDrill('${id}')">${v}</td>`;
+  }
 
   let html = `
   <div class="downloadArea" id="${containerId}">
@@ -611,6 +924,7 @@ function renderPivot(containerId, title, rows, levels, columns){
     </tr>`;
 
   let grand = columns.map(()=>0);
+  let grandColRows = columns.map(()=>[]);
 
   function emitRows(node, depth, cells){
     // cells: array of pending <td> strings for outer levels, emitted on the first leaf row
@@ -618,11 +932,12 @@ function renderPivot(containerId, title, rows, levels, columns){
     kids.forEach(kid=>{
       let total = sum(kid.counts);
       if(total === 0) return;
-      let td = `<td rowspan="${leafCount(kid, depth)}" style="font-weight:600;">${kid.label}</td>`;
+      let labelId = registerDrill(kid.rowsList);
+      let td = `<td rowspan="${leafCount(kid, depth)}" style="font-weight:600;" onclick="showDrill('${labelId}')">${kid.label}</td>`;
       if(depth === levels.length-1){
         html += `<tr>${cells.join("")}${td}`;
-        kid.counts.forEach(v=>{ html += `<td>${cell(v)}</td>`; });
-        html += `<td>${total}</td></tr>`;
+        kid.counts.forEach((v,i)=>{ html += clickableCell(v, kid.colRowsList[i]); });
+        html += `<td onclick="showDrill('${labelId}')">${total}</td></tr>`;
         cells.length = 0;
       }else{
         emitRows(kid, depth+1, cells.concat([td]));
@@ -634,39 +949,44 @@ function renderPivot(containerId, title, rows, levels, columns){
   sortedKids(root).forEach(top=>{
     let total = sum(top.counts);
     if(total === 0) return;
-    let storeCell = `<td rowspan="${leafCount(top,0)}">
-      <span style="font-weight:600;font-size:12px;">${top.label}</span>
-      <span class="source-tag ${top.tagClass}">${top.tagText}</span></td>`;
+    let topId = registerDrill(top.rowsList);
+    let storeCell = `<td rowspan="${leafCount(top,0)}" onclick="showDrill('${topId}')">
+      <span style="font-weight:600;font-size:12px;">${top.label}</span></td>`;
     if(levels.length === 1){
       html += `<tr>${storeCell}`;
-      top.counts.forEach(v=>{ html += `<td>${cell(v)}</td>`; });
-      html += `<td>${total}</td></tr>`;
+      top.counts.forEach((v,i)=>{ html += clickableCell(v, top.colRowsList[i]); });
+      html += `<td onclick="showDrill('${topId}')">${total}</td></tr>`;
     }else{
       emitRows(top, 1, [storeCell]);
     }
     html += `<tr style="background:#f1f3f5;font-weight:600;font-size:12px;">
       <td colspan="${levels.length}">Subtotal</td>`;
-    top.counts.forEach((v,i)=>{ grand[i]+=v; html += `<td>${cell(v)}</td>`; });
-    html += `<td>${total}</td></tr>`;
+    top.counts.forEach((v,i)=>{
+      grand[i]+=v;
+      grandColRows[i] = grandColRows[i].concat(top.colRowsList[i]);
+      html += clickableCell(v, top.colRowsList[i]);
+    });
+    html += `<td onclick="showDrill('${topId}')">${total}</td></tr>`;
   });
 
+  let grandTotalId = registerDrill(rows);
   html += `<tr class="total"><td colspan="${levels.length}"><b>Total</b></td>`;
-  grand.forEach(v=>{ html += `<td>${cell(v)}</td>`; });
-  html += `<td>${sum(grand)}</td></tr></table>
+  grand.forEach((v,i)=>{ html += clickableCell(v, grandColRows[i]); });
+  html += `<td onclick="showDrill('${grandTotalId}')">${sum(grand)}</td></tr></table>
   <div class="watermark">Powered by SASA Automation | Zippee</div>
   </div>`;
 
   return html;
 }
 
-// Warehouse level, shared by all three reports. Store label carries the
-// BLAZE/BOLT tag; the same store on both sources stays as two rows.
+// Store level, shared by all three reports. Grouped stores (storeGroups)
+// are merged into a single row keyed by the group name.
 function storeLevel(){
   return {
     header: "Darkstore",
-    key: r => r.store + "|" + r.source,
-    label: r => prettifyStoreName(r.store),
-    sort: r => prettifyStoreName(r.store) + "|" + r.source
+    key: r => storeDisplayName(r.store),
+    label: r => storeDisplayName(r.store),
+    sort: r => storeDisplayName(r.store)
   };
 }
 function dateLevel(){
@@ -686,10 +1006,16 @@ function attemptLevel(){
   };
 }
 
-function renderTable(statuses){
-  // Nothing to show until at least one file has been loaded.
-  if(blazeNormalized.length === 0 && boltNormalized.length === 0){
+function renderTable(selectedStatuses){
+  // Reset the drill-down registry on every re-render so ids stay in sync
+  // with what's currently on screen.
+  drillRegistry = {};
+  drillCounter = 0;
+
+  // Nothing to show until the Blaze file has been loaded.
+  if(blazeNormalized.length === 0){
     document.getElementById("tableContainer").innerHTML = "";
+    lastReadyRows = [];
     return;
   }
   let filtered = getFilteredDeduped();
@@ -697,24 +1023,23 @@ function renderTable(statuses){
 
   // Report 1: READY orders only, regardless of the status filter.
   let readyRows = filtered.filter(r => r.status === "READY");
+  lastReadyRows = readyRows;
   let attemptsPresent = [...new Set(readyRows.map(r=>r.attempts))].sort((a,b)=>a-b);
   let attemptCols = attemptsPresent.map(a=>({header:`${a} Attempts`, match: r=>r.attempts===a}));
 
-  // Reports 2 & 3: ticked statuses, priority ones first in their fixed order.
-  let ordered = priorityStatuses.filter(s => statuses.includes(s))
-    .concat(statuses.filter(s => !priorityStatuses.includes(s)));
-  let deduped = filtered.filter(r => ordered.includes(r.status));
-  let statusCols = ordered.map(s=>({header:s, match: r=>r.status===s}));
+  // Reports 2 & 3: ticked statuses (+ any status on matched Krishna orders).
+  let { rows: statusRows, statuses } = getStatusRows(filtered, selectedStatuses);
+  let statusCols = statuses.map(s=>({header:s, match: r=>r.status===s}));
 
   let html = "";
   html += renderPivot("report1", "Krishna Herbal Pendancy Report",
                       readyRows, [sl, dateLevel()], attemptCols);
   html += `<div style="height:30px"></div>`;
   html += renderPivot("report2", "Krishna Herbal Order Status Report",
-                      deduped, [sl, dateLevel()], statusCols);
+                      statusRows, [sl, dateLevel()], statusCols);
   html += `<div style="height:30px"></div>`;
   html += renderPivot("report3", "Krishna Herbal Order Status Report",
-                      deduped, [sl, dateLevel(), attemptLevel()], statusCols);
+                      statusRows, [sl, dateLevel(), attemptLevel()], statusCols);
 
   document.getElementById("tableContainer").innerHTML = html;
 }
@@ -741,16 +1066,10 @@ function downloadImage(id){
   });
 }
 
-function downloadCSV(){
-  let selectedStatuses = getSelectedStatuses();
-
-  let deduped = getFilteredDeduped()
-    .filter(nrow => selectedStatuses.includes(nrow.status));
-
-  let exportRows = deduped.map(nrow => ({
-    "Source": nrow.source.toUpperCase(),
-    "Darkstore": prettifyStoreName(nrow.store),
-    "Raw Warehouse Value": nrow.store,
+function rowsToCsvBlob(rowsArr){
+  let exportRows = rowsArr.map(nrow => ({
+    "Darkstore": storeDisplayName(nrow.store),
+    "Raw Darkstore Value": nrow.store,
     "AWB": nrow.awb,
     "Order Number": nrow.orderNumber,
     "Brand": nrow.brand,
@@ -764,19 +1083,36 @@ function downloadCSV(){
     "Delivery Pincode": nrow.deliveryPincode,
     "Rider Name": nrow.riderName
   }));
-
   let csv = Papa.unparse(exportRows);
-  let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  return new Blob([csv], { type: "text/csv;charset=utf-8;" });
+}
+
+function triggerDownload(blob, filename){
   let link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "filtered_data.csv";
+  link.download = filename;
   link.click();
+}
+
+function downloadCSV(){
+  let { rows } = getStatusRows(getFilteredDeduped(), getSelectedStatuses());
+  triggerDownload(rowsToCsvBlob(rows), "filtered_data.csv");
+}
+
+// Exports exactly the rows shown in Report 1 (READY orders, after all
+// filters), independent of the Status Filter checkboxes.
+function downloadReport1CSV(){
+  if(lastReadyRows.length === 0){
+    alert("Report 1 has no orders to export yet — load a file first.");
+    return;
+  }
+  triggerDownload(rowsToCsvBlob(lastReadyRows), "report1_filtered_data.csv");
 }
 
 /* ========================= INIT ========================= */
 
 createFilter();
-renderTable(getSelectedStatuses());
+updateTable();
 
 </script>
 
