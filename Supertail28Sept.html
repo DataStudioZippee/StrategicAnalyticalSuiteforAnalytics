@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST Dashboard – Supertails × Zippee</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+@property --depth {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 6px;
+}
+:root {
+  --zippee-primary: #00305E;
+  --zippee-secondary: #0078D4;
+  --text-dark: #1d2a38;
+  --card-bg: rgba(255,255,255,.15);
+  --edge-top: #2b8cff;
+  --edge-bottom: #063f7d;
+  --edge-depth: 6px;
+  --edge-depth-hover: 11px;
+  --glare: rgba(255,255,255,.5);
+  --stage: 900px;
+}
+body.dark {
+  --zippee-primary: #dce9ff;
+  --text-dark: #f5f5f5;
+  --card-bg: rgba(0,0,0,.35);
+  --edge-top: #1e6fd9;
+  --edge-bottom: #03203f;
+  --glare: rgba(160,205,255,.32);
+  background: #0b1320 !important;
+}
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #001c38 0%, #00305E 40%, #0078D4 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--text-dark);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,.12);
+  z-index: -1;
+}
+.header-main {
+  background: rgba(0,48,94,.9);
+  color: white;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  z-index: 20;
+  box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 -1px 0 rgba(0,0,0,.4) inset, 0 10px 24px rgba(0,0,0,.35);
+}
+.header-logo { height: 34px; font-size: 22px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.45)); }
+h1 { margin: 0; font-size: 20px; text-shadow: 0 1px 0 rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3); }
+.container {
+  margin: 90px auto 80px auto;
+  width: 94%;
+  max-width: 1200px;
+  padding: 28px 24px;
+  border-radius: 18px;
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  color: var(--text-dark);
+  perspective: 1600px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -1px 0 rgba(0,0,0,.14) inset, 0 18px 50px rgba(0,0,0,.28);
+}
+.container h2 { text-align: center; margin: 8px 0 6px; }
+.sasa-hero { display: flex; justify-content: center; margin-bottom: 6px; }
+.sasa-img {
+  height: 90px; font-size: 64px; line-height: 90px; text-align: center;
+  animation: glow 3.5s ease-in-out infinite, float3d 9s ease-in-out infinite;
+}
+@keyframes glow {
+  0%,100% { filter: drop-shadow(0 0 12px rgba(0,120,255,.5)); }
+  50% { filter: drop-shadow(0 0 28px rgba(0,120,255,.9)); }
+}
+@keyframes float3d {
+  0%,100% { transform: rotateY(-8deg) translateY(0); }
+  50% { transform: rotateY(8deg) translateY(-10px); }
+}
+.sasa-speech {
+  text-align: center; font-weight: 600;
+  background: rgba(255,255,255,.85);
+  padding: 8px 16px; border-radius: 12px; width: fit-content;
+  margin: 0 auto 14px auto;
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 3px 0 rgba(0,0,0,.12), 0 10px 20px rgba(0,0,0,.22);
+}
+body.dark .sasa-speech { background: rgba(0,0,0,.55); color: #fff; }
+.controls-panel {
+  background: rgba(255,255,255,.45);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 22px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 18px rgba(0,0,0,.12);
+}
+body.dark .controls-panel { background: rgba(0,0,0,.4); }
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.control-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; opacity: 0.85; }
+.control-group input[type="file"],
+.control-group input[type="number"],
+.control-group select {
+  width: 100%; padding: 8px 10px;
+  border: 1px solid rgba(0,48,94,.25); border-radius: 8px; font-size: 0.9rem;
+  background: rgba(255,255,255,.8);
+}
+body.dark .control-group input,
+body.dark .control-group select {
+  background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.2);
+}
+.radio-row { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 4px; }
+.radio-row label { display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; }
+.tool-button {
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%; --lift: 0px; --depth: var(--edge-depth);
+  position: relative; overflow: hidden; border: none;
+  background: linear-gradient(160deg, var(--edge-top), #0a63c9 55%, #0757ad);
+  color: white; padding: 13px 20px; border-radius: 12px; font-size: 15px; font-weight: 700;
+  min-width: 180px; display: inline-flex; gap: 8px; justify-content: center; align-items: center;
+  cursor: pointer; transform-style: preserve-3d;
+  transform: perspective(var(--stage)) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(var(--lift));
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.28) inset,
+              0 var(--depth) 0 var(--edge-bottom), 0 calc(var(--depth) + 6px) 20px rgba(0,0,0,.32);
+  transition: transform .45s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease, --depth .3s ease;
+}
+.tool-button.is-tilting { transition: box-shadow .3s ease; }
+.tool-button::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at var(--mx) var(--my), var(--glare), transparent 58%);
+  opacity: 0; transition: opacity .3s ease; pointer-events: none;
+}
+@media (hover:hover) and (pointer:fine) {
+  .tool-button:hover { --lift: 14px; --depth: var(--edge-depth-hover); }
+  .tool-button:hover::after { opacity: 1; }
+}
+.tool-button:active { --lift: 2px; --depth: 2px; transition: transform .08s ease, box-shadow .08s ease; }
+.tool-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.tool-button.danger {
+  background: linear-gradient(160deg, #ef4444, #b91c1c 55%, #7f1d1d);
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.28) inset,
+              0 var(--depth) 0 #450a0a, 0 calc(var(--depth) + 6px) 20px rgba(0,0,0,.32);
+}
+.tool-button.small { padding: 6px 12px; font-size: 12px; min-width: auto; }
+.kpi-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px; margin: 18px 0 22px;
+}
+.kpi-card {
+  background: rgba(255,255,255,.55); border-radius: 12px; padding: 14px 12px; text-align: center;
+  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 6px 16px rgba(0,0,0,.12);
+}
+body.dark .kpi-card { background: rgba(0,0,0,.4); }
+.kpi-card .label { font-size: 0.78rem; opacity: 0.75; }
+.kpi-card .value { font-size: 1.45rem; font-weight: 700; margin-top: 2px; }
+.kpi-card .delta { font-size: 0.78rem; margin-top: 2px; }
+.delta.pos { color: #059669; }
+.delta.neg { color: #dc2626; }
+.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
+  border-bottom: 2px solid rgba(0,48,94,.15); padding-bottom: 6px;
+}
+.tab {
+  padding: 9px 16px; border-radius: 8px 8px 0 0; cursor: pointer;
+  font-weight: 600; font-size: 0.9rem; color: var(--text-dark); opacity: 0.7; transition: 0.15s;
+}
+.tab.active {
+  opacity: 1; background: rgba(0,120,212,.15); color: var(--zippee-primary);
+  border-bottom: 2px solid var(--zippee-secondary);
+}
+body.dark .tab.active { background: rgba(0,120,212,.25); color: #9ecbff; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.table-wrap {
+  overflow-x: auto; max-height: 460px; border-radius: 12px;
+  border: 1px solid rgba(0,48,94,.12); background: rgba(255,255,255,.5);
+}
+body.dark .table-wrap { background: rgba(0,0,0,.3); border-color: rgba(255,255,255,.1); }
+table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+th, td { padding: 9px 11px; text-align: left; border-bottom: 1px solid rgba(0,0,0,.06); }
+th { background: rgba(0,48,94,.08); font-weight: 600; position: sticky; top: 0; }
+body.dark th { background: rgba(0,80,160,.3); }
+tr:hover td { background: rgba(0,120,212,.06); }
+tr.cleared td { opacity: 0.55; text-decoration: line-through; background: rgba(239,68,68,.08); }
+.store-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px; margin-bottom: 18px;
+}
+.store-card {
+  background: rgba(255,255,255,.5); border-radius: 12px; padding: 14px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 14px rgba(0,0,0,.1);
+}
+body.dark .store-card { background: rgba(0,0,0,.35); }
+.store-card h4 { margin: 0 0 8px; font-size: 1rem; }
+.store-card .metric { display: flex; justify-content: space-between; font-size: 0.88rem; margin: 3px 0; }
+.info {
+  background: rgba(0,120,212,.12); border: 1px solid rgba(0,120,212,.25);
+  padding: 11px 14px; border-radius: 10px; margin: 12px 0; font-size: 0.9rem;
+}
+.success-msg {
+  background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3);
+  padding: 11px 14px; border-radius: 10px; margin: 12px 0;
+}
+.filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; align-items: flex-end; }
+.filters select { min-width: 140px; padding: 7px; border-radius: 8px; border: 1px solid rgba(0,48,94,.2); }
+.download-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+#status { text-align: center; margin: 10px 0; font-size: 0.9rem; opacity: 0.85; }
+.toggle-dark {
+  position: fixed; top: 12px; right: 16px; background: white; border-radius: 50px;
+  padding: 6px 12px; cursor: pointer; font-size: 14px; z-index: 50;
+  box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 8px 16px rgba(0,0,0,.3);
+}
+.assist-btn {
+  position: fixed; right: 18px; bottom: 70px;
+  background: linear-gradient(160deg, #3d9bff, #0064db); color: white;
+  width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 30;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 6px 0 #00437f, 0 14px 24px rgba(0,0,0,.4);
+}
+.chat-box {
+  position: fixed; right: 18px; bottom: 130px; width: 260px; background: white;
+  border-radius: 14px; box-shadow: 0 6px 0 rgba(0,0,0,.12), 0 20px 40px rgba(0,0,0,.4);
+  display: none; padding: 12px 14px; z-index: 30;
+}
+.chat-box.open { display: block; }
+.loader-screen {
+  position: fixed; inset: 0; background: #001c38; color: white;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999;
+  transition: opacity .5s ease;
+}
+.loader-screen .logo { font-size: 48px; margin-bottom: 12px; }
+.ticker-bar {
+  position: fixed; bottom: 0; width: 100%; background: rgba(0,48,94,.94); color: white;
+  padding: 7px 0; overflow: hidden; z-index: 5;
+}
+.ticker-content {
+  white-space: nowrap; display: inline-block; padding-left: 100%;
+  animation: marq 40s linear infinite;
+}
+@keyframes marq { to { transform: translateX(-100%); } }
+footer { text-align: center; font-size: 12px; opacity: 0.75; margin-top: 24px; padding-bottom: 10px; }
+.sub-tabs { display: flex; gap: 8px; margin: 12px 0 10px; flex-wrap: wrap; }
+.sub-tab {
+  padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  background: rgba(0,48,94,.08); opacity: 0.75;
+}
+.sub-tab.active { opacity: 1; background: rgba(0,120,212,.2); color: var(--zippee-primary); }
+body.dark .sub-tab { background: rgba(255,255,255,.1); }
+body.dark .sub-tab.active { background: rgba(0,120,212,.3); color: #9ecbff; }
+/* 5 PM Rider Report manual inputs */
+.rider5pm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 4px;
+  background: rgba(255,255,255,.6);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 4px 12px rgba(0,0,0,.08);
+}
+.rider5pm-table th,
+.rider5pm-table td {
+  border: 1px solid rgba(0,48,94,.18);
+  padding: 8px 10px;
+  text-align: center;
+}
+.rider5pm-table th {
+  background: #f4d03f;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+.rider5pm-table th.col-header {
+  background: #f9e79f;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.rider5pm-table td.store-name {
+  font-weight: 600;
+  text-align: left;
+  background: rgba(255,255,255,.7);
+}
+.rider5pm-table input[type="number"] {
+  width: 72px;
+  padding: 6px 8px;
+  border: 1px solid rgba(0,48,94,.25);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+  background: rgba(255,255,255,.9);
+}
+body.dark .rider5pm-table {
+  background: rgba(0,0,0,.35);
+}
+body.dark .rider5pm-table th {
+  background: #c9a227;
+  color: #1a1a1a;
+}
+body.dark .rider5pm-table th.col-header {
+  background: #a88b1e;
+  color: #fff;
+}
+body.dark .rider5pm-table td.store-name {
+  background: rgba(0,0,0,.25);
+  color: #e8e8e8;
+}
+body.dark .rider5pm-table input[type="number"] {
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  border-color: rgba(255,255,255,.2);
+}
+@media (max-width: 600px) {
+  .sasa-img { height: 70px; font-size: 48px; }
+  .tool-button { min-width: 140px; }
+  .rider5pm-table input[type="number"] { width: 56px; }
+}
+
+/* ===== Excel-style report tables (match screenshots) ===== */
+.excel-report {
+  overflow-x: auto;
+  border-radius: 8px;
+  margin: 12px 0 18px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14);
+  border: 1px solid #999;
+}
+.excel-report table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  background: #fff;
+}
+.excel-report th,
+.excel-report td {
+  border: 1px solid #999;
+  padding: 7px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+.excel-report .report-title-orange {
+  background: #f4a261;
+  color: #1a1a1a;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 12px;
+  text-align: center;
+}
+.excel-report .report-title-purple {
+  background: #9b2d8a;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 12px;
+  text-align: center;
+}
+.excel-report .report-title-navy {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 12px;
+  text-align: center;
+}
+.excel-report .breach-header th {
+  background: #e9c46a;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+.excel-report .breach-row td:first-child {
+  background: #f4a261;
+  font-weight: 600;
+  text-align: left;
+}
+.excel-report .breach-row:nth-child(even) td:not(:first-child) {
+  background: #fef9ef;
+}
+.excel-report .pend-header th {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 600;
+}
+.excel-report .pend-key {
+  background: #fff;
+  text-align: left !important;
+  font-weight: 500;
+}
+.excel-report .pend-sno {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 600;
+  width: 42px;
+}
+.excel-report .pend-highlight {
+  background: #c77db5 !important;
+  color: #fff;
+  font-weight: 700;
+}
+.excel-report .pend-sub-header td {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 600;
+  text-align: left !important;
+}
+.excel-report .eod-header th {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+}
+.excel-report .eod-label {
+  text-align: left !important;
+  font-weight: 600;
+  background: #fff;
+}
+.excel-report .eod-row-blue td { background: #c5e0f5; }
+.excel-report .eod-row-blue .eod-label { background: #c5e0f5; }
+.excel-report .eod-row-gray td { background: #d0d0d0; }
+.excel-report .eod-row-gray .eod-label { background: #d0d0d0; }
+.excel-report .eod-total { background: #c5e0f5; font-weight: 700; }
+.excel-report .eod-breach-pct { color: #c00; font-weight: 700; }
+body.dark .excel-report table { background: #1a2332; color: #e8e8e8; }
+body.dark .excel-report th,
+body.dark .excel-report td { border-color: #3a4a5c; }
+body.dark .excel-report .report-title-orange { background: #c47a3a; color: #fff; }
+body.dark .excel-report .report-title-purple { background: #7a246c; }
+body.dark .excel-report .report-title-navy { background: #152a45; }
+body.dark .excel-report .breach-header th { background: #b89a4a; color: #fff; }
+body.dark .excel-report .breach-row td:first-child { background: #c47a3a; color: #fff; }
+body.dark .excel-report .pend-header th,
+body.dark .excel-report .pend-sno,
+body.dark .excel-report .pend-sub-header td,
+body.dark .excel-report .eod-header th { background: #152a45; }
+body.dark .excel-report .pend-highlight { background: #9b2d8a !important; }
+body.dark .excel-report .eod-row-blue td,
+body.dark .excel-report .eod-row-blue .eod-label,
+body.dark .excel-report .eod-total { background: #1a3a55; }
+body.dark .excel-report .eod-row-gray td,
+body.dark .excel-report .eod-row-gray .eod-label { background: #3a3a3a; }
+body.dark .excel-report .eod-label,
+body.dark .excel-report .pend-key { background: #1a2332; }
+</style>
+</head>
+<body>
+
+<div class="loader-screen" id="loader">
+  <div class="logo">📦</div>
+  <div>ST Dashboard is loading...</div>
+</div>
+
+<div class="toggle-dark" onclick="toggleDark()">🌙 / ☀️</div>
+
+<div class="header-main">
+  <div class="header-logo">📦</div>
+  <h1>ST Dashboard – Supertails × Zippee</h1>
+</div>
+
+<div class="container">
+  <div class="sasa-hero"><div class="sasa-img">📦</div></div>
+  <div class="sasa-speech">👋 Supertails Delivery Performance · Exact Excel SOP</div>
+
+  <h2>ST Dashboard</h2>
+  <p style="text-align:center; margin-bottom:18px; opacity:0.85;">
+    Upload the 3 store CSVs → Generate EOD, Pendency & Breach reports
+  </p>
+
+  <div class="controls-panel">
+    <div class="controls-grid">
+      <div class="control-group">
+        <label>Processing Mode</label>
+        <div class="radio-row">
+          <label><input type="radio" name="mode" value="daily" checked> Daily Mode</label>
+          <label><input type="radio" name="mode" value="all"> All Data</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>1. Kalyan Nagar CSV</label>
+        <input type="file" id="fileKalyan" accept=".csv">
+      </div>
+      <div class="control-group">
+        <label>2. Varthur CSV</label>
+        <input type="file" id="fileVarthur" accept=".csv">
+      </div>
+      <div class="control-group">
+        <label>3. Indranagar CSV</label>
+        <input type="file" id="fileIndranagar" accept=".csv">
+      </div>
+    </div>
+
+    <!-- Rider section – fill manually; report time shown after generate -->
+    <div class="rider-section" style="margin-top:16px; padding-top:14px; border-top:1px solid rgba(0,48,94,.15);">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
+        <h3 style="margin:0; font-size:1rem;">Rider Count (fill manually)</h3>
+        <div id="reportPreparedAt" style="font-size:0.88rem; opacity:0.85; font-weight:600;">
+          Report time: — (generate to set)
+        </div>
+      </div>
+      <div class="controls-grid">
+        <div class="control-group">
+          <label>Kalyan Nagar – Planned</label>
+          <input type="number" id="plannedKalyan" min="0" value="13">
+        </div>
+        <div class="control-group">
+          <label>Kalyan Nagar – Active</label>
+          <input type="number" id="activeKalyan" min="0" value="11">
+        </div>
+        <div class="control-group">
+          <label>Indranagar – Planned</label>
+          <input type="number" id="plannedIndra" min="0" value="7">
+        </div>
+        <div class="control-group">
+          <label>Indranagar – Active</label>
+          <input type="number" id="activeIndra" min="0" value="7">
+        </div>
+        <div class="control-group">
+          <label>Varthur – Planned</label>
+          <input type="number" id="plannedVarthur" min="0" value="6">
+        </div>
+        <div class="control-group">
+          <label>Varthur – Active</label>
+          <input type="number" id="activeVarthur" min="0" value="6">
+        </div>
+      </div>
+    </div>
+
+    <!-- Rider Report (time updates on Generate) – fill manually (layout only; not used in report logic) -->
+    <div class="rider-section" style="margin-top:16px; padding-top:14px; border-top:1px solid rgba(0,48,94,.15);">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+        <h3 id="riderReportSectionTitle" style="margin:0; font-size:1rem;">Rider Report (fill manually)</h3>
+        <div id="riderReportTimeLabel" style="font-size:0.88rem; opacity:0.85; font-weight:600;">
+          Time: — (set on Generate)
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="rider5pm-table">
+          <thead>
+            <tr>
+              <th colspan="4" id="riderReportTableTitle" style="background:#f4d03f; font-size:1rem;">Rider Report — generate to set time</th>
+            </tr>
+            <tr>
+              <th class="col-header"></th>
+              <th class="col-header">Riders in Store</th>
+              <th class="col-header">Riders Out for delivery</th>
+              <th class="col-header">Rider completed the shift and logged out</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="store-name">Kalyan</td>
+              <td><input type="number" id="pm5InStoreKalyan" min="0" value="4"></td>
+              <td><input type="number" id="pm5OutKalyan" min="0" value="2"></td>
+              <td><input type="number" id="pm5LoggedOutKalyan" min="0" value="6"></td>
+            </tr>
+            <tr>
+              <td class="store-name">Indra</td>
+              <td><input type="number" id="pm5InStoreIndra" min="0" value="2"></td>
+              <td><input type="number" id="pm5OutIndra" min="0" value="1"></td>
+              <td><input type="number" id="pm5LoggedOutIndra" min="0" value="4"></td>
+            </tr>
+            <tr>
+              <td class="store-name">Varthur</td>
+              <td><input type="number" id="pm5InStoreVarthur" min="0" value="1"></td>
+              <td><input type="number" id="pm5OutVarthur" min="0" value="2"></td>
+              <td><input type="number" id="pm5LoggedOutVarthur" min="0" value="3"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:18px;">
+      <button class="tool-button" id="btnGenerate">🚀 Generate Reports</button>
+    </div>
+    <p id="status"></p>
+  </div>
+
+  <div id="results" style="display:none;">
+    <h3 style="text-align:center; margin-bottom:8px;">Key Performance Indicators</h3>
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="eod">EOD Report</div>
+      <div class="tab" data-tab="pend">Pendency</div>
+      <div class="tab" data-tab="breach">Breach Report</div>
+      <div class="tab" data-tab="breachDetail">Breach Order IDs</div>
+      <div class="tab" data-tab="detail">Order Detail</div>
+      <div class="tab" data-tab="downloads">Downloads</div>
+    </div>
+
+    <div id="tab-eod" class="tab-content active"></div>
+    <div id="tab-pend" class="tab-content"></div>
+    <div id="tab-breach" class="tab-content"></div>
+    <div id="tab-breachDetail" class="tab-content"></div>
+    <div id="tab-detail" class="tab-content"></div>
+    <div id="tab-downloads" class="tab-content"></div>
+  </div>
+
+  <footer id="footer">ST Dashboard · Fixed Daily Filter · Pendency aligned to Excel SOP</footer>
+</div>
+
+<div class="assist-btn" onclick="openChat()">💬</div>
+<div class="chat-box" id="chatBox">
+  <b>Hi, I'm ST Assistant</b><br><br>
+  • Upload 3 store CSVs<br>
+  • Set Planned + Active riders per store (manual)<br>
+  • Fill Rider Report (In Store / Out for delivery / Logged out) — time updates on Generate<br>
+  • Report prepare time shows after Generate<br>
+  • Download any report as PNG from its tab<br>
+  • Click Generate Reports<br>
+  • Pendency now matches Excel SOP exactly<br>
+  • Use “Clear from Breach” to correct any wrong breach counts<br><br>
+  <button onclick="closeChat()" style="padding:6px 12px;border-radius:8px;border:none;background:#0078D4;color:#fff;cursor:pointer;">Close</button>
+</div>
+
+<div class="ticker-bar">
+  <div class="ticker-content">
+    ST Dashboard — Pendency aligned to Zippee &lt;&gt; Supertails Excel SOP · Created Today OR Delivered Today · Manual breach clear supported
+  </div>
+</div>
+
+<script>
+/* ===== UTILITIES ===== */
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length < 2) return [];
+  function parseLine(line) {
+    const result = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+      else cur += c;
+    }
+    result.push(cur); return result;
+  }
+  const headers = parseLine(lines[0]).map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = vals[idx] !== undefined ? vals[idx] : '');
+    rows.push(obj);
+  }
+  return rows;
+}
+function toDate(val) {
+  if (!val || val === '' || val === 'NaT') return null;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+function normalizeDate(d) {
+  if (!d) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function ceil(n) { return Math.ceil(n); }
+
+function downloadCSV(filename, rows, columns) {
+  if (!rows || !rows.length) return;
+  const cols = columns || Object.keys(rows[0]);
+  const escape = v => {
+    if (v == null) return '';
+    const s = String(v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const lines = [cols.join(',')];
+  rows.forEach(r => lines.push(cols.map(c => escape(r[c])).join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function tableHTML(rows, columns, options = {}) {
+  if (!rows || !rows.length) return '<p>No data</p>';
+  const cols = columns || Object.keys(rows[0]);
+  const { actionCol, rowClassFn } = options;
+  let html = '<div class="table-wrap"><table><thead><tr>';
+  cols.forEach(c => html += `<th>${c}</th>`);
+  if (actionCol) html += '<th>Action</th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach((r, idx) => {
+    const cls = rowClassFn ? rowClassFn(r) : '';
+    html += `<tr class="${cls}">`;
+    cols.forEach(c => {
+      let v = r[c];
+      if (v instanceof Date) v = v.toISOString().slice(0, 19).replace('T', ' ');
+      if (typeof v === 'number' && !Number.isInteger(v)) v = v.toFixed(1);
+      html += `<td>${v == null ? '' : v}</td>`;
+    });
+    if (actionCol) html += `<td>${actionCol(r, idx)}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function getOrderKey(r) {
+  return (r['CDR ID'] || r['Reference ID'] || r['Order ID'] || JSON.stringify(r)).toString();
+}
+
+function getCreateTsFromNotes(notes) {
+  if (!notes || typeof notes !== 'string') return null;
+  const m = notes.match(/Order Create Time Stamp:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (m) return toDate(m[1]);
+  return null;
+}
+
+/* ===== CLEANING ===== */
+function loadAndClean(rows, storeLabel) {
+  const cancelCols = ['Cancellation Source','Cancellation Reason','Cancellation At Status','Cancellation Reference ID','Movement Type'];
+  return rows.map(r => {
+    const obj = {};
+    for (const [k, v] of Object.entries(r)) {
+      if (cancelCols.includes(k)) continue;
+      obj[k.trim()] = v;
+    }
+    ['Creation Date','Manifested Time','Out For Pickup Time','Reached Pickup Time','Pickup Time','Out For Delivery Time','Reached Delivery Time','Terminal Time','EDT(Expected Delivery Time)','ADT(Actual Delivery Time)','Cancellation Date','First Allocation Request','Fulfillment Request Time'].forEach(c => {
+      if (obj[c] !== undefined) obj[c] = toDate(obj[c]);
+    });
+    ['Bill Amount','COD Amount','Total Weight','Total Volume','Pickup to Drop Distance(Kms)','Failed Attempt Count','Failed Partner Allocations','Owner ID'].forEach(c => {
+      if (obj[c] !== undefined) {
+        const n = parseFloat(obj[c]);
+        obj[c] = isNaN(n) ? null : n;
+      }
+    });
+    if (storeLabel) obj.Store_Label = storeLabel;
+    return obj;
+  });
+}
+
+function parseNotesTimestamps(notes) {
+  if (!notes || typeof notes !== 'string') return [null, null];
+  let createTs = null, dropTs = null;
+  const m1 = notes.match(/Order Create Time Stamp:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (m1) createTs = toDate(m1[1]);
+  const m2 = notes.match(/drop_time:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (m2) dropTs = toDate(m2[1]);
+  return [createTs, dropTs];
+}
+
+/* ===== FIXED DAILY FILTER ===== */
+function applyDateFilters(df, reportDate, mode) {
+  let data = df.filter(r => {
+    const remark = (r['Last Failed Remark'] || '').toString();
+    if (/RTO/i.test(remark)) return false;
+    if ((r['Fulfillment Status'] || '') === 'RTO_DELIVERED') return false;
+    return true;
+  });
+
+  if (mode === 'all') return data;
+
+  let today = reportDate ? normalizeDate(reportDate) : null;
+  if (!today) {
+    let maxD = null;
+    data.forEach(r => {
+      const c = r['Creation Date'];
+      const a = r['ADT(Actual Delivery Time)'];
+      const t = r['Terminal Time'];
+      [c, a, t].forEach(d => {
+        if (d && (!maxD || d > maxD)) maxD = d;
+      });
+    });
+    today = maxD ? normalizeDate(maxD) : normalizeDate(new Date());
+  }
+
+  data = data.filter(r => {
+    const created = r['Creation Date'] && normalizeDate(r['Creation Date']).getTime() === today.getTime();
+    const delivered = (r['ADT(Actual Delivery Time)'] && normalizeDate(r['ADT(Actual Delivery Time)']).getTime() === today.getTime()) ||
+                      (r['Terminal Time'] && normalizeDate(r['Terminal Time']).getTime() === today.getTime());
+    return created || delivered;
+  });
+
+  data = data.filter(r => {
+    if ((r.Status || '').toLowerCase() === 'cancelled' && r['Cancellation Date']) {
+      if (normalizeDate(r['Cancellation Date']).getTime() < today.getTime()) return false;
+    }
+    return true;
+  });
+
+  data._reportDate = today;
+  return data;
+}
+
+/* ===== MODEL / TAT / PIDGE ===== */
+function classifyModel(row) {
+  const at = (row.Warehouse_pincode || '').toString().slice(-6);
+  const au = (row.Destination_pincode || '').toString().slice(-6);
+  const channel = (row.Channel || '').toString();
+  const g = (row['Sender Name'] || '').toString();
+  const az = row.Order_datetime;
+  const bh = row.Promise_time;
+
+  if (at === '562162') return 'Warehouse Order';
+
+  const validChannels = ['Supertails-Varthur', 'Supertail_Hyperlocal', 'Supertails-Indranagar'];
+  const validSenders = ['DKS_Blr_varthur_002', 'DKS_Blr_kalyannagar_002', 'DKS_Blr_kaggdaspura_002'];
+
+  if (!validChannels.includes(channel) || au === '560049' || !validSenders.includes(g)) {
+    return 'SDD Delivery';
+  }
+  if (!az) return 'SDD Delivery';
+
+  const hourAz = az.getHours();
+  let hourBh = 0, minuteBh = 0;
+  if (bh != null && !isNaN(bh)) {
+    const totalSec = bh / 1000;
+    hourBh = Math.floor(totalSec / 3600);
+    minuteBh = Math.floor((totalSec % 3600) / 60);
+  }
+
+  if (hourAz >= 7 && hourAz < 22 && hourBh < 1 && minuteBh <= 15) return '15 Min Delivery';
+  if (hourAz >= 7 && hourAz < 22 && hourBh < 1) return '30 Min Delivery';
+  if (hourAz >= 8 && hourAz < 20 && hourBh === 2) return '2 Hours Delivery';
+  if (hourBh < 1 && (hourAz >= 22 || hourAz < 7)) return 'Overnight order';
+  return 'SDD Delivery';
+}
+
+function calculateTat(row) {
+  const channel = (row.Channel || '').toString();
+  const av = (row.Model || '').toString();
+  const az = row.Order_datetime;
+  if (!az) return null;
+
+  if (av === 'SDD Delivery') {
+    if (['Supertails-Varthur', 'Supertail_Hyperlocal'].includes(channel)) {
+      const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(13, 0, 0, 0); return t;
+    }
+    if (channel === 'Supertails-Indranagar') {
+      const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(11, 0, 0, 0); return t;
+    }
+  }
+  if (av === 'Overnight order') {
+    if (['Supertail_Hyperlocal', 'Supertails-Varthur', 'Supertails-Indranagar'].includes(channel)) {
+      if (az.getHours() >= 22) {
+        const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(9, 1, 0, 0); return t;
+      } else {
+        const t = normalizeDate(az); t.setHours(9, 1, 0, 0); return t;
+      }
+    }
+  }
+  if (av === '2 Hours Delivery') return new Date(az.getTime() + 2 * 3600000);
+  if (av === '30 Min Delivery') return new Date(az.getTime() + 31 * 60000);
+  if (av === '15 Min Delivery') {
+    if (['Supertail_Hyperlocal', 'Supertails-Varthur'].includes(channel)) {
+      return new Date(az.getTime() + 15 * 60000);
+    }
+  }
+  if (av === 'Warehouse Order') {
+    if (az.getHours() < 11) {
+      const t = normalizeDate(az); t.setHours(23, 59, 59, 0); return t;
+    } else {
+      const t = normalizeDate(az); t.setDate(t.getDate() + 1); t.setHours(23, 59, 59, 0); return t;
+    }
+  }
+  return null;
+}
+
+function addPidgeColumns(df) {
+  return df.map(row => {
+    const r = { ...row };
+    r.Warehouse_pincode = (r['Sender Address'] || '').toString().slice(-6);
+    r.Destination_pincode = (r['Customer Address'] || '').toString().slice(-6);
+
+    const [createTs, dropTs] = parseNotesTimestamps(r.Notes);
+    r.Order_datetime = createTs || r['Creation Date'] || null;
+    r.drop_time = dropTs || null;
+    r.Promise_time = (r.drop_time && r.Order_datetime) ? (r.drop_time.getTime() - r.Order_datetime.getTime()) : null;
+
+    r.Model = classifyModel(r);
+    r.TAT = calculateTat(r);
+
+    const adt = r['ADT(Actual Delivery Time)'];
+    const tat = r.TAT;
+    if (!adt) r.SLA_STATUS = 'undelivered';
+    else if (!tat) r.SLA_STATUS = 'undelivered';
+    else r.SLA_STATUS = adt > tat ? 'SLA BREACH' : 'SLA MET';
+
+    r.order_date = r.Order_datetime ? r.Order_datetime.toLocaleString('en-GB', { day: '2-digit', month: 'short' }) : '';
+
+    const av = r.Model;
+    const bh = r.Promise_time;
+    if (['SDD Delivery', 'Overnight order'].includes(av)) r.New_Model = av;
+    else if (bh == null) r.New_Model = av;
+    else {
+      const totalMin = bh / 60000;
+      if (totalMin <= 15) r.New_Model = '15 Min Delivery';
+      else if (totalMin <= 60) r.New_Model = '30 Min Delivery';
+      else r.New_Model = av;
+    }
+
+    if (!adt || !r.drop_time) r.Breach_delay = null;
+    else {
+      const delta = (adt.getTime() - r.drop_time.getTime()) / 60000;
+      r.Breach_delay = delta > 0 ? ceil(delta) : 0;
+    }
+
+    const val = r.Breach_delay;
+    if (val == null) r.Breach_bucket = 'undelivered';
+    else if (val <= 0) r.Breach_bucket = 'on time';
+    else if (val <= 5) r.Breach_bucket = '0-5 mins delay';
+    else if (val <= 10) r.Breach_bucket = '5-10 mins delay';
+    else if (val <= 15) r.Breach_bucket = '10-15 mins delay';
+    else if (val <= 20) r.Breach_bucket = '15-20 mins delay';
+    else if (val <= 25) r.Breach_bucket = '20-25 mins delay';
+    else if (val <= 30) r.Breach_bucket = '25-30 mins delay';
+    else r.Breach_bucket = 'more than 30 mins delay';
+
+    r.BT_flag = (val == null) ? 'NA' : (val < 2 ? 'no' : 'yes');
+    r.BU_flag = (r.Breach_bucket === 'undelivered') ? 'NA' : (r.Breach_bucket === 'on time' ? 'no' : 'yes');
+    r.Final_Verdict = (r.BT_flag === 'yes' && r.BU_flag === 'yes' && r.SLA_STATUS === 'SLA BREACH') ? 'Yes' : 'No';
+
+    return r;
+  });
+}
+
+/* ===== REPORTS ===== */
+const STORES = {
+  'Kalyan Nagar': 'Supertail_Hyperlocal',
+  'Indranagar': 'Supertails-Indranagar',
+  'Varthur': 'Supertails-Varthur'
+};
+
+function isCleared(r) {
+  return window.ST && window.ST.clearedKeys && window.ST.clearedKeys.has(getOrderKey(r));
+}
+
+function effectiveVerdict(r) {
+  if (isCleared(r)) return 'No';
+  return r.Final_Verdict;
+}
+
+/* ★★★ PENDENCY – EXACT EXCEL SOP ★★★ */
+function generatePendencyReport(df, reportDate) {
+  const today = reportDate ? normalizeDate(reportDate) : null;
+  const rows = [];
+
+  for (const [label, channel] of Object.entries(STORES)) {
+    const sub = df.filter(r => r.Channel === channel);
+
+    // Open = no ADT
+    const open = sub.filter(r => !r['ADT(Actual Delivery Time)']);
+
+    let attempted = 0, notDispatched = 0, zeroAttempt = 0, pickedUp = 0, intransit = 0, cancelled = 0;
+
+    // Cancelled (from full sub)
+    cancelled = sub.filter(r => (r.Status || '').toLowerCase() === 'cancelled').length;
+
+    open.forEach(r => {
+      const fs = (r['Fulfillment Status'] || '').toString();
+      const st = (r.Status || '').toLowerCase();
+      const fa = r['Failed Attempt Count'];
+      const faN = (fa == null || fa === '') ? 0 : Number(fa);
+
+      // 1. Attempted first (UNDELIVERED or FA >= 1)
+      if (fs === 'UNDELIVERED' || faN >= 1) {
+        attempted++;
+        return;
+      }
+
+      // 2. Not Dispatched / Pending
+      //    - Status pending or empty FS
+      //    - OR FS=CREATED and CreateTS is today AND hour >= 7
+      const createTs = getCreateTsFromNotes(r.Notes);
+      const isCreatedTodayDaytime = fs === 'CREATED' && createTs && today &&
+        normalizeDate(createTs).getTime() === today.getTime() && createTs.getHours() >= 7;
+
+      if (st === 'pending' || !fs || isCreatedTodayDaytime) {
+        notDispatched++;
+        if (faN === 0) zeroAttempt++;
+        return;
+      }
+
+      // 3. Picked Up
+      if (['PICKED_UP', 'REACHED_PICKUP', 'REACHED_DELIVERY'].includes(fs)) {
+        pickedUp++;
+        return;
+      }
+
+      // 4. Intransit
+      if (['OUT_FOR_DELIVERY', 'IN_TRANSIT'].includes(fs)) {
+        intransit++;
+        return;
+      }
+    });
+
+    // Total = Not Dispatched + Picked Up + Intransit  (Attempted is separate)
+    const totalOps = notDispatched + pickedUp + intransit;
+    const pendingOrder = notDispatched;
+    const pendencyPct = totalOps ? +(pendingOrder / totalOps * 100).toFixed(2) : 0;
+    const zeroAttemptPct = totalOps ? +(zeroAttempt / totalOps * 100).toFixed(1) : 0;
+
+    rows.push({
+      Store: label,
+      'Total Orders': totalOps,
+      'Pending Order': pendingOrder,
+      'Pendency %': pendencyPct,
+      'Attempted Delivery': attempted,
+      'Not Dispatched': notDispatched,
+      '0 Attempt': zeroAttempt,
+      'Picked Up': pickedUp,
+      Intransit: intransit,
+      Cancelled: cancelled,
+      'Total Operational Pending': totalOps,
+      '0-Attempt %': zeroAttemptPct
+    });
+  }
+  return rows;
+}
+
+function generateBreachReport(df, reportDate) {
+  const rows = [];
+  for (const [label, channel] of Object.entries(STORES)) {
+    let sub = df.filter(r => r.Channel === channel);
+    sub = sub.filter(r => (r['Fulfillment Status'] || '') !== 'RTO_DELIVERED');
+
+    // Total Orders = Daily set excluding UNDELIVERED
+    let totalOrders = sub.filter(r => (r['Fulfillment Status'] || '') !== 'UNDELIVERED').length;
+
+    const delivered = sub.filter(r => r['ADT(Actual Delivery Time)']);
+    const deliveredCount = delivered.length;
+
+    const min15 = delivered.filter(r => r.Model === '15 Min Delivery').length;
+    const min30 = delivered.filter(r => r.Model === '30 Min Delivery').length;
+    const other = deliveredCount - min15 - min30;
+
+    const breach = delivered.filter(r => effectiveVerdict(r) === 'Yes');
+    const breachCount = breach.length;
+    const b15 = breach.filter(r => r.Model === '15 Min Delivery').length;
+    const b30 = breach.filter(r => r.Model === '30 Min Delivery').length;
+    const bOther = breachCount - b15 - b30;
+
+    const breachPct = deliveredCount ? +(breachCount / deliveredCount * 100).toFixed(1) : 0;
+
+    rows.push({
+      Store: label,
+      'Total Orders': totalOrders,
+      Delivered: deliveredCount,
+      '15 Min Orders': min15,
+      '30 Min Orders': min30,
+      'Other Orders': other,
+      'Total Breach': breachCount,
+      '15 Min Breach': b15,
+      '30 Min Breach': b30,
+      'Other Breach': bOther,
+      'Breach %': breachPct
+    });
+  }
+  return rows;
+}
+
+function generateEodSummary(pendency, breach) {
+  return pendency.map(p => {
+    const b = breach.find(x => x.Store === p.Store) || {};
+    return {
+      ...p, ...b,
+      'On Time Delivered': (b.Delivered || 0) - (b['Total Breach'] || 0),
+      'Total Orders (EOD)': (p['Total Operational Pending'] || 0) + (b.Delivered || 0)
+    };
+  });
+}
+
+function addRiderMetrics(report, riderMap) {
+  return report.map(r => {
+    const riders = riderMap[r.Store] || 0;
+    let avg = 0;
+    if (riders > 0) {
+      if (r.Delivered != null) avg = +(r.Delivered / riders).toFixed(1);
+      else if (r['Total Orders'] != null) avg = +(r['Total Orders'] / riders).toFixed(1);
+      else if (r['Total Operational Pending'] != null) avg = +(r['Total Operational Pending'] / riders).toFixed(1);
+      else if (r['Total Orders (EOD)'] != null) avg = +(r['Total Orders (EOD)'] / riders).toFixed(1);
+    }
+    return { ...r, 'Rider Count': riders, 'Avg Order/Rider': avg };
+  });
+}
+
+/* ===== PIPELINE ===== */
+async function runPipeline() {
+  const status = document.getElementById('status');
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+  status.textContent = 'Reading files…';
+
+  const fK = document.getElementById('fileKalyan').files[0];
+  const fV = document.getElementById('fileVarthur').files[0];
+  const fI = document.getElementById('fileIndranagar').files[0];
+  if (!fK || !fV || !fI) {
+    alert('Please upload all three CSV files.');
+    btn.disabled = false;
+    status.textContent = '';
+    return;
+  }
+
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const plannedMap = {
+    'Kalyan Nagar': +document.getElementById('plannedKalyan').value || 0,
+    'Indranagar': +document.getElementById('plannedIndra').value || 0,
+    'Varthur': +document.getElementById('plannedVarthur').value || 0
+  };
+  const activeMap = {
+    'Kalyan Nagar': +document.getElementById('activeKalyan').value || 0,
+    'Indranagar': +document.getElementById('activeIndra').value || 0,
+    'Varthur': +document.getElementById('activeVarthur').value || 0
+  };
+  // riderMap = active (used for Avg Order/Rider & efficiency)
+  const riderMap = { ...activeMap };
+
+  // Report prepare time (shown in rider section + Rider Report title)
+  const now = new Date();
+  const preparedStr = now.toLocaleString('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+  });
+  const prepEl = document.getElementById('reportPreparedAt');
+  if (prepEl) prepEl.textContent = 'Report prepared: ' + preparedStr;
+
+  // Dynamic Rider Report title from report creation time (not fixed 5 PM)
+  const hour12 = now.getHours() % 12 || 12;
+  const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+  const minStr = String(now.getMinutes()).padStart(2, '0');
+  const timeLabel = `${hour12}:${minStr} ${ampm}`;
+  const riderTitle = `${timeLabel} Rider Report`;
+  const sectionTitleEl = document.getElementById('riderReportSectionTitle');
+  const tableTitleEl = document.getElementById('riderReportTableTitle');
+  const timeLabelEl = document.getElementById('riderReportTimeLabel');
+  if (sectionTitleEl) sectionTitleEl.textContent = riderTitle + ' (fill manually)';
+  if (tableTitleEl) tableTitleEl.textContent = riderTitle;
+  if (timeLabelEl) timeLabelEl.textContent = 'Report time: ' + preparedStr;
+
+  try {
+    const [txtK, txtV, txtI] = await Promise.all([fK.text(), fV.text(), fI.text()]);
+    status.textContent = 'Processing…';
+
+    let dfK = loadAndClean(parseCSV(txtK), 'Kalyan Nagar');
+    let dfV = loadAndClean(parseCSV(txtV), 'Varthur');
+    let dfI = loadAndClean(parseCSV(txtI), 'Indranagar');
+
+    let df = [...dfK, ...dfV, ...dfI];
+    df = applyDateFilters(df, null, mode);
+
+    let reportDate = null;
+    if (mode === 'daily' && df.length) {
+      let maxD = null;
+      df.forEach(r => {
+        const c = r['Creation Date'];
+        const a = r['ADT(Actual Delivery Time)'];
+        [c, a].forEach(d => { if (d && (!maxD || d > maxD)) maxD = d; });
+      });
+      reportDate = maxD ? normalizeDate(maxD) : null;
+    }
+
+    df = addPidgeColumns(df);
+
+    window.ST = {
+      df,
+      mode,
+      riderMap,
+      plannedMap,
+      activeMap,
+      preparedAt: preparedStr,
+      reportDate,
+      clearedKeys: new Set()
+    };
+
+    recomputeAndRender();
+    status.textContent = `Done — ${df.length} orders processed`;
+  } catch (err) {
+    console.error(err);
+    alert('Processing failed: ' + err.message);
+    status.textContent = 'Error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function recomputeAndRender() {
+  const { df, riderMap, reportDate } = window.ST;
+  let pendency = generatePendencyReport(df, reportDate);
+  let breach = generateBreachReport(df, reportDate);
+  let eod = generateEodSummary(pendency, breach);
+
+  pendency = addRiderMetrics(pendency, riderMap);
+  breach = addRiderMetrics(breach, riderMap);
+  eod = addRiderMetrics(eod, riderMap);
+
+  window.ST.pendency = pendency;
+  window.ST.breach = breach;
+  window.ST.eod = eod;
+
+  renderResults();
+}
+
+/* ===== MANUAL CLEAR / RESTORE ===== */
+function toggleClearBreach(key) {
+  if (!window.ST.clearedKeys) window.ST.clearedKeys = new Set();
+  if (window.ST.clearedKeys.has(key)) {
+    window.ST.clearedKeys.delete(key);
+  } else {
+    window.ST.clearedKeys.add(key);
+  }
+  recomputeAndRender();
+}
+
+function clearAllClears() {
+  if (window.ST) {
+    window.ST.clearedKeys = new Set();
+    recomputeAndRender();
+  }
+}
+
+/* ===== RENDER ===== */
+function renderResults() {
+  const { df, pendency, breach, eod, mode, riderMap, clearedKeys, reportDate } = window.ST;
+  document.getElementById('results').style.display = 'block';
+
+  const totalOrders = eod.reduce((s, r) => s + (r['Total Orders (EOD)'] || r['Total Orders'] || 0), 0);
+  const totalDelivered = eod.reduce((s, r) => s + (r.Delivered || 0), 0);
+  const totalBreach = eod.reduce((s, r) => s + (r['Total Breach'] || 0), 0);
+  const avgBreach = eod.length ? eod.reduce((s, r) => s + (r['Breach %'] || 0), 0) / eod.length : 0;
+  const onTime = totalDelivered - totalBreach;
+  const totalRiders = Object.values(riderMap).reduce((a, b) => a + b, 0);
+  const clearedCount = clearedKeys ? clearedKeys.size : 0;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card"><div class="label">Total Orders</div><div class="value">${totalOrders.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="label">Delivered</div><div class="value">${totalDelivered.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="label">On-Time</div><div class="value">${onTime.toLocaleString()}</div>
+      <div class="delta pos">${totalDelivered ? (onTime/totalDelivered*100).toFixed(1) : 0}%</div></div>
+    <div class="kpi-card"><div class="label">Total Breach</div><div class="value">${totalBreach.toLocaleString()}</div>
+      <div class="delta neg">${avgBreach.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="label">Avg Breach %</div><div class="value">${avgBreach.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="label">Total Riders</div><div class="value">${totalRiders}</div></div>
+    ${clearedCount ? `<div class="kpi-card"><div class="label">Manually Cleared</div><div class="value">${clearedCount}</div></div>` : ''}`;
+
+  // Shared date for Excel-style report titles
+  const dateStr = reportDate
+    ? `${String(reportDate.getDate()).padStart(2,'0')}-${String(reportDate.getMonth()+1).padStart(2,'0')}-${reportDate.getFullYear()}`
+    : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+
+  function byStore(arr, store) { return arr.find(r => r.Store === store) || {}; }
+  const ind = byStore(eod, 'Indranagar');
+  const kal = byStore(eod, 'Kalyan Nagar');
+  const varth = byStore(eod, 'Varthur');
+  const indP = byStore(pendency, 'Indranagar');
+  const kalP = byStore(pendency, 'Kalyan Nagar');
+  const varP = byStore(pendency, 'Varthur');
+  const indB = byStore(breach, 'Indranagar');
+  const kalB = byStore(breach, 'Kalyan Nagar');
+  const varB = byStore(breach, 'Varthur');
+  const n = (v) => (v == null || v === '' ? 0 : Number(v));
+  const sum3 = (a, b, c) => n(a) + n(b) + n(c);
+
+  const plannedMap = window.ST.plannedMap || riderMap;
+  const activeMap = window.ST.activeMap || riderMap;
+  const plannedInd = plannedMap['Indranagar'] || 0;
+  const plannedKal = plannedMap['Kalyan Nagar'] || 0;
+  const plannedVar = plannedMap['Varthur'] || 0;
+  const activeInd = activeMap['Indranagar'] || 0;
+  const activeKal = activeMap['Kalyan Nagar'] || 0;
+  const activeVar = activeMap['Varthur'] || 0;
+  const effInd = activeInd ? +(n(ind.Delivered) / activeInd).toFixed(2) : 0;
+  const effKal = activeKal ? +(n(kal.Delivered) / activeKal).toFixed(2) : 0;
+  const effVar = activeVar ? +(n(varth.Delivered) / activeVar).toFixed(2) : 0;
+  const totalDeliveredEod = sum3(ind.Delivered, kal.Delivered, varth.Delivered);
+  const totalActive = activeInd + activeKal + activeVar;
+  const effTotal = totalActive ? +(totalDeliveredEod / totalActive).toFixed(2) : 0;
+
+  // ===== EOD (Excel screenshot layout) =====
+  const eodRows = [
+    { label: 'Total Orders', v: [n(ind['Total Orders (EOD)']||ind['Total Orders']), n(kal['Total Orders (EOD)']||kal['Total Orders']), n(varth['Total Orders (EOD)']||varth['Total Orders'])], cls: 'eod-row-blue' },
+    { label: 'Attempted Delivery', v: [n(ind['Attempted Delivery']), n(kal['Attempted Delivery']), n(varth['Attempted Delivery'])], cls: '' },
+    { label: 'Not Dispatched', v: [n(ind['Not Dispatched']), n(kal['Not Dispatched']), n(varth['Not Dispatched'])], cls: '' },
+    { label: 'Not Dispatched ( 0 Attempts )', v: [n(ind['0 Attempt']), n(kal['0 Attempt']), n(varth['0 Attempt'])], cls: '' },
+    { label: 'Pickedup', v: [n(ind['Picked Up']), n(kal['Picked Up']), n(varth['Picked Up'])], cls: '' },
+    { label: 'Intransit', v: [n(ind.Intransit), n(kal.Intransit), n(varth.Intransit)], cls: '' },
+    { label: 'Cancelled', v: [n(ind.Cancelled), n(kal.Cancelled), n(varth.Cancelled)], cls: '' },
+    { label: 'Total Delivered', v: [n(ind.Delivered), n(kal.Delivered), n(varth.Delivered)], cls: 'eod-row-blue' },
+    { label: '15 Mins Orders', v: [n(ind['15 Min Orders']), n(kal['15 Min Orders']), n(varth['15 Min Orders'])], cls: '' },
+    { label: '30 Mins Orders', v: [n(ind['30 Min Orders']), n(kal['30 Min Orders']), n(varth['30 Min Orders'])], cls: '' },
+    { label: 'Other Orders', v: [n(ind['Other Orders']), n(kal['Other Orders']), n(varth['Other Orders'])], cls: '' },
+    { label: 'On Time Delivered', v: [n(ind['On Time Delivered']), n(kal['On Time Delivered']), n(varth['On Time Delivered'])], cls: 'eod-row-blue' },
+    { label: 'Total Breach', v: [n(ind['Total Breach']), n(kal['Total Breach']), n(varth['Total Breach'])], cls: 'eod-row-gray' },
+    { label: '15 Mins Breach', v: [n(ind['15 Min Breach']), n(kal['15 Min Breach']), n(varth['15 Min Breach'])], cls: '' },
+    { label: '30 Mins Breach', v: [n(ind['30 Min Breach']), n(kal['30 Min Breach']), n(varth['30 Min Breach'])], cls: '' },
+    { label: 'Other Breach', v: [n(ind['Other Breach']), n(kal['Other Breach']), n(varth['Other Breach'])], cls: '' },
+    { label: 'Breach %', v: [
+        (n(ind.Delivered) ? (n(ind['Total Breach'])/n(ind.Delivered)*100) : 0),
+        (n(kal.Delivered) ? (n(kal['Total Breach'])/n(kal.Delivered)*100) : 0),
+        (n(varth.Delivered) ? (n(varth['Total Breach'])/n(varth.Delivered)*100) : 0)
+      ], cls: 'eod-row-gray', isPct: true },
+    { label: 'Planned Rider', v: [plannedInd, plannedKal, plannedVar], cls: '' },
+    { label: 'Active Rider', v: [activeInd, activeKal, activeVar], cls: '' },
+    { label: 'Efficiency of Delivered Orders', v: [effInd, effKal, effVar], cls: 'eod-row-blue', isEff: true }
+  ];
+
+  let eodHtml = `<div class="excel-report"><table>
+    <tr><td colspan="5" class="report-title-navy">Zippee &lt;&gt; Supertails EOD Report  ${dateStr}</td></tr>
+    <tr class="eod-header">
+      <th>Stores</th><th>Indra Nagar</th><th>Kalyan Nagar</th><th>Varthur</th><th>Total</th>
+    </tr>`;
+  eodRows.forEach(row => {
+    const tot = row.isPct
+      ? (sum3(row.v[0]*n(ind.Delivered)/100, row.v[1]*n(kal.Delivered)/100, row.v[2]*n(varth.Delivered)/100) / (totalDeliveredEod || 1) * 100)
+      : (row.isEff ? effTotal : sum3(row.v[0], row.v[1], row.v[2]));
+    const fmt = (x) => row.isPct ? (Number(x).toFixed(2) + '%') : (row.isEff ? Number(x).toFixed(2) : x);
+    const pctCls = row.isPct ? ' eod-breach-pct' : '';
+    eodHtml += `<tr class="${row.cls}">
+      <td class="eod-label">${row.label}</td>
+      <td class="${pctCls}">${fmt(row.v[0])}</td>
+      <td class="${pctCls}">${fmt(row.v[1])}</td>
+      <td class="${pctCls}">${fmt(row.v[2])}</td>
+      <td class="eod-total${pctCls}">${fmt(tot)}</td>
+    </tr>`;
+  });
+  eodHtml += `</table></div>`;
+  eodHtml += `<div class="download-row" style="margin-bottom:12px;">
+    <button class="tool-button" onclick="downloadReportPng('eodReportTable','Zippee_Supertails_EOD_Report')">📷 Download EOD as PNG</button>
+  </div>`;
+  // wrap table for PNG capture
+  eodHtml = eodHtml.replace('class="excel-report"', 'class="excel-report" id="eodReportTable"');
+  if (clearedCount) {
+    eodHtml += `<div class="info">⚠️ ${clearedCount} order(s) manually cleared from breach.
+      <button class="tool-button small" style="margin-left:10px;" onclick="clearAllClears()">Reset all clears</button></div>`;
+  }
+  document.getElementById('tab-eod').innerHTML = eodHtml;
+
+  // ===== PENDENCY (Excel screenshot layout) =====
+  function pendVal(o, key) { const v = o[key]; return v == null ? 0 : v; }
+  function pendPct(o) { const v = pendVal(o, 'Pendency %'); return (typeof v === 'number' ? v.toFixed(2) : v) + '%'; }
+
+  let pendHtml = `<div class="excel-report"><table>
+    <tr><td colspan="5" class="report-title-purple">Zippee &lt;&gt; Supertails Pendency Report  ${dateStr}</td></tr>
+    <tr class="pend-header">
+      <th class="pend-sno">S.no</th>
+      <th>Key Parameters</th>
+      <th>Indra Nagar<br><span style="font-weight:400;font-size:0.8em">Bharath</span></th>
+      <th>Kalyan Nagar<br><span style="font-weight:400;font-size:0.8em">Dhiva</span></th>
+      <th>Varthur<br><span style="font-weight:400;font-size:0.8em">Syeed</span></th>
+    </tr>
+    <tr><td class="pend-sno">1</td><td class="pend-key">Total Orders</td><td>${pendVal(indP,'Total Orders')}</td><td>${pendVal(kalP,'Total Orders')}</td><td>${pendVal(varP,'Total Orders')}</td></tr>
+    <tr><td class="pend-sno">2</td><td class="pend-key">Pending Order</td><td>${pendVal(indP,'Pending Order')}</td><td>${pendVal(kalP,'Pending Order')}</td><td>${pendVal(varP,'Pending Order')}</td></tr>
+    <tr><td class="pend-sno">3</td><td class="pend-key">Pendency %</td><td class="pend-highlight">${pendPct(indP)}</td><td class="pend-highlight">${pendPct(kalP)}</td><td class="pend-highlight">${pendPct(varP)}</td></tr>
+    <tr><td class="pend-sno">4</td><td class="pend-key">Rider Count</td><td>${pendVal(indP,'Rider Count')}</td><td>${pendVal(kalP,'Rider Count')}</td><td>${pendVal(varP,'Rider Count')}</td></tr>
+    <tr><td class="pend-sno">5</td><td class="pend-key">Avg Order/ Rider</td><td class="pend-highlight">${pendVal(indP,'Avg Order/Rider')}</td><td class="pend-highlight">${pendVal(kalP,'Avg Order/Rider')}</td><td class="pend-highlight">${pendVal(varP,'Avg Order/Rider')}</td></tr>
+    <tr class="pend-sub-header"><td></td><td>Sub Parameters</td><td>Indra Nagar</td><td>Kalyan Nagar</td><td>Varthur</td></tr>
+    <tr><td class="pend-sno">6</td><td class="pend-key">Attempted Delivery</td><td>${pendVal(indP,'Attempted Delivery')}</td><td>${pendVal(kalP,'Attempted Delivery')}</td><td>${pendVal(varP,'Attempted Delivery')}</td></tr>
+    <tr><td class="pend-sno">7</td><td class="pend-key">Not Dispatched</td><td>${pendVal(indP,'Not Dispatched')}</td><td>${pendVal(kalP,'Not Dispatched')}</td><td>${pendVal(varP,'Not Dispatched')}</td></tr>
+    <tr><td class="pend-sno">8</td><td class="pend-key">0 Attempted</td><td>${pendVal(indP,'0 Attempt')}</td><td>${pendVal(kalP,'0 Attempt')}</td><td>${pendVal(varP,'0 Attempt')}</td></tr>
+    <tr><td class="pend-sno">9</td><td class="pend-key">Picked Up</td><td>${pendVal(indP,'Picked Up')}</td><td>${pendVal(kalP,'Picked Up')}</td><td>${pendVal(varP,'Picked Up')}</td></tr>
+    <tr><td class="pend-sno">10</td><td class="pend-key">Intransit</td><td>${pendVal(indP,'Intransit')}</td><td>${pendVal(kalP,'Intransit')}</td><td>${pendVal(varP,'Intransit')}</td></tr>
+    <tr><td class="pend-sno">11</td><td class="pend-key">Cancelled</td><td>${pendVal(indP,'Cancelled')}</td><td>${pendVal(kalP,'Cancelled')}</td><td>${pendVal(varP,'Cancelled')}</td></tr>
+    <tr><td class="pend-sno">12</td><td class="pend-key">Courier Orders</td><td>0</td><td>0</td><td>0</td></tr>
+  </table></div>`;
+  pendHtml = pendHtml.replace('class="excel-report"', 'class="excel-report" id="pendReportTable"');
+  pendHtml += `<div class="download-row" style="margin-bottom:12px;">
+    <button class="tool-button" onclick="downloadReportPng('pendReportTable','Zippee_Supertails_Pendency_Report')">📷 Download Pendency as PNG</button>
+  </div>`;
+
+  pendHtml += `<div class="info">
+    <strong>Pendency logic (exact Excel SOP):</strong><br>
+    • <b>Attempted</b> = UNDELIVERED or Failed Attempt ≥ 1<br>
+    • <b>Not Dispatched / Pending</b> = Status=pending / empty FS <b>or</b> (CREATED + Create Time today + hour ≥ 7)<br>
+    • <b>Picked Up</b> = PICKED_UP + REACHED_PICKUP + REACHED_DELIVERY<br>
+    • <b>Intransit</b> = OUT_FOR_DELIVERY + IN_TRANSIT<br>
+    • <b>Total Orders</b> = Not Dispatched + Picked Up + Intransit (Attempted is separate)
+  </div>`;
+
+  const today = reportDate ? normalizeDate(reportDate) : null;
+  const openOrders = df.filter(r => {
+    if ((r.Status || '').toLowerCase() === 'cancelled') return false;
+    if (r['ADT(Actual Delivery Time)']) return false;
+    return true;
+  }).sort((a, b) => {
+    const order = { 'CREATED': 1, 'pending': 1, 'PICKED_UP': 2, 'REACHED_PICKUP': 2, 'OUT_FOR_DELIVERY': 3, 'IN_TRANSIT': 3, 'REACHED_DELIVERY': 4, 'UNDELIVERED': 5 };
+    const fsA = (a['Fulfillment Status'] || '').toString();
+    const stA = (a.Status || '').toLowerCase();
+    const fsB = (b['Fulfillment Status'] || '').toString();
+    const stB = (b.Status || '').toLowerCase();
+    return (order[fsA] || order[stA] || 9) - (order[fsB] || order[stB] || 9);
+  });
+
+  pendHtml += `<h4 style="margin-top:20px;">Pendency / In-Transit Order Details (${openOrders.length})</h4>`;
+  pendHtml += `<div class="sub-tabs" id="pendSubTabs">
+    <div class="sub-tab active" data-filter="all">All Open (${openOrders.length})</div>
+    <div class="sub-tab" data-filter="notDispatched">Not Dispatched</div>
+    <div class="sub-tab" data-filter="pickedUp">Picked Up</div>
+    <div class="sub-tab" data-filter="intransit">In-Transit / OFD</div>
+    <div class="sub-tab" data-filter="undelivered">Attempted</div>
+  </div>`;
+  pendHtml += `<div id="pendDetailTable"></div>`;
+  document.getElementById('tab-pend').innerHTML = pendHtml;
+
+  const pendSubTabs = document.getElementById('pendSubTabs');
+  if (pendSubTabs) {
+    pendSubTabs.addEventListener('click', e => {
+      if (!e.target.classList.contains('sub-tab')) return;
+      pendSubTabs.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+      renderPendDetail(e.target.dataset.filter);
+    });
+  }
+  renderPendDetail('all');
+
+  function classifyOpen(r) {
+    const fs = (r['Fulfillment Status'] || '').toString();
+    const st = (r.Status || '').toLowerCase();
+    const fa = r['Failed Attempt Count'];
+    const faN = (fa == null || fa === '') ? 0 : Number(fa);
+    if (fs === 'UNDELIVERED' || faN >= 1) return 'attempted';
+    const createTs = getCreateTsFromNotes(r.Notes);
+    const isCreatedTodayDaytime = fs === 'CREATED' && createTs && today &&
+      normalizeDate(createTs).getTime() === today.getTime() && createTs.getHours() >= 7;
+    if (st === 'pending' || !fs || isCreatedTodayDaytime) return 'notDispatched';
+    if (['PICKED_UP','REACHED_PICKUP','REACHED_DELIVERY'].includes(fs)) return 'pickedUp';
+    if (['OUT_FOR_DELIVERY','IN_TRANSIT'].includes(fs)) return 'intransit';
+    return 'other';
+  }
+
+  function renderPendDetail(filter) {
+    let list = openOrders;
+    if (filter !== 'all') list = openOrders.filter(r => classifyOpen(r) === filter);
+    const cols = ['CDR ID','Reference ID','Channel','Customer Name','Status','Fulfillment Status','Model','Order_datetime','Rider Name','Failed Attempt Count','Last Failed Remark','Pickup to Drop Distance(Kms)']
+      .filter(c => list[0] && (c in list[0] || c === 'Order_datetime'));
+    document.getElementById('pendDetailTable').innerHTML =
+      (list.length ? tableHTML(list, cols) : '<p>No orders in this category.</p>') +
+      `<p style="margin-top:8px;font-size:0.85rem;opacity:0.8;">Showing ${list.length} order(s)</p>`;
+  }
+
+  // ===== BREACH REPORT (Excel screenshot layout) =====
+  function brVal(o, key) { const v = o[key]; return v == null ? 0 : v; }
+  function brPct(o) { const v = brVal(o, 'Breach %'); return (typeof v === 'number' ? Math.round(v) : v) + '%'; }
+
+  let brHtml = `<div class="excel-report"><table>
+    <tr><td colspan="12" class="report-title-orange">Zippee &lt;&gt; Supertails Delivered/Breach Report  ${dateStr}</td></tr>
+    <tr class="breach-header">
+      <th>Stores</th><th>Total Orders</th><th>Delivered Orders</th><th>15 min Orders</th><th>30 min Orders</th><th>Other orders</th>
+      <th>Total Breach</th><th>15 Min Breach</th><th>30 Min Breach</th><th>Other Breach</th><th>Breach %</th><th>Rider Count</th>
+    </tr>`;
+  [
+    { name: 'Kalyan Nagar', obj: kalB },
+    { name: 'Indranagar', obj: indB },
+    { name: 'Varthur', obj: varB }
+  ].forEach(({ name, obj }) => {
+    brHtml += `<tr class="breach-row">
+      <td>${name}</td>
+      <td>${brVal(obj,'Total Orders')}</td>
+      <td>${brVal(obj,'Delivered')}</td>
+      <td>${brVal(obj,'15 Min Orders')}</td>
+      <td>${brVal(obj,'30 Min Orders')}</td>
+      <td>${brVal(obj,'Other Orders')}</td>
+      <td>${brVal(obj,'Total Breach')}</td>
+      <td>${brVal(obj,'15 Min Breach')}</td>
+      <td>${brVal(obj,'30 Min Breach')}</td>
+      <td>${brVal(obj,'Other Breach')}</td>
+      <td>${brPct(obj)}</td>
+      <td>${brVal(obj,'Rider Count')}</td>
+    </tr>`;
+  });
+  brHtml += `</table></div>`;
+  brHtml = brHtml.replace('class="excel-report"', 'class="excel-report" id="breachReportTable"');
+  brHtml += `<div class="download-row" style="margin-bottom:12px;">
+    <button class="tool-button" onclick="downloadReportPng('breachReportTable','Zippee_Supertails_Delivered_Breach_Report')">📷 Download Breach as PNG</button>
+  </div>`;
+  brHtml += `<div class="info">
+      <strong>Daily Mode:</strong> Created Today OR ADT/Terminal Today.<br>
+      <b>Total Orders (Breach)</b> = Daily set excluding UNDELIVERED.<br>
+      Use “Clear from Breach” to correct any wrong counts.
+    </div>`;
+  if (clearedCount) {
+    brHtml += `<div class="success-msg">${clearedCount} order(s) manually removed from breach.</div>`;
+  }
+  document.getElementById('tab-breach').innerHTML = brHtml;
+
+  // Breach Detail
+  const breachOrders = df.filter(r => r.Final_Verdict === 'Yes')
+    .sort((a, b) => (b.Breach_delay || 0) - (a.Breach_delay || 0));
+
+  let bdHtml = '';
+  if (!breachOrders.length) {
+    bdHtml = '<div class="success-msg">No breach orders found (or all cleared).</div>';
+  } else {
+    const activeBreach = breachOrders.filter(r => !isCleared(r));
+    const clearedBreach = breachOrders.filter(r => isCleared(r));
+    bdHtml = `<p><strong>${activeBreach.length} active breach</strong> · ${clearedBreach.length} manually cleared</p>`;
+    if (clearedCount) {
+      bdHtml += `<button class="tool-button small" onclick="clearAllClears()">↺ Reset all clears</button> `;
+    }
+    bdHtml += `<div style="margin:10px 0;"></div>`;
+
+    const detailCols = ['CDR ID','Reference ID','Channel','Customer Name','Model','New_Model','Order_datetime','drop_time','ADT(Actual Delivery Time)','Breach_delay','Breach_bucket','SLA_STATUS','Rider Name','Last Failed Remark','Failed Attempt Count','Fulfillment Status','Status']
+      .filter(c => breachOrders[0] && (c in breachOrders[0] || c === 'Order_datetime'));
+
+    bdHtml += tableHTML(breachOrders, detailCols, {
+      rowClassFn: r => isCleared(r) ? 'cleared' : '',
+      actionCol: r => {
+        const key = getOrderKey(r);
+        const cleared = isCleared(r);
+        return cleared
+          ? `<button class="tool-button small" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">↺ Restore</button>`
+          : `<button class="tool-button small danger" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">✕ Clear from Breach</button>`;
+      }
+    });
+    bdHtml += `<div style="margin-top:14px;"><button class="tool-button" onclick="downloadBreachOrders()">📥 Download Active Breach Orders</button></div>`;
+  }
+  document.getElementById('tab-breachDetail').innerHTML = bdHtml;
+
+  // Order Detail
+  const channels = [...new Set(df.map(r => r.Channel).filter(Boolean))].sort();
+  const models = [...new Set(df.map(r => r.Model).filter(Boolean))].sort();
+  const slas = [...new Set(df.map(r => r.SLA_STATUS).filter(Boolean))].sort();
+  const verdicts = [...new Set(df.map(r => r.Final_Verdict).filter(Boolean))].sort();
+  let detHtml = `<div class="filters">
+    <div><label>Channel</label><select id="fChannel" multiple size="3">${channels.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <div><label>Model</label><select id="fModel" multiple size="3">${models.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <div><label>SLA</label><select id="fSla" multiple size="3">${slas.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <div><label>Verdict</label><select id="fVerdict" multiple size="3">${verdicts.map(c => `<option selected>${c}</option>`).join('')}</select></div>
+    <button class="tool-button" onclick="applyDetailFilters()" style="min-width:120px;">Apply</button>
+  </div>
+  <p id="detailCount"></p>
+  <div id="detailTable"></div>`;
+  document.getElementById('tab-detail').innerHTML = detHtml;
+  applyDetailFilters();
+
+  // Downloads
+  const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  document.getElementById('tab-downloads').innerHTML = `
+    <div class="download-row">
+      <button class="tool-button" onclick="downloadReportPng('eodReportTable','Zippee_Supertails_EOD_Report')">📷 EOD as PNG</button>
+      <button class="tool-button" onclick="downloadReportPng('breachReportTable','Zippee_Supertails_Delivered_Breach_Report')">📷 Breach as PNG</button>
+      <button class="tool-button" onclick="downloadReportPng('pendReportTable','Zippee_Supertails_Pendency_Report')">📷 Pendency as PNG</button>
+      <button class="tool-button" onclick="downloadEodExcelFormat()">📥 EOD CSV (Excel Format)</button>
+      <button class="tool-button" onclick="downloadBreachExcelFormat()">📥 Breach CSV (Excel Format)</button>
+      <button class="tool-button" onclick="downloadPendencyExcelFormat()">📥 Pendency CSV (Excel Format)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_EOD_${ts}.csv', window.ST.eod)">📥 EOD CSV (raw)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Pendency_${ts}.csv', window.ST.pendency)">📥 Pendency CSV (raw)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Breach_${ts}.csv', window.ST.breach)">📥 Breach CSV (raw)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Processed_Full_${ts}.csv', window.ST.df)">📥 Full Processed Data</button>
+      <button class="tool-button" onclick="downloadBreachOrders()">📥 Active Breach Orders</button>
+    </div>
+    <div class="info" style="margin-top:16px;">
+      EOD, Pendency &amp; Breach tabs match your Excel screenshot layouts.<br>
+      Use the “Excel Format” download buttons for the exact column/row order from the screenshots.
+    </div>`;
+
+  const pm = window.ST.plannedMap || {};
+  const am = window.ST.activeMap || riderMap;
+  document.getElementById('footer').innerHTML =
+    `ST Dashboard · Mode: <strong>${mode}</strong> · Processed ${df.length.toLocaleString()} orders · Active riders: Kalyan=${am['Kalyan Nagar']||0}, Indra=${am['Indranagar']||0}, Varthur=${am['Varthur']||0}` +
+    (window.ST.preparedAt ? ` · Prepared: ${window.ST.preparedAt}` : '') +
+    (clearedCount ? ` · <strong>${clearedCount} manually cleared</strong>` : '');
+}
+
+function applyDetailFilters() {
+  const { df } = window.ST;
+  const getSel = id => [...document.getElementById(id).selectedOptions].map(o => o.value);
+  const ch = getSel('fChannel'), mod = getSel('fModel'), sla = getSel('fSla'), ver = getSel('fVerdict');
+  const filtered = df.filter(r =>
+    ch.includes(r.Channel) && mod.includes(r.Model) && sla.includes(r.SLA_STATUS) && ver.includes(r.Final_Verdict)
+  );
+  document.getElementById('detailCount').textContent = `Showing ${filtered.length.toLocaleString()} of ${df.length.toLocaleString()} orders`;
+
+  const showCols = ['CDR ID','Reference ID','Channel','Customer Name','Status','Fulfillment Status','Model','New_Model','Order_datetime','drop_time','TAT','ADT(Actual Delivery Time)','SLA_STATUS','Breach_delay','Breach_bucket','Final_Verdict','Rider Name','Last Failed Remark','Warehouse_pincode','Destination_pincode','Pickup to Drop Distance(Kms)']
+    .filter(c => filtered[0] && (c in filtered[0] || ['Order_datetime','drop_time','TAT'].includes(c)));
+
+  document.getElementById('detailTable').innerHTML = tableHTML(filtered, showCols, {
+    rowClassFn: r => isCleared(r) ? 'cleared' : '',
+    actionCol: r => {
+      if (r.Final_Verdict !== 'Yes') return '—';
+      const key = getOrderKey(r);
+      const cleared = isCleared(r);
+      return cleared
+        ? `<button class="tool-button small" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">↺ Restore</button>`
+        : `<button class="tool-button small danger" onclick="toggleClearBreach('${key.replace(/'/g,"\\'")}')">✕ Clear from Breach</button>`;
+    }
+  });
+}
+
+function downloadBreachOrders() {
+  const breachOrders = window.ST.df.filter(r => r.Final_Verdict === 'Yes' && !isCleared(r));
+  const cols = ['CDR ID','Reference ID','Channel','Customer Name','Model','New_Model','Order_datetime','drop_time','ADT(Actual Delivery Time)','Breach_delay','Breach_bucket','SLA_STATUS','Rider Name','Last Failed Remark','Failed Attempt Count','Fulfillment Status','Status','Pickup to Drop Distance(Kms)'];
+  const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  downloadCSV(`ST_Breach_Orders_${ts}.csv`, breachOrders, cols);
+}
+
+/** Download a report table as PNG image (uses html2canvas) */
+function downloadReportPng(elementId, filenamePrefix) {
+  const el = document.getElementById(elementId);
+  if (!el) {
+    alert('Report not ready. Generate reports first.');
+    return;
+  }
+  if (typeof html2canvas !== 'function') {
+    alert('PNG library not loaded. Check internet connection and refresh.');
+    return;
+  }
+  const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  html2canvas(el, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    useCORS: true,
+    logging: false
+  }).then(canvas => {
+    const a = document.createElement('a');
+    a.download = `${filenamePrefix}_${ts}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }).catch(err => {
+    console.error(err);
+    alert('PNG download failed: ' + err.message);
+  });
+}
+
+function downloadBreachExcelFormat() {
+  const breach = window.ST.breach || [];
+  const order = ['Kalyan Nagar', 'Indranagar', 'Varthur'];
+  const rows = order.map(s => {
+    const b = breach.find(x => x.Store === s) || {};
+    return {
+      Stores: s,
+      'Total Orders': b['Total Orders'] ?? 0,
+      'Delivered Orders': b.Delivered ?? 0,
+      '15 min Orders': b['15 Min Orders'] ?? 0,
+      '30 min Orders': b['30 Min Orders'] ?? 0,
+      'Other orders': b['Other Orders'] ?? 0,
+      'Total Breach': b['Total Breach'] ?? 0,
+      '15 Min Breach': b['15 Min Breach'] ?? 0,
+      '30 Min Breach': b['30 Min Breach'] ?? 0,
+      'Other Breach': b['Other Breach'] ?? 0,
+      'Breach %': (b['Breach %'] != null ? Math.round(b['Breach %']) + '%' : '0%'),
+      'Rider Count': b['Rider Count'] ?? 0
+    };
+  });
+  const cols = ['Stores','Total Orders','Delivered Orders','15 min Orders','30 min Orders','Other orders','Total Breach','15 Min Breach','30 Min Breach','Other Breach','Breach %','Rider Count'];
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  downloadCSV(`Zippee_Supertails_Delivered_Breach_Report_${ts}.csv`, rows, cols);
+}
+
+function downloadPendencyExcelFormat() {
+  const pendency = window.ST.pendency || [];
+  const get = (s, k) => { const p = pendency.find(x => x.Store === s) || {}; return p[k] ?? 0; };
+  const L = { i: 'Indra Nagar', k: 'Kalyan Nagar', v: 'Varthur' };
+  const rows = [
+    { 'S.no': 1, 'Key Parameters': 'Total Orders', [L.i]: get('Indranagar','Total Orders'), [L.k]: get('Kalyan Nagar','Total Orders'), [L.v]: get('Varthur','Total Orders') },
+    { 'S.no': 2, 'Key Parameters': 'Pending Order', [L.i]: get('Indranagar','Pending Order'), [L.k]: get('Kalyan Nagar','Pending Order'), [L.v]: get('Varthur','Pending Order') },
+    { 'S.no': 3, 'Key Parameters': 'Pendency %', [L.i]: get('Indranagar','Pendency %') + '%', [L.k]: get('Kalyan Nagar','Pendency %') + '%', [L.v]: get('Varthur','Pendency %') + '%' },
+    { 'S.no': 4, 'Key Parameters': 'Rider Count', [L.i]: get('Indranagar','Rider Count'), [L.k]: get('Kalyan Nagar','Rider Count'), [L.v]: get('Varthur','Rider Count') },
+    { 'S.no': 5, 'Key Parameters': 'Avg Order/ Rider', [L.i]: get('Indranagar','Avg Order/Rider'), [L.k]: get('Kalyan Nagar','Avg Order/Rider'), [L.v]: get('Varthur','Avg Order/Rider') },
+    { 'S.no': 6, 'Key Parameters': 'Attempted Delivery', [L.i]: get('Indranagar','Attempted Delivery'), [L.k]: get('Kalyan Nagar','Attempted Delivery'), [L.v]: get('Varthur','Attempted Delivery') },
+    { 'S.no': 7, 'Key Parameters': 'Not Dispatched', [L.i]: get('Indranagar','Not Dispatched'), [L.k]: get('Kalyan Nagar','Not Dispatched'), [L.v]: get('Varthur','Not Dispatched') },
+    { 'S.no': 8, 'Key Parameters': '0 Attempted', [L.i]: get('Indranagar','0 Attempt'), [L.k]: get('Kalyan Nagar','0 Attempt'), [L.v]: get('Varthur','0 Attempt') },
+    { 'S.no': 9, 'Key Parameters': 'Picked Up', [L.i]: get('Indranagar','Picked Up'), [L.k]: get('Kalyan Nagar','Picked Up'), [L.v]: get('Varthur','Picked Up') },
+    { 'S.no': 10, 'Key Parameters': 'Intransit', [L.i]: get('Indranagar','Intransit'), [L.k]: get('Kalyan Nagar','Intransit'), [L.v]: get('Varthur','Intransit') },
+    { 'S.no': 11, 'Key Parameters': 'Cancelled', [L.i]: get('Indranagar','Cancelled'), [L.k]: get('Kalyan Nagar','Cancelled'), [L.v]: get('Varthur','Cancelled') },
+    { 'S.no': 12, 'Key Parameters': 'Courier Orders', [L.i]: 0, [L.k]: 0, [L.v]: 0 }
+  ];
+  const cols = ['S.no', 'Key Parameters', L.i, L.k, L.v];
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  downloadCSV(`Zippee_Supertails_Pendency_Report_${ts}.csv`, rows, cols);
+}
+
+function downloadEodExcelFormat() {
+  const eod = window.ST.eod || [];
+  const plannedMap = window.ST.plannedMap || window.ST.riderMap || {};
+  const activeMap = window.ST.activeMap || window.ST.riderMap || {};
+  const by = (s) => eod.find(r => r.Store === s) || {};
+  const ind = by('Indranagar'), kal = by('Kalyan Nagar'), varth = by('Varthur');
+  const n = (v) => (v == null || v === '' ? 0 : Number(v));
+  const sum = (a,b,c) => n(a)+n(b)+n(c);
+  const pI = plannedMap['Indranagar']||0, pK = plannedMap['Kalyan Nagar']||0, pV = plannedMap['Varthur']||0;
+  const aI = activeMap['Indranagar']||0, aK = activeMap['Kalyan Nagar']||0, aV = activeMap['Varthur']||0;
+  const dI = n(ind.Delivered), dK = n(kal.Delivered), dV = n(varth.Delivered);
+  const totD = dI+dK+dV, totA = aI+aK+aV;
+  const eff = (d,a) => a ? +(d/a).toFixed(2) : 0;
+  const pct = (b,d) => d ? +((b/d)*100).toFixed(2) : 0;
+  const bI = n(ind['Total Breach']), bK = n(kal['Total Breach']), bV = n(varth['Total Breach']);
+  const totB = bI+bK+bV;
+  const rows = [
+    { Stores: 'Total Orders', 'Indra Nagar': n(ind['Total Orders (EOD)']||ind['Total Orders']), 'Kalyan Nagar': n(kal['Total Orders (EOD)']||kal['Total Orders']), Varthur: n(varth['Total Orders (EOD)']||varth['Total Orders']), Total: sum(ind['Total Orders (EOD)']||ind['Total Orders'], kal['Total Orders (EOD)']||kal['Total Orders'], varth['Total Orders (EOD)']||varth['Total Orders']) },
+    { Stores: 'Attempted Delivery', 'Indra Nagar': n(ind['Attempted Delivery']), 'Kalyan Nagar': n(kal['Attempted Delivery']), Varthur: n(varth['Attempted Delivery']), Total: sum(ind['Attempted Delivery'], kal['Attempted Delivery'], varth['Attempted Delivery']) },
+    { Stores: 'Not Dispatched', 'Indra Nagar': n(ind['Not Dispatched']), 'Kalyan Nagar': n(kal['Not Dispatched']), Varthur: n(varth['Not Dispatched']), Total: sum(ind['Not Dispatched'], kal['Not Dispatched'], varth['Not Dispatched']) },
+    { Stores: 'Not Dispatched ( 0 Attempts )', 'Indra Nagar': n(ind['0 Attempt']), 'Kalyan Nagar': n(kal['0 Attempt']), Varthur: n(varth['0 Attempt']), Total: sum(ind['0 Attempt'], kal['0 Attempt'], varth['0 Attempt']) },
+    { Stores: 'Pickedup', 'Indra Nagar': n(ind['Picked Up']), 'Kalyan Nagar': n(kal['Picked Up']), Varthur: n(varth['Picked Up']), Total: sum(ind['Picked Up'], kal['Picked Up'], varth['Picked Up']) },
+    { Stores: 'Intransit', 'Indra Nagar': n(ind.Intransit), 'Kalyan Nagar': n(kal.Intransit), Varthur: n(varth.Intransit), Total: sum(ind.Intransit, kal.Intransit, varth.Intransit) },
+    { Stores: 'Cancelled', 'Indra Nagar': n(ind.Cancelled), 'Kalyan Nagar': n(kal.Cancelled), Varthur: n(varth.Cancelled), Total: sum(ind.Cancelled, kal.Cancelled, varth.Cancelled) },
+    { Stores: 'Total Delivered', 'Indra Nagar': dI, 'Kalyan Nagar': dK, Varthur: dV, Total: totD },
+    { Stores: '15 Mins Orders', 'Indra Nagar': n(ind['15 Min Orders']), 'Kalyan Nagar': n(kal['15 Min Orders']), Varthur: n(varth['15 Min Orders']), Total: sum(ind['15 Min Orders'], kal['15 Min Orders'], varth['15 Min Orders']) },
+    { Stores: '30 Mins Orders', 'Indra Nagar': n(ind['30 Min Orders']), 'Kalyan Nagar': n(kal['30 Min Orders']), Varthur: n(varth['30 Min Orders']), Total: sum(ind['30 Min Orders'], kal['30 Min Orders'], varth['30 Min Orders']) },
+    { Stores: 'Other Orders', 'Indra Nagar': n(ind['Other Orders']), 'Kalyan Nagar': n(kal['Other Orders']), Varthur: n(varth['Other Orders']), Total: sum(ind['Other Orders'], kal['Other Orders'], varth['Other Orders']) },
+    { Stores: 'On Time Delivered', 'Indra Nagar': n(ind['On Time Delivered']), 'Kalyan Nagar': n(kal['On Time Delivered']), Varthur: n(varth['On Time Delivered']), Total: sum(ind['On Time Delivered'], kal['On Time Delivered'], varth['On Time Delivered']) },
+    { Stores: 'Total Breach', 'Indra Nagar': bI, 'Kalyan Nagar': bK, Varthur: bV, Total: totB },
+    { Stores: '15 Mins Breach', 'Indra Nagar': n(ind['15 Min Breach']), 'Kalyan Nagar': n(kal['15 Min Breach']), Varthur: n(varth['15 Min Breach']), Total: sum(ind['15 Min Breach'], kal['15 Min Breach'], varth['15 Min Breach']) },
+    { Stores: '30 Mins Breach', 'Indra Nagar': n(ind['30 Min Breach']), 'Kalyan Nagar': n(kal['30 Min Breach']), Varthur: n(varth['30 Min Breach']), Total: sum(ind['30 Min Breach'], kal['30 Min Breach'], varth['30 Min Breach']) },
+    { Stores: 'Other Breach', 'Indra Nagar': n(ind['Other Breach']), 'Kalyan Nagar': n(kal['Other Breach']), Varthur: n(varth['Other Breach']), Total: sum(ind['Other Breach'], kal['Other Breach'], varth['Other Breach']) },
+    { Stores: 'Breach %', 'Indra Nagar': pct(bI,dI)+'%', 'Kalyan Nagar': pct(bK,dK)+'%', Varthur: pct(bV,dV)+'%', Total: (totD ? +((totB/totD)*100).toFixed(2) : 0)+'%' },
+    { Stores: 'Planned Rider', 'Indra Nagar': pI, 'Kalyan Nagar': pK, Varthur: pV, Total: pI+pK+pV },
+    { Stores: 'Active Rider', 'Indra Nagar': aI, 'Kalyan Nagar': aK, Varthur: aV, Total: totA },
+    { Stores: 'Efficiency of Delivered Orders', 'Indra Nagar': eff(dI,aI), 'Kalyan Nagar': eff(dK,aK), Varthur: eff(dV,aV), Total: totA ? +(totD/totA).toFixed(2) : 0 }
+  ];
+  const cols = ['Stores','Indra Nagar','Kalyan Nagar','Varthur','Total'];
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  downloadCSV(`Zippee_Supertails_EOD_Report_${ts}.csv`, rows, cols);
+}
+
+/* Tabs + UI */
+document.getElementById('tabs').addEventListener('click', e => {
+  if (!e.target.classList.contains('tab')) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
+});
+document.getElementById('btnGenerate').addEventListener('click', runPipeline);
+
+window.addEventListener('load', () => {
+  const el = document.getElementById('loader');
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 400); }, 900);
+});
+function toggleDark() { document.body.classList.toggle('dark'); }
+function openChat() { document.getElementById('chatBox').classList.add('open'); }
+function closeChat() { document.getElementById('chatBox').classList.remove('open'); }
+</script>
+</body>
+</html>
+
+
