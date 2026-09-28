@@ -38,18 +38,21 @@ button.alt{background:#eef2f7;color:#243047;margin-left:8px}
 </div>
 
 <script>
-const TARGET = ["Darkstore", "AWB Number", "Order Number", "Type", "Current Status", "Is Cancelled", "Creation Date", "Marketplace Order Date", "Ideal Delivery Start", "Ideal Delivery End", "Actual Delivery Date Time", "Actual Delivery Date", "Try & Buy", "Customer Name", "Customer Mobile", "Pickup Address", "Pickup Pincode", "Delivery Address", "Delivery Pincode", "Trip ID", "Rider ID", "Rider Name", "Rider Latitude", "Rider Longitude", "No. of Attempts", "Attempt Reason", "Total Quantity", "Weight", "Total Value", "Payment Mode", "Paid by", "Transaction ID", "Brand Name", "Shipment Ready Time", "Shipment Allocation Pending Time", "Shipment Pickup Pending Time", "Shipment Pickup In Progress Time", "Shipment Pickup Completed Time", "Shipment Out For Delivery Time", "Shipment Reached Delivery Time", "Shipment Delivery In Progress Time", "Shipment Delivered Time", "Shipment Delivery Attempted Time", "Shipment RTO Time", "Shipment Cancelled Time", "Shipment Pickup Attempted Time", "Shipment Out for Pickup Time", "Shipment Reached Pickup Time"];
+const TARGET = ["Darkstore", "AWB Number", "Order Number", "Type", "Current Status", "Creation Date", "Marketplace Order Date", "Ideal Delivery Start", "Ideal Delivery End", "Actual Delivery Date Time", "Actual Delivery Date", "Try & Buy", "Customer Name", "Customer Mobile", "Pickup Address", "Pickup Pincode", "Delivery Address", "Delivery Pincode", "Trip ID", "Rider ID", "Rider Name", "Rider Latitude", "Rider Longitude", "No. of Attempts", "Attempt Reason", "Total Quantity", "Weight", "Total Value", "Payment Mode", "Paid by", "Transaction ID", "Brand Name", "Shipment Ready Time", "Shipment Allocation Pending Time", "Shipment Pickup Pending Time", "Shipment Pickup In Progress Time", "Shipment Pickup Completed Time", "Shipment Out For Delivery Time", "Shipment Reached Delivery Time", "Shipment Delivery In Progress Time", "Shipment Delivered Time", "Shipment Delivery Attempted Time", "Shipment RTO Time", "Shipment Cancelled Time", "Shipment Pickup Attempted Time", "Shipment Out for Pickup Time", "Shipment Reached Pickup Time"];
 
-// NOTE: "Is Cancelled" (index 5) and the Rider ID/Rider Name order (indices 20/21)
-// are known open discrepancies vs the real Blaze export and are NOT touched by this
-// update -- this pass only fixes Creation Date/Time, per current instructions.
+// NOTE: "Is Cancelled" has been removed from the output entirely.
+// The Rider ID/Rider Name order (indices 19/20) is a known open discrepancy vs the
+// real Blaze export and is NOT touched here.
+// Creation Date AND Marketplace Order Date are formatted identically.
 
-const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Is Cancelled": null, "Creation Date": ["combine_datetime", "Creation Date", "Creation Time"], "Marketplace Order Date": "Marketplace Order Date", "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
+const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Creation Date": ["combine_datetime", "Creation Date", "Creation Time"], "Marketplace Order Date": ["format_datetime", "Marketplace Order Date"], "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
 
-if (TARGET[6] !== "Creation Date" || TARGET[5] !== "Is Cancelled") {
+if (TARGET[5] !== "Creation Date" || TARGET[6] !== "Marketplace Order Date" || TARGET.includes("Is Cancelled")) {
   throw new Error("Target template indices are incorrect.");
 }
-if (!Array.isArray(MAP["Creation Date"]) || MAP["Creation Date"][0] !== "combine_datetime" || MAP["Is Cancelled"] !== null) {
+if (!Array.isArray(MAP["Creation Date"]) || MAP["Creation Date"][0] !== "combine_datetime" ||
+    !Array.isArray(MAP["Marketplace Order Date"]) || MAP["Marketplace Order Date"][0] !== "format_datetime" ||
+    "Is Cancelled" in MAP) {
   throw new Error("Required field mappings are incorrect.");
 }
 
@@ -89,14 +92,13 @@ function combine(a,b){
   return a + ' ' + b;
 }
 
-// Creation Date
-// Bolt:  "Creation Date" = DD/MM/YYYY (day first, e.g. 24/09/2026)
-//        "Creation Time" = 24-hour HH:mm (e.g. 13:32)
-// Blaze: one field, ="DD/MM/YYYY h:mm AM/PM"  (e.g. ="24/09/2026 1:32 PM")
-//        hour not zero-padded, minutes always 2 digits, 00:xx -> 12:xx AM.
-// The date is already in Blaze's day-first order, so it is NOT reordered.
-// Rows whose values don't match these formats are counted and copied through as-is.
-let creationDateUnparsed = 0;
+// Creation Date & Marketplace Order Date -> Blaze ="DD/MM/YYYY h:mm AM/PM"
+// Bolt Creation Date:          "Creation Date" DD/MM/YYYY + "Creation Time" HH:mm (two columns)
+// Bolt Marketplace Order Date: "DD/MM/YYYY HH:mm" (one column) -> split, then same formatter
+// Hour not zero-padded, minutes 2 digits, 00:xx -> 12:xx AM, 12:xx -> 12:xx PM.
+// Rows not matching the expected format are counted (per column) and copied through.
+const unparsed = { "Creation Date": 0, "Marketplace Order Date": 0 };
+let currentCol = "Creation Date";
 
 function combineDateTime(dateStr, timeStr){
   dateStr = (dateStr == null ? '' : String(dateStr)).trim();
@@ -105,7 +107,7 @@ function combineDateTime(dateStr, timeStr){
 
   const d = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if(!d || +d[1] < 1 || +d[1] > 31 || +d[2] < 1 || +d[2] > 12){
-    creationDateUnparsed++;
+    unparsed[currentCol]++;
     return combine(dateStr, timeStr);
   }
   const ddmmyyyy = d[1].padStart(2,'0') + '/' + d[2].padStart(2,'0') + '/' + d[3];
@@ -115,23 +117,32 @@ function combineDateTime(dateStr, timeStr){
   // HH:mm, optional :ss (dropped), optional AM/PM if the file was re-saved in Excel
   const t = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
   if(!t){
-    creationDateUnparsed++;
+    unparsed[currentCol]++;
     return '="' + ddmmyyyy + ' ' + timeStr + '"';
   }
   let h = +t[1];
   const m = t[2];
   if(t[3]){
-    if(h < 1 || h > 12){ creationDateUnparsed++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
+    if(h < 1 || h > 12){ unparsed[currentCol]++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
     h = (h % 12) + (t[3].toUpperCase() === 'PM' ? 12 : 0);
   }
   if(h > 23 || +m > 59){
-    creationDateUnparsed++;
+    unparsed[currentCol]++;
     return '="' + ddmmyyyy + ' ' + timeStr + '"';
   }
   const h12 = (h % 12) || 12;
   const ampm = h >= 12 ? 'PM' : 'AM';
 
   return '="' + ddmmyyyy + ' ' + h12 + ':' + m + ' ' + ampm + '"';
+}
+
+// Single-column "DD/MM/YYYY HH:mm" (or "DD/MM/YYYY h:mm AM/PM") -> same output as above
+function formatDateTime(str){
+  str = (str == null ? '' : String(str)).trim();
+  if(!str) return '';
+  const sp = str.indexOf(' ');
+  if(sp === -1) return combineDateTime(str, '');
+  return combineDateTime(str.slice(0, sp), str.slice(sp + 1));
 }
 
 function resetPage(){
@@ -153,7 +164,8 @@ async function convert(){
   try{
     s.className='status';
     s.textContent='Reading Bolt data...';
-    creationDateUnparsed = 0;
+    unparsed["Creation Date"] = 0;
+    unparsed["Marketplace Order Date"] = 0;
 
     const text = await file.text();
     const rows = parseCSV(text);
@@ -168,6 +180,9 @@ async function convert(){
       if(typeof v === 'string') required.push(v);
       else if(Array.isArray(v) && (v[0] === 'combine' || v[0] === 'combine_datetime')){
         required.push(v[1],v[2]);
+      }
+      else if(Array.isArray(v) && v[0] === 'format_datetime'){
+        required.push(v[1]);
       }
     });
 
@@ -194,7 +209,13 @@ async function convert(){
         }
 
         if(Array.isArray(rule) && rule[0] === 'combine_datetime'){
+          currentCol = targetHeader;
           return combineDateTime(value(row,rule[1]),value(row,rule[2]));
+        }
+
+        if(Array.isArray(rule) && rule[0] === 'format_datetime'){
+          currentCol = targetHeader;
+          return formatDateTime(value(row,rule[1]));
         }
 
         return value(row,rule);
@@ -215,13 +236,17 @@ async function convert(){
     a.remove();
     URL.revokeObjectURL(url);
 
-    s.className = creationDateUnparsed ? 'status bad' : 'status good';
+    const warn = Object.entries(unparsed)
+      .filter(([,n]) => n)
+      .map(([col,n]) => '\nWarning: ' + n + ' row(s) had a ' + col + ' in an unexpected format and were copied as-is.')
+      .join('');
+
+    s.className = warn ? 'status bad' : 'status good';
     s.textContent='Done.\nRows converted: ' + (output.length-1) +
       '\nOutput columns: ' + TARGET.length +
       '\nCreation Date = Creation Date + Creation Time -> DD/MM/YYYY h:mm AM/PM.' +
-      (creationDateUnparsed
-        ? '\nWarning: ' + creationDateUnparsed + ' row(s) had a Creation Date/Time in an unexpected format and were copied as-is.'
-        : '');
+      '\nMarketplace Order Date -> DD/MM/YYYY h:mm AM/PM.' +
+      warn;
   }catch(err){
     s.className='status bad';
     s.textContent='Error: ' + err.message;
