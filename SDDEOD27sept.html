@@ -391,11 +391,13 @@ input[type=date]{
             Each brand's cutoff hour comes from Column B of the Brand Sheet &mdash; see the window note above, or each report's header below, for the exact time used.<br>
             <b>Darkstore Columns</b> (brand-wise reports) = every darkstore in the file appears. Darkstores listed in the Darkstore Sheet are renamed to their Name,
             and darkstores sharing a Name are combined into one column. Darkstores not in the sheet keep their usual label.<br>
+            <b>Test Orders</b> = any row whose Darkstore or Brand Name starts or ends with "test" (any case) is removed from every report.<br>
             <b>Excluded Pincodes</b> = every pincode in the Pincode Sheet is removed from both uploads
             &mdash; Delivery Pincode in the shipment file and Shipping Address Pincode in the Kapiva order files &mdash; before any count.<br>
             <b>Total Orders</b> = Count of all rows/orders in the window<br>
             <b>Kapiva Total Orders</b> = from the Kapiva order files: Created after (D-1) 4:00 PM and up to and including (D) 4:00 PM,
-            excluding CANCELLED in Sale Order Status or Sale Order Item Status, counted as unique Display Order Codes per Facility<br>
+            excluding CANCELLED in Sale Order Status or Sale Order Item Status, counted as unique Display Order Codes per Facility.
+            If a store's Total Orders is lower than its Processed count, Total Orders is raised to Processed.<br>
             <b>Not_D0_Dispatched Orders</b> = Current Status = READY<br>
             <b>D0_Dispatched Orders</b> = Total Orders - (READY Orders with 0 attempt)<br>
             <b>Cancelled Orders</b> = Current Status = CANCELLED<br>
@@ -685,6 +687,7 @@ let brandCutoffs   = new Map(); // lowercase brand name -> cutoff hour (0-23)
 let allRows        = [];
 let fileLoaded      = false;
 let excludedPincodeCount = 0;  // shipment rows removed by the pincode exclusion (set each render)
+let testRowCount         = 0;  // shipment rows removed by the "test" filter (set each render)
 
 let sheetPincodes      = new Set(); // pincodes from the Pincode sheet
 let pincodeSheetLoaded = false;
@@ -731,6 +734,12 @@ function normPincode(v){
 
 function isExcludedPincode(pin){
     return !!pin && sheetPincodes.has(pin);
+}
+
+/* true if a value starts or ends with "test" (any case, spaces trimmed) */
+function isTestValue(v){
+    const s = String(v).trim().toLowerCase();
+    return s.startsWith("test") || s.endsWith("test");
 }
 
 /* Small RFC4180-ish CSV parser — handles quoted fields that
@@ -895,10 +904,11 @@ function pctColour(pct){
    KAPIVA — manual "Total Orders" override.
 
    Every other brand computes D0% / FASR% against its own ACTUAL
-   processed count (s.total). For Kapiva, the person enters
-   Total Orders by hand per darkstore, and those percentages are
-   computed against that manual number instead, via a Generate
-   button rather than live as they type (matching the reference).
+   processed count (s.total). For Kapiva, Total Orders comes from
+   the Kapiva order files (or is typed by hand) per darkstore, and
+   those percentages are computed against that number instead.
+   If a store's Total Orders is lower than its Processed count,
+   it is raised to Processed.
 
    Values persist per (report date, darkstore) so they survive an
    unrelated re-render (changing the date, editing the AWB box,
@@ -1482,8 +1492,8 @@ function handleFile(e){
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const json  = XLSX.utils.sheet_to_json(sheet, { raw:true });
 
-            /* every row is kept; the pincode exclusion is applied at
-               render time so a Reload Sheets takes effect immediately */
+            /* every row is kept; the test and pincode exclusions are applied
+               at render time so a Reload Sheets takes effect immediately */
             allRows = json.map(row => ({
                 pincode:   normPincode(row["Delivery Pincode"]),
                 brand:     cleanCell(row["Brand Name"]),
@@ -1535,10 +1545,14 @@ function render(){
         return;
     }
 
+    /* Remove test orders: Darkstore or Brand Name starting/ending with "test" */
+    const nonTestRows = allRows.filter(r => !isTestValue(r.darkstore) && !isTestValue(r.brand));
+    testRowCount = allRows.length - nonTestRows.length;
+
     /* Pincode exclusion (Pincode sheet only) — applied to
        every report below. */
-    const baseRows = allRows.filter(r => !isExcludedPincode(r.pincode));
-    excludedPincodeCount = allRows.length - baseRows.length;
+    const baseRows = nonTestRows.filter(r => !isExcludedPincode(r.pincode));
+    excludedPincodeCount = nonTestRows.length - baseRows.length;
 
     /* Darkstore-wise report has no dependency on the Brand Sheet (it
        aggregates every brand together, by darkstore), so it renders
@@ -1624,6 +1638,8 @@ function render(){
             esc(formattedDate) + " window(s)." +
             (unparsed ? "<br><b>" + unparsed +
              "</b> row(s) had an unreadable Creation Date." : "") +
+            (testRowCount ? "<br><b>" + testRowCount +
+             "</b> test row(s) were removed (Darkstore or Brand Name starts/ends with \"test\")." : "") +
             (excludedPincodeCount ? "<br><b>" + excludedPincodeCount +
              "</b> row(s) were removed by the excluded pincodes." : ""), "warn");
         return;
@@ -1737,9 +1753,8 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
             const dk = ds => ds.replace(/[^a-zA-Z0-9]/g,"");
             const brandKey = brand.replace(/[^a-zA-Z0-9]/g,"");
 
-            /* Manual "Total Orders" row — one input per darkstore, blank
-               until the person types a number; nothing here is computed
-               from the data. */
+            /* "Total Orders" row — one input per darkstore, filled from
+               the Kapiva order files or typed by hand. */
             html += `<tr><td class="yellow"><b>Total Orders</b></td>`;
             darkstores.forEach(ds => {
                 const inputId = `totalOrders_${brandKey}_${dk(ds)}`;
@@ -1810,7 +1825,17 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
                     darkstores.forEach(ds => {
                         const s = brandStats[brand][ds];
                         const input = document.getElementById(`totalOrders_${brandKey}_${dk(ds)}`);
-                        const totalOrders = input && input.value ? Number(input.value) : 0;
+                        const entered = input && input.value !== "" ? Number(input.value) : 0;
+
+                        /* Total Orders can never be lower than Processed:
+                           if it is, raise it to Processed for this store */
+                        const totalOrders = Math.max(entered, s.total);
+
+                        if(input && totalOrders !== entered){
+                            input.value = totalOrders;
+                            kapivaTotalOrders.set(dateVal + "|" + ds, String(totalOrders));
+                            input.title = "Raised to Processed (" + s.total + "); original value was " + entered;
+                        }
 
                         sumOrders    += totalOrders;
                         sumD0        += (s.total - s.readyZeroAttempt);
@@ -1911,6 +1936,11 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
         msg += "<br><b>" + unparsed +
                "</b> row(s) had an unreadable Creation Date and were excluded.";
         cls = "warn";
+    }
+
+    if(testRowCount){
+        msg += "<br><b>" + testRowCount +
+               "</b> test row(s) were removed (Darkstore or Brand Name starts/ends with \"test\").";
     }
 
     if(excludedPincodeCount){
