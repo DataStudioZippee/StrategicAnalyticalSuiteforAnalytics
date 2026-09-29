@@ -327,6 +327,69 @@ input[type=date]{
     width:120px;
 }
 
+/* AWB reminder popup */
+.modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+}
+
+.modal-overlay.show{
+    display:flex;
+}
+
+.modal-box{
+    background:#ffffff;
+    border-radius:18px;
+    max-width:480px;
+    width:100%;
+    padding:26px 28px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35);
+    border-top:6px solid #e0a800;
+}
+
+.modal-box h2{
+    font-size:20px;
+    color:#8a5a00;
+    margin-bottom:12px;
+}
+
+.modal-box p{
+    font-size:14px;
+    color:#333;
+    line-height:1.6;
+    margin-bottom:10px;
+}
+
+.modal-box ul{
+    margin:6px 0 14px 20px;
+    font-size:14px;
+    color:#333;
+    line-height:1.7;
+}
+
+.modal-actions{
+    display:flex;
+    gap:12px;
+    justify-content:flex-end;
+    margin-top:18px;
+    flex-wrap:wrap;
+}
+
+.btn-secondary{
+    background:#e6ebf3;
+    color:#003f8c;
+}
+
+.btn-secondary:hover{
+    background:#d3dcea;
+}
+
 @media(max-width:768px){
     .header{
         flex-direction:column;
@@ -491,6 +554,21 @@ input[type=date]{
         Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee
     </div>
 
+</div>
+
+<!-- AWB reminder popup -->
+<div class="modal-overlay" id="awbModal" role="dialog" aria-modal="true" aria-labelledby="awbModalTitle">
+    <div class="modal-box">
+        <h2 id="awbModalTitle">&#9888; Krishna Herbal Indore / Jodhpur AWBs not added</h2>
+        <p>The uploaded file has orders from Krishna Herbal's warehouses, but the AWB box is empty:</p>
+        <ul id="awbModalList"></ul>
+        <p>These orders are currently being counted using the normal cutoff window instead of the AWB list.
+           Paste the Indore &amp; Jodhpur AWB numbers in the box to count them correctly.</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="awbModalContinue" type="button">Continue without AWBs</button>
+            <button class="btn" id="awbModalAdd" type="button">Add AWBs now</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -789,6 +867,8 @@ let dsEodStatusCls   = "";
 let kapivaOrderRows   = [];   // rows from the Kapiva order files
 let kapivaFilesInfo   = [];   // [{name, rows}] for files read successfully
 let kapivaFileErrors  = [];   // messages for files that couldn't be used
+
+let awbPopupPending   = false; // true right after a shipment file is loaded -> check once for missing AWBs
 
 /* ============================================================
    HELPERS
@@ -1202,7 +1282,10 @@ async function handleKapivaFiles(e){
         }
     }
 
-    e.target.value = "";   // allow re-selecting the same files
+    /* NOTE: the input is NOT cleared here any more, so the chosen
+       file names stay visible. It is cleared on click instead
+       (see FILE UPLOAD section), which still allows re-selecting
+       the same files. */
 
     kapivaOrderRows  = rows;
     kapivaFilesInfo  = info;
@@ -1693,6 +1776,12 @@ function initSheetLinkBox(){
 document.getElementById("fileInput").addEventListener("change", handleFile);
 document.getElementById("kapivaFileInput").addEventListener("change", handleKapivaFiles);
 
+/* Clear the input just BEFORE the picker opens (not after reading),
+   so the chosen file name stays visible after upload, while picking
+   the same file again still fires "change". */
+document.getElementById("fileInput").addEventListener("click", e => { e.target.value = ""; });
+document.getElementById("kapivaFileInput").addEventListener("click", e => { e.target.value = ""; });
+
 document.getElementById("reportDate").addEventListener("change", () => {
     updateWindowNote();
     renderKapivaOrdersStatus(document.getElementById("reportDate").value, null);
@@ -1704,6 +1793,61 @@ document.getElementById("awbFilter").addEventListener("input", () => {
 });
 
 document.getElementById("reloadBrands").addEventListener("click", loadSheets);
+
+/* ============================================================
+   AWB REMINDER POPUP
+   Shown once per shipment-file upload when the file has orders
+   from the Krishna Herbal Indore / Jodhpur warehouses but the
+   AWB box is empty.
+   ============================================================ */
+
+const AWB_STORE_LABELS = {
+    "zippee_krishna_herbal_indorewh":  "Indore warehouse",
+    "zippee_krishna_herbal_jodhpurwh": "Jodhpur warehouse"
+};
+
+/* rows per AWB-filter warehouse, e.g. Map{"Indore warehouse" -> 42} */
+function countAwbStoreRows(rows){
+    const counts = new Map();
+    rows.forEach(r => {
+        const ds = String(r.darkstore).trim().toLowerCase();
+        if(AWB_FILTER_STORES.has(ds)){
+            const label = AWB_STORE_LABELS[ds] || r.darkstore;
+            counts.set(label, (counts.get(label) || 0) + 1);
+        }
+    });
+    return counts;
+}
+
+function showAwbModal(counts){
+    document.getElementById("awbModalList").innerHTML =
+        [...counts].map(([label, n]) =>
+            "<li><b>" + esc(label) + "</b> &mdash; " + n + " order(s) in the file</li>"
+        ).join("");
+    document.getElementById("awbModal").classList.add("show");
+    document.getElementById("awbModalAdd").focus();
+}
+
+function hideAwbModal(){
+    document.getElementById("awbModal").classList.remove("show");
+}
+
+document.getElementById("awbModalContinue").addEventListener("click", hideAwbModal);
+
+document.getElementById("awbModalAdd").addEventListener("click", () => {
+    hideAwbModal();
+    const box = document.getElementById("awbFilter");
+    box.scrollIntoView({ behavior:"smooth", block:"center" });
+    box.focus();
+});
+
+/* click outside the box or press Esc to close */
+document.getElementById("awbModal").addEventListener("click", e => {
+    if(e.target.id === "awbModal") hideAwbModal();
+});
+document.addEventListener("keydown", e => {
+    if(e.key === "Escape") hideAwbModal();
+});
 
 function handleFile(e){
 
@@ -1747,6 +1891,7 @@ function handleFile(e){
             }));
 
             fileLoaded = true;
+            awbPopupPending = true;   // check for missing Indore/Jodhpur AWBs on this render
             render();
 
         }catch(err){
@@ -1759,8 +1904,8 @@ function handleFile(e){
 
     reader.readAsArrayBuffer(file);
 
-    /* allow re-selecting the same file */
-    e.target.value = "";
+    /* NOTE: the input is NOT cleared here any more, so the chosen
+       file name stays visible. It is cleared on click instead. */
 }
 
 /* ============================================================
@@ -1794,6 +1939,16 @@ function render(){
        every report below. */
     const baseRows = nonTestRows.filter(r => !isExcludedPincode(r.pincode));
     excludedPincodeCount = nonTestRows.length - baseRows.length;
+
+    /* Krishna Herbal Indore / Jodhpur rows present but AWB box empty?
+       Popup only once per upload; the status line reminds every render. */
+    const awbBoxEmpty    = !document.getElementById("awbFilter").value.trim();
+    const awbStoreCounts = awbBoxEmpty ? countAwbStoreRows(baseRows) : new Map();
+
+    if(awbPopupPending){
+        awbPopupPending = false;
+        if(awbStoreCounts.size) showAwbModal(awbStoreCounts);
+    }
 
     /* Darkstore-wise report has no dependency on the Brand Sheet (it
        aggregates every brand together, by darkstore), so it renders
@@ -2158,6 +2313,13 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
 
     if(!darkstoreSheetLoaded){
         msg += "<br>Darkstore rename sheet not loaded &mdash; using the built-in darkstore grouping.";
+        cls = "warn";
+    }
+
+    if(awbStoreCounts.size){
+        msg += "<br><b>Krishna Herbal Indore / Jodhpur AWBs not added</b> &mdash; " +
+               [...awbStoreCounts].map(([l, n]) => esc(l) + " " + n).join(", ") +
+               " order(s) in the file are using the normal cutoff window. Paste their AWBs in the box above.";
         cls = "warn";
     }
 
