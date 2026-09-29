@@ -1,546 +1,539 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Sandipani <> Jodhpur Pendancy</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-
-<style>
-body{
-  margin:0;
-  font-family:"Segoe UI";
-  background:url('Zippee.png') center/cover fixed no-repeat;
-}
-body::before{
-  content:"";
-  position:fixed;
-  inset:0;
-  background:rgba(255,255,255,.2);
-  backdrop-filter:blur(6px);
-  z-index:-1;
-}
-
-/* HEADER */
-.header{
-  background:linear-gradient(90deg,rgba(0,63,140,.85),rgba(0,89,179,.85));
-  color:white;
-  padding:18px 36px;
-}
-
-/* CARD */
-.card{
-  background:rgba(255,255,255,0.16);
-  backdrop-filter:blur(10px);
-  margin:40px auto;
-  max-width:700px;
-  padding:30px;
-  border-radius:18px;
-  text-align:left;
-  box-sizing:border-box;
-
-}
-
-/* FILTER */
-.filter-box{
-  margin-top:15px;
-}
-
-/* TABLE */
-table{
-  width:100%;
-  max-width:700px;
-  margin:auto;
-  border-collapse:collapse;
-  border-radius:0 0 6px 6px;
-  overflow:hidden;
-  box-shadow:0 8px 20px rgba(0,0,0,0.2);
-}
-
-th,td{
-  border:1px solid #ddd;
-  padding:6px;
-  font-size:12px;
-  text-align:center;
-}
-
-th{
-  background:#062e44;
-  color:white;
-}
-#downloadArea{
-  padding:3px 10px;
-  background:rgb(255, 255, 255);
-  border-radius:5px;
-}
-.total{
-  background:#dee2e6;
-  font-weight:bold;
-}
-th,td{
-  padding:10px;
-  font-size:13px;
-}
-.table-header-bar{
-  background:#2f3e46;
-  color:white;
-  padding:14px 0;
-  text-align:center;
-  font-weight:800;
-  font-size:18px;
-  font-size:20px;
-  letter-spacing:0.5px;
-  width:100%;
-  max-width:700px;
-  margin:30px auto 0;
-
-  border-radius:6px 6px 0 0;
-  box-shadow:0 4px 10px rgba(0,0,0,0.2);
-}
-
-.watermark{
-  width:100%;
-  max-width:700px;
-  margin:10px auto 30px;
-  text-align:center;
-  font-weight:bold;
-}
-</style>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zippee Filter &amp; Pendancy Pivot</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+    :root {
+      --bg: #efe8d8; --cream: #f7f1e4; --surface: #fffaf1; --ink: #15231c;
+      --muted: #5d6a62; --primary: #1b5c3e; --primary-hover: #164c33;
+      --primary-fg: #f7f1e4; --accent: #c2410c; --border: #d9d0be;
+      --ok: #166534; --danger: #b42318; --radius: 14px;
+      --table-head: #1a2b3c; --table-head-fg: #ffffff;
+      --row-alt: #f0f0f0; --grand: #e8eef4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "IBM Plex Sans", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    .header { background: var(--primary); color: var(--primary-fg); padding: 1.6rem 1.2rem; }
+    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: flex-end; }
+    .kicker { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.75; }
+    h1 { font-size: 1.7rem; margin-top: 0.25rem; }
+    .sub { opacity: 0.85; font-size: 0.92rem; max-width: 40rem; margin-top: 0.35rem; }
+    .today { border: 1px solid rgba(247,241,228,0.25); background: rgba(0,0,0,0.12); padding: 0.5rem 0.8rem; border-radius: 10px; font-family: "IBM Plex Mono", monospace; font-size: 0.9rem; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 1.2rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; margin-bottom: 1rem; }
+    h2 { font-size: 0.95rem; margin-bottom: 0.75rem; }
+    .grid { display: grid; gap: 1rem; }
+    @media (min-width: 800px) { .grid-2 { grid-template-columns: 3fr 2fr; } .metrics { grid-template-columns: repeat(4, 1fr); } }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; }
+    .metric .l { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    .metric .v { font-family: "IBM Plex Mono", monospace; font-size: 1.6rem; font-weight: 700; margin-top: 0.2rem; }
+    .ok { color: var(--ok); } .danger { color: var(--danger); }
+    .drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 2rem 1rem; text-align: center; background: var(--cream); cursor: pointer; }
+    .drop.over { border-color: var(--primary); }
+    .drop input { display: none; }
+    .btns { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    button {
+      border: 0; border-radius: 10px; padding: 0.65rem 1rem; font-weight: 600; font-size: 0.9rem;
+      font-family: inherit; cursor: pointer;
+    }
+    .btn-p { background: var(--primary); color: var(--primary-fg); }
+    .btn-a { background: var(--accent); color: #fff7ed; }
+    .btn-o { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: var(--cream); text-align: left; padding: 0.6rem 0.75rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    td { padding: 0.6rem 0.75rem; border-top: 1px solid var(--border); vertical-align: middle; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .mono { font-family: "IBM Plex Mono", monospace; }
+    .muted { color: var(--muted); font-size: 0.78rem; }
+    .total { background: #efe8d8cc; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; }
+    .grand { background: var(--grand); font-weight: 700; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+    /* Pendancy-style table (PAN INDIA layout) */
+    .report-box { background:#fff; padding:4px; }
+    .report-title { background:#2b3a47; color:#fff; text-align:center; font-weight:700; font-size:1.05rem; padding:.7rem; }
+    .pendancy-table { border-collapse: separate; border-spacing: 3px; background:#fff; font-size:.82rem; }
+    .pendancy-table thead th {
+      background:#1f3347; color:#fff; text-align:center; font-size:.78rem;
+      padding:.5rem .6rem; text-transform:none; letter-spacing:0; font-weight:600;
+    }
+    .pendancy-table tbody td {
+      background:#fff; border:1px solid #d4d9de; text-align:center; padding:.42rem .6rem; color:#1d2730;
+    }
+    .pendancy-table .store-cell { font-weight:500; }
+    .pendancy-table .att-cell { font-weight:700; font-size:.78rem; }
+    .pendancy-table .sub-row td { background:#e9ecef; border-color:#e9ecef; font-weight:700; }
+    .pendancy-table .grand-row td { background:#d6dbe0; border-color:#d6dbe0; font-weight:800; }
+    .badge { display:inline-block; font-size:.62rem; font-weight:700; padding:1px 6px; border-radius:4px; margin-left:6px; vertical-align:middle; }
+    .badge-bolt { background:#d9f2e1; color:#1c7a3f; }
+    .badge-blaze { background:#fde9b8; color:#8a5a00; }
+    .report-foot { text-align:center; font-weight:700; font-size:.82rem; padding:.7rem 0 .3rem; color:#1d2730; }
+    .hidden { display: none; }
+    .rules li { margin: 0 0 0.6rem 1.1rem; color: var(--muted); font-size: 0.9rem; }
+    .rules strong { color: var(--ink); }
+    .err { color: var(--danger); font-size: 0.9rem; margin-top: 0.6rem; }
+    .preview-wrap { max-height: 28rem; overflow: auto; }
+  </style>
 </head>
-
 <body>
-
-<div class="header">
-  <h2>Zippee – Pendancy Report</h2>
-</div>
-
-<button onclick="downloadImage()" style="
-  margin:15px 0 15px 20px;  /* 👈 left spacing add */
-  padding:8px 16px;
-  background:#062e44;
-  color:white;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-">
-Download Report
-</button>
-<div class="card">
-
-<input type="file" id="fileInput">
-<div class="filter-box" id="filterBox"></div>
-
-<div id="tableContainer"></div>
-
-</div>
-
+  <header class="header">
+    <div class="header-inner">
+      <div>
+        <div class="kicker">Zippee operations</div>
+        <h1>Filter &amp; Pendancy pivot</h1>
+        <p class="sub">Removes today's orders created at/after 11:00, then pivots READY AWBs for Krishna Herbal Indore &amp; Jodhpur by store and number of attempts.</p>
+      </div>
+      <div class="today" id="todayLabel"></div>
+    </div>
+  </header>
+ 
+  <div class="wrap">
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Upload detailed report</h2>
+        <div class="drop" id="drop">
+          <p><strong>Drop CSV here, or browse</strong></p>
+          <p class="muted">Needs Creation Date + Creation Time (+ No. of Attempts preferred)</p>
+          <div class="btns" style="justify-content:center;margin-top:1rem;">
+            <button class="btn-p" type="button" id="browseBtn">Choose CSV</button>
+          </div>
+          <input id="file" type="file" accept=".csv,text/csv" />
+        </div>
+        <p class="muted" id="fileName"></p>
+        <p class="err hidden" id="err"></p>
+      </div>
+      <div class="card">
+        <h2>Rules</h2>
+        <ol class="rules">
+          <li><strong>1. Auto filter.</strong> Delete rows where Creation Date is today and Creation Time ≥ 11:00.</li>
+          <li><strong>2. Pivot.</strong> Layout matches pendancy report: Darkstore + No. of Attempts, with Subtotal per store. Filter: Current Status = READY. Stores: Indore &amp; Jodhpur. Values: READY count (and Total).</li>
+        </ol>
+      </div>
+    </div>
+ 
+    <div id="results" class="hidden">
+      <div class="metrics">
+        <div class="metric"><div class="l">Original rows</div><div class="v" id="mOrig">0</div></div>
+        <div class="metric"><div class="l">Deleted (today ≥11:00)</div><div class="v danger" id="mDel">0</div></div>
+        <div class="metric"><div class="l">Filtered rows</div><div class="v ok" id="mFilt">0</div></div>
+        <div class="metric"><div class="l">READY in target WH</div><div class="v" id="mReady">0</div></div>
+      </div>
+ 
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:.6rem;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+          <h2 style="margin:0;">Download filtered data</h2>
+          <div class="btns">
+            <button class="btn-a" type="button" id="dlFiltCsv">CSV</button>
+            <button class="btn-o" type="button" id="dlFiltXlsx">Excel</button>
+          </div>
+        </div>
+        <p class="muted">Full report after removing today's 11:00+ creations.</p>
+      </div>
+ 
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:.6rem;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+          <h2 style="margin:0;">Zippee &lt;&gt; Krishna Herbal Pendancy Report</h2>
+          <div class="btns">
+            <button class="btn-a" type="button" id="dlPivotCsv">Pivot CSV</button>
+            <button class="btn-o" type="button" id="dlPivotXlsx">Pivot Excel</button>
+            <button class="btn-o" type="button" id="dlPivotPng">Pivot PNG</button>
+          </div>
+        </div>
+        <p class="muted" id="pivotInfo" style="margin-bottom:.8rem;"></p>
+        <div class="table-wrap report-box">
+          <div class="report-title">Zippee &lt;&gt; Krishna Herbal Pendancy Report</div>
+          <table class="pendancy-table">
+            <thead>
+              <tr>
+                <th style="width:48%">Darkstore</th>
+                <th style="width:25%">No. of Attempts</th>
+                <th>READY</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="pivotBody"></tbody>
+          </table>
+          <div class="report-foot">Powered by SASA Automation | Zippee</div>
+        </div>
+      </div>
+ 
+      <div class="card">
+        <h2>Preview (first 40 filtered rows)</h2>
+        <div class="table-wrap preview-wrap">
+          <table>
+            <thead id="prevHead"></thead>
+            <tbody id="prevBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+ 
 <script>
-
-let globalPivot = {};
-let statusesList = [
-  "DELIVERED",
-  "DELIVERY_ATTEMPTED",
-  "PICKUP_COMPLETED",
-  "READY",
-  "DELIVERY_IN_PROGRESS"
-];
-
-document.getElementById("fileInput").addEventListener("change", function(e){
-
-  Papa.parse(e.target.files[0], {
-    header:true,
-    skipEmptyLines:true,
-    complete:function(res){
-      processData(res.data);
-    }
-  });
-});
-
-function processData(data){
-
-  let pivot = {};
-  let latestMap = {};
-
-  data.forEach(row => {
-
-    // ==============================
-    // NEW COLUMN MAPPING
-    // ==============================
-
-    let warehouse = (row["Warehouse Name"] || "").trim();
-    let store = "";
-
-    // Convert Warehouse Name into the store names
-    if(warehouse.toLowerCase().includes("jodhpur")){
-      store = "zippee_krishna_herbal_jodhpurwh";
-    }
-    else if(warehouse.toLowerCase().includes("indore")){
-      store = "zippee_krishna_herbal_indorewh";
-    }
-    else {
-      return;
-    }
-
-// ==============================
-// CREATION DATE + TIME
-// ==============================
-
-let creationDateRaw = (row["Creation Date"] || "").trim();
-let creationTimeRaw = (row["Creation Time"] || "").trim();
-
-creationDateRaw = creationDateRaw.replace(/^="|"$/g, "");
-creationTimeRaw = creationTimeRaw.replace(/^="|"$/g, "");
-
-
-// ==============================
-// DATE + TIME FILTER
-// ==============================
-
-if (creationDateRaw) {
-
-  let dateParts = creationDateRaw.split(/[-\/]/);
-
-  if (dateParts.length === 3) {
-
-    let day = parseInt(dateParts[0]);
-    let month = parseInt(dateParts[1]) - 1;
-    let year = parseInt(dateParts[2]);
-
-    let hour = 0;
-    let minute = 0;
-
-    // Parse Creation Time
-    if (creationTimeRaw) {
-
-      let timeParts = creationTimeRaw
-        .replace(/\s+/g, " ")
-        .trim()
-        .split(/[\s:]/);
-
-      hour = parseInt(timeParts[0]) || 0;
-      minute = parseInt(timeParts[1]) || 0;
-
-      let ampm = (timeParts[2] || "").toUpperCase();
-
-      // Handle AM/PM format if present
-      if (ampm === "PM" && hour !== 12) {
-        hour += 12;
-      }
-
-      if (ampm === "AM" && hour === 12) {
-        hour = 0;
-      }
-    }
-
-    let creationDate = new Date(
-      year,
-      month,
-      day,
-      hour,
-      minute
-    );
-
-    let now = new Date();
-
-    // Remove FUTURE dates
-    if (
-      creationDate.getFullYear() > now.getFullYear() ||
-      (
-        creationDate.getFullYear() === now.getFullYear() &&
-        creationDate.getMonth() > now.getMonth()
-      ) ||
-      (
-        creationDate.getFullYear() === now.getFullYear() &&
-        creationDate.getMonth() === now.getMonth() &&
-        creationDate.getDate() > now.getDate()
-      )
-    ) {
-      return;
-    }
-
-    // Check if Creation Date is TODAY
-    let isToday =
-      creationDate.getDate() === now.getDate() &&
-      creationDate.getMonth() === now.getMonth() &&
-      creationDate.getFullYear() === now.getFullYear();
-
-    // Remove TODAY orders created AFTER 11:00 AM
-    if (isToday) {
-
-      let creationMinutes =
-        (hour * 60) + minute;
-
-      let cutoffMinutes =
-        11 * 60; // 11:00 AM
-
-      if (creationMinutes > cutoffMinutes) {
-        return;
-      }
-    }
+const TARGET = ["zippee_krishna_herbal_indorewh", "zippee_krishna_herbal_jodhpurwh"];
+const LABELS = {
+  "zippee_krishna_herbal_indorewh": "Indore | Krishna Herbal",
+  "zippee_krishna_herbal_jodhpurwh": "Jodhpur | Krishna Herbal"
+};
+// Badge shown next to each darkstore name (BOLT = green, BLAZE = yellow)
+const BADGES = {
+  "zippee_krishna_herbal_indorewh": "BOLT",
+  "zippee_krishna_herbal_jodhpurwh": "BOLT"
+};
+function badgeHtml(wh) {
+  const b = BADGES[wh];
+  return b ? `<span class="badge badge-${b.toLowerCase()}">${b}</span>` : "";
+}
+const KEY_COLS = ["Zippee AWB","Order Number","Current Status","Warehouse Name","Creation Date","Creation Time","Brand Name","Customer Name","No. of Attempts","No of Attempts","Attempts","Attempt Count"];
+ 
+let filtered = [];
+let headers = [];
+let pivot = [];
+let readyTotal = 0;
+let attemptsCol = null;
+ 
+function getTodayIst() {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric"
+  }).format(new Date());
+}
+const TODAY = getTodayIst();
+document.getElementById("todayLabel").textContent = "Today (IST) " + TODAY;
+ 
+function atOrAfter11(t) {
+  if (!t || !String(t).trim()) return false;
+  const h = parseInt(String(t).trim().split(":")[0], 10);
+  return Number.isFinite(h) && h >= 11;
+}
+function stamp() {
+  const d = new Date();
+  const z = n => String(n).padStart(2,"0");
+  return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+"_"+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds());
+}
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+function downloadText(text, name, mime) {
+  downloadBlob(new Blob([text], { type: mime }), name);
+}
+function downloadXlsx(rows, name, sheet) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheet);
+  XLSX.writeFile(wb, name);
+}
+ 
+function findAttemptsCol(fields) {
+  const candidates = [
+    "No. of Attempts", "No of Attempts", "No. Of Attempts", "Number of Attempts",
+    "Attempts", "Attempt Count", "Attempt", "No Of Attempts", "no_of_attempts",
+    "No. of Attempt", "Attempts Count"
+  ];
+  const lowerMap = {};
+  (fields || []).forEach(f => { lowerMap[String(f).trim().toLowerCase()] = f; });
+  for (const c of candidates) {
+    const hit = lowerMap[c.toLowerCase()];
+    if (hit) return hit;
   }
-}
-
-    // ==============================
-    // NEW AWB COLUMN
-    // ==============================
-
-    let awb = (row["Zippee AWB"] || "").trim();
-
-    if(!awb){
-      return;
-    }
-
-    // ==============================
-    // NEW ATTEMPT COLUMN
-    // ==============================
-
-    let attempts =
-      parseInt(row["Total Attempt Count"]) || 0;
-
-    // Remove rows where attempts > 3
-    if(attempts > 3){
-      return;
-    }
-
-    // ==============================
-    // KEEP HIGHEST ATTEMPT PER AWB
-    // ==============================
-
-    if(
-      !latestMap[awb] ||
-      attempts > latestMap[awb].attempts
-    ){
-
-      latestMap[awb] = {
-        attempts: attempts,
-        row: row
-      };
-    }
-
-  });
-
-
-  // ==============================
-  // CREATE PIVOT
-  // ==============================
-
-  Object.values(latestMap).forEach(obj => {
-
-    let row = obj.row;
-
-    let warehouse =
-      (row["Warehouse Name"] || "").trim();
-
-    let store = "";
-
-    if(warehouse.toLowerCase().includes("jodhpur")){
-      store = "zippee_krishna_herbal_jodhpurwh";
-    }
-    else if(warehouse.toLowerCase().includes("indore")){
-      store = "zippee_krishna_herbal_indorewh";
-    }
-    else {
-      return;
-    }
-
-    let attempts =
-      obj.attempts.toString();
-
-    let status =
-      (row["Current Status"] || "")
-      .trim()
-      .toUpperCase();
-
-    let awb =
-      (row["Zippee AWB"] || "").trim();
-
-    // Exclude RTO
-    if(status === "RTO"){
-      return;
-    }
-
-    let key = store + "|" + attempts;
-
-    if(!pivot[key]){
-      pivot[key] = {};
-    }
-
-    if(!pivot[key][status]){
-      pivot[key][status] = new Set();
-    }
-
-    // Unique AWB count
-    pivot[key][status].add(awb);
-
-  });
-
-
-  // ==============================
-  // SAVE GLOBAL PIVOT
-  // ==============================
-
-  globalPivot = pivot;
-
-  createFilter();
-
-  // Default report = READY
-  renderTable(["READY"]);
-}
-
-function createFilter(){
-  let html = "<b>Status Filter:</b><br>";
-
-  statusesList.forEach(s=>{
-    html += `<label>
-      <input type="checkbox" value="${s}" ${s==="READY"?"checked":""}
-      onchange="updateTable()"> ${s}
-    </label>`;
-  });
-
-  document.getElementById("filterBox").innerHTML = html;
-}
-
-function updateTable(){
-  let selected=[];
-
-  document.querySelectorAll("#filterBox input:checked").forEach(cb=>{
-    selected.push(cb.value);
-  });
-
-  renderTable(selected);
-}
-
-function renderTable(statuses){
-
-  let grouped = {};
-
-  for(let key in globalPivot){
-
-    let [store,attempt] = key.split("|");
-
-    if(!grouped[store]) grouped[store] = {};
-
-    grouped[store][attempt] = globalPivot[key];
+  // fuzzy: any header containing "attempt"
+  for (const f of (fields || [])) {
+    if (/attempt/i.test(f)) return f;
   }
-
-  let html = `
-
-  <div class="downloadArea">
-
-  <div class="table-header-bar">
-    Zippee <> Krishna Herbal Pendancy Report
-  </div>
-
-  <table>
-
-    <tr>
-      <th>Store Name</th>
-      <th>No. of Attempts</th>
-      ${statuses.map(s=>`<th>${s}</th>`).join("")}
-      <th>Total</th>
-    </tr>
-  `;
-
-  let grandTotals = {};
-  statuses.forEach(s => grandTotals[s] = 0);
-
-  let overallGrand = 0;
-
-for(let store in grouped){
-
-  let formattedStore = store
-    .replace("zippee_", "")
-    .replace("wh", "")
-    .replaceAll("_", " ")
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-
-  let attemptsArr = Object.keys(grouped[store])
-    .sort((a,b)=>Number(a)-Number(b));
-
-  // ✅ Only rows having data
-  let validAttempts = attemptsArr.filter(attempt=>{
-
-    let rowData = grouped[store][attempt];
-
-    return statuses.some(s => (rowData[s]?.size || 0) > 0);
-  });
-
-  validAttempts.forEach((attempt,index)=>{
-
-    let rowData = grouped[store][attempt];
-
-    let rowTotal = 0;
-
-    html += `<tr>`;
-
-    // ✅ Correct rowspan
-    if(index === 0){
-      html += `
-      <td rowspan="${validAttempts.length}">
-        <b>${formattedStore}</b>
-      </td>`;
+  return null;
+}
+ 
+function normalizeAttempts(v) {
+  if (v === null || v === undefined || String(v).trim() === "") return "0 Attempts";
+  const s = String(v).trim();
+  // already like "0 Attempts" / "1 Attempts"
+  if (/attempt/i.test(s)) return s;
+  const n = parseInt(s, 10);
+  if (Number.isFinite(n)) return n + (n === 1 ? " Attempt" : " Attempts");
+  return s;
+}
+ 
+function attemptsSortKey(label) {
+  const m = String(label).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 999;
+}
+ 
+function buildPivot(rows) {
+  const target = new Set(TARGET.map(w => w.toLowerCase()));
+  const bucket = new Map();
+  for (const row of rows) {
+    const wh = (row["Warehouse Name"] || "").trim();
+    const st = (row["Current Status"] || "").trim().toUpperCase();
+    if (st !== "READY" || !target.has(wh.toLowerCase())) continue;
+    let att = "0 Attempts";
+    if (attemptsCol) {
+      att = normalizeAttempts(row[attemptsCol]);
     }
-
-    html += `<td><b>${attempt} Attempts</b></td>`;
-
-    statuses.forEach(s=>{
-
-      let val = rowData[s] ? rowData[s].size : 0;
-
-      rowTotal += val;
-      grandTotals[s] += val;
-
-      html += `<td>${val}</td>`;
+    if (!bucket.has(wh)) bucket.set(wh, new Map());
+    const m = bucket.get(wh);
+    m.set(att, (m.get(att) || 0) + 1);
+  }
+  return TARGET.map(wh => {
+    const m = bucket.get(wh) || new Map();
+    const attempts = [...m.entries()].map(([attemptsLabel, count]) => ({ attemptsLabel, count }))
+      .sort((a, b) => attemptsSortKey(a.attemptsLabel) - attemptsSortKey(b.attemptsLabel));
+    return {
+      warehouse: wh,
+      warehouseLabel: LABELS[wh] || wh,
+      total: attempts.reduce((s, d) => s + d.count, 0),
+      attempts
+    };
+  });
+}
+ 
+function flattenPivot(groups) {
+  const rows = [];
+  groups.forEach(g => {
+    g.attempts.forEach(d => {
+      rows.push({
+        "Darkstore": g.warehouseLabel,
+        "Warehouse Name": g.warehouse,
+        "No. of Attempts": d.attemptsLabel,
+        "READY": d.count,
+        "Total": d.count
+      });
     });
-
-    overallGrand += rowTotal;
-
-    html += `<td>${rowTotal}</td></tr>`;
+    rows.push({
+      "Darkstore": "Subtotal",
+      "Warehouse Name": "",
+      "No. of Attempts": "",
+      "READY": g.total,
+      "Total": g.total
+    });
+  });
+  rows.push({
+    "Darkstore": "Total",
+    "Warehouse Name": "",
+    "No. of Attempts": "",
+    "READY": readyTotal,
+    "Total": readyTotal
+  });
+  return rows;
+}
+ 
+function processRows(rows, fields, name) {
+  headers = fields || (rows[0] ? Object.keys(rows[0]) : []);
+  if (!headers.includes("Creation Date") || !headers.includes("Creation Time")) {
+    showErr("CSV must include Creation Date and Creation Time columns.");
+    return;
+  }
+  attemptsCol = findAttemptsCol(headers);
+  const orig = rows.filter(r => Object.values(r).some(v => String(v || "").trim() !== ""));
+  filtered = orig.filter(r => {
+    const date = (r["Creation Date"] || "").trim();
+    const time = (r["Creation Time"] || "").trim();
+    return !(date === TODAY && atOrAfter11(time));
+  });
+  pivot = buildPivot(filtered);
+  readyTotal = pivot.reduce((s, g) => s + g.total, 0);
+  document.getElementById("fileName").textContent = "Loaded " + name + (attemptsCol ? " · Attempts col: " + attemptsCol : " · No Attempts column found (showing 0 Attempts)");
+  document.getElementById("mOrig").textContent = orig.length.toLocaleString();
+  document.getElementById("mDel").textContent = (orig.length - filtered.length).toLocaleString();
+  document.getElementById("mFilt").textContent = filtered.length.toLocaleString();
+  document.getElementById("mReady").textContent = readyTotal.toLocaleString();
+  document.getElementById("pivotInfo").textContent =
+    "READY only · " + readyTotal.toLocaleString() + " AWBs · Layout: Store + No. of Attempts";
+  renderPivot();
+  renderPreview();
+  document.getElementById("results").classList.remove("hidden");
+  showErr("");
+}
+ 
+function renderPivot() {
+  const tb = document.getElementById("pivotBody");
+  tb.innerHTML = "";
+  pivot.forEach(g => {
+    const name = `${esc(g.warehouseLabel)}${badgeHtml(g.warehouse)}`;
+    if (!g.attempts.length) {
+      tb.insertAdjacentHTML("beforeend", `<tr>
+        <td class="store-cell">${name}</td>
+        <td class="att-cell">—</td><td>0</td><td>0</td>
+      </tr>`);
+    } else {
+      g.attempts.forEach((d, i) => {
+        const storeCell = i === 0
+          ? `<td class="store-cell" rowspan="${g.attempts.length}">${name}</td>` : "";
+        tb.insertAdjacentHTML("beforeend", `<tr>
+          ${storeCell}
+          <td class="att-cell">${esc(d.attemptsLabel)}</td>
+          <td>${d.count.toLocaleString()}</td>
+          <td>${d.count.toLocaleString()}</td>
+        </tr>`);
+      });
+    }
+    tb.insertAdjacentHTML("beforeend", `<tr class="sub-row">
+      <td colspan="2">Subtotal</td>
+      <td>${g.total.toLocaleString()}</td><td>${g.total.toLocaleString()}</td>
+    </tr>`);
+  });
+  tb.insertAdjacentHTML("beforeend", `<tr class="grand-row">
+    <td colspan="2">Total</td>
+    <td>${readyTotal.toLocaleString()}</td><td>${readyTotal.toLocaleString()}</td>
+  </tr>`);
+}
+ 
+function renderPreview() {
+  const preferred = KEY_COLS.filter(c => headers.includes(c));
+  const cols = preferred.length ? preferred : headers.slice(0, 10);
+  document.getElementById("prevHead").innerHTML = "<tr>" + cols.map(c => `<th>${esc(c)}</th>`).join("") + "</tr>";
+  document.getElementById("prevBody").innerHTML = filtered.slice(0, 40).map(r =>
+    "<tr>" + cols.map(c => `<td>${esc(String(r[c] || "").slice(0, 48))}</td>`).join("") + "</tr>"
+  ).join("");
+}
+ 
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+function showErr(msg) {
+  const el = document.getElementById("err");
+  el.textContent = msg;
+  el.classList.toggle("hidden", !msg);
+}
+ 
+function handleFile(file) {
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: res => processRows(res.data, res.meta.fields, file.name),
+    error: e => showErr(e.message || "Parse error")
   });
 }
-
-  // Grand Total Row
-  html += `<tr class="total">
-
-    <td colspan="2"><b>Grand Total</b></td>`;
-
-  statuses.forEach(s=>{
-    html += `<td>${grandTotals[s]}</td>`;
+ 
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("file");
+document.getElementById("browseBtn").onclick = () => fileInput.click();
+drop.onclick = e => { if (e.target.tagName !== "BUTTON") fileInput.click(); };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); };
+fileInput.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; };
+ 
+document.getElementById("dlFiltCsv").onclick = () =>
+  downloadText(Papa.unparse(filtered), "Filtered_Report_" + stamp() + ".csv", "text/csv;charset=utf-8;");
+document.getElementById("dlFiltXlsx").onclick = () =>
+  downloadXlsx(filtered, "Filtered_Report_" + stamp() + ".xlsx", "Filtered");
+document.getElementById("dlPivotCsv").onclick = () =>
+  downloadText(Papa.unparse(flattenPivot(pivot)), "Pendancy_Krishna_READY_" + stamp() + ".csv", "text/csv;charset=utf-8;");
+document.getElementById("dlPivotXlsx").onclick = () =>
+  downloadXlsx(flattenPivot(pivot), "Pendancy_Krishna_READY_" + stamp() + ".xlsx", "Pendancy");
+document.getElementById("dlPivotPng").onclick = () => downloadPivotPng();
+ 
+function downloadPivotPng() {
+  const TITLE_BG = "#2b3a47", HEAD = "#1f3347", WHITE = "#ffffff", INK = "#1d2730";
+  const CELL_BORDER = "#d4d9de", SUB = "#e9ecef", GRAND = "#d6dbe0";
+  const BADGE_COL = { BOLT: ["#d9f2e1", "#1c7a3f"], BLAZE: ["#fde9b8", "#8a5a00"] };
+ 
+  const scale = 2, width = 760, m = 6, gap = 4;
+  const titleH = 44, headH = 30, rowH = 32, subH = 30, grandH = 32, footH = 40;
+  const inner = width - m * 2 - gap * 3;
+  const cw = [inner * 0.48, inner * 0.25, inner * 0.14, inner * 0.13];
+  const cx = [m];
+  for (let i = 1; i < 4; i++) cx[i] = cx[i - 1] + cw[i - 1] + gap;
+ 
+  // compute height
+  let h = m + titleH + gap + headH + gap;
+  pivot.forEach(g => { h += Math.max(g.attempts.length, 1) * (rowH + gap) + subH + gap; });
+  h += grandH + footH;
+ 
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale; canvas.height = h * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.fillStyle = WHITE; ctx.fillRect(0, 0, width, h);
+  ctx.textBaseline = "middle"; ctx.textAlign = "center";
+  const FONT = "IBM Plex Sans, Segoe UI, Arial, sans-serif";
+ 
+  const cell = (x, y, w, hh, bg, border) => {
+    ctx.fillStyle = bg; ctx.fillRect(x, y, w, hh);
+    if (border) { ctx.strokeStyle = border; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, w - 1, hh - 1); }
+  };
+  const text = (t, x, y, font, color) => { ctx.font = font; ctx.fillStyle = color; ctx.fillText(t, x, y); };
+ 
+  // title
+  let y = m;
+  cell(m, y, width - m * 2, titleH, TITLE_BG);
+  text("Zippee <> Krishna Herbal Pendancy Report", width / 2, y + titleH / 2, `700 18px ${FONT}`, WHITE);
+  y += titleH + gap;
+ 
+  // header
+  ["Darkstore", "No. of Attempts", "READY", "Total"].forEach((t, i) => {
+    cell(cx[i], y, cw[i], headH, HEAD);
+    text(t, cx[i] + cw[i] / 2, y + headH / 2, `600 12px ${FONT}`, WHITE);
   });
-
-  html += `<td>${overallGrand}</td></tr>`;
-
-  html += `</table>
-
-  <div class="watermark">
-    Powered by SASA Automation | Zippee
-  </div>
-
-  </div>`;
-
-  document.getElementById("tableContainer").innerHTML = html;
-}
-function downloadImage(){
-
-  let area = document.querySelector(".downloadArea");
-
-  html2canvas(area).then(canvas=>{
-
-    let link = document.createElement("a");
-
-    link.download = "report.png";
-    link.href = canvas.toDataURL();
-
-    link.click();
+  y += headH + gap;
+ 
+  pivot.forEach(g => {
+    const list = g.attempts.length ? g.attempts : [{ attemptsLabel: "—", count: 0 }];
+    const spanH = list.length * rowH + (list.length - 1) * gap;
+ 
+    // merged darkstore cell with badge
+    cell(cx[0], y, cw[0], spanH, WHITE, CELL_BORDER);
+    const badge = BADGES[g.warehouse];
+    ctx.font = `500 13px ${FONT}`;
+    const nameW = ctx.measureText(g.warehouseLabel).width;
+    ctx.font = `700 9px ${FONT}`;
+    const bw = badge ? ctx.measureText(badge).width + 12 : 0;
+    const totalW = nameW + (badge ? 8 + bw : 0);
+    const startX = cx[0] + cw[0] / 2 - totalW / 2;
+    const midY = y + spanH / 2;
+    ctx.textAlign = "left";
+    text(g.warehouseLabel, startX, midY, `500 13px ${FONT}`, INK);
+    if (badge) {
+      const [bg, fg] = BADGE_COL[badge] || ["#e5e7eb", "#374151"];
+      const bx = startX + nameW + 8;
+      ctx.fillStyle = bg;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, midY - 8, bw, 16, 4); ctx.fill(); }
+      else ctx.fillRect(bx, midY - 8, bw, 16);
+      text(badge, bx + 6, midY + 0.5, `700 9px ${FONT}`, fg);
+    }
+    ctx.textAlign = "center";
+ 
+    list.forEach(d => {
+      cell(cx[1], y, cw[1], rowH, WHITE, CELL_BORDER);
+      text(d.attemptsLabel, cx[1] + cw[1] / 2, y + rowH / 2, `700 12px ${FONT}`, INK);
+      [2, 3].forEach(i => {
+        cell(cx[i], y, cw[i], rowH, WHITE, CELL_BORDER);
+        text(d.count.toLocaleString(), cx[i] + cw[i] / 2, y + rowH / 2, `400 13px ${FONT}`, INK);
+      });
+      y += rowH + gap;
+    });
+ 
+    // subtotal row
+    cell(m, y, width - m * 2, subH, SUB);
+    text("Subtotal", cx[0] + (cw[0] + gap + cw[1]) / 2, y + subH / 2, `600 12px ${FONT}`, INK);
+    text(g.total.toLocaleString(), cx[2] + cw[2] / 2, y + subH / 2, `700 13px ${FONT}`, INK);
+    text(g.total.toLocaleString(), cx[3] + cw[3] / 2, y + subH / 2, `700 13px ${FONT}`, INK);
+    y += subH + gap;
   });
+ 
+  // total row
+  cell(m, y, width - m * 2, grandH, GRAND);
+  text("Total", cx[0] + (cw[0] + gap + cw[1]) / 2, y + grandH / 2, `800 13px ${FONT}`, INK);
+  text(readyTotal.toLocaleString(), cx[2] + cw[2] / 2, y + grandH / 2, `800 13px ${FONT}`, INK);
+  text(readyTotal.toLocaleString(), cx[3] + cw[3] / 2, y + grandH / 2, `800 13px ${FONT}`, INK);
+  y += grandH;
+ 
+  // footer
+  text("Powered by SASA Automation | Zippee", width / 2, y + footH / 2, `700 13px ${FONT}`, INK);
+ 
+  canvas.toBlob(blob => downloadBlob(blob, "Pendancy_Krishna_READY_" + stamp() + ".png"), "image/png");
 }
 </script>
-
 </body>
 </html>
+ 
+
+
