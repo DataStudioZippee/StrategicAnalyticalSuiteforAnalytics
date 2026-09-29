@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ST Dashboard – Supertails × Zippee</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 @property --depth {
   syntax: '<length>';
@@ -256,10 +257,194 @@ footer { text-align: center; font-size: 12px; opacity: 0.75; margin-top: 24px; p
 .sub-tab.active { opacity: 1; background: rgba(0,120,212,.2); color: var(--zippee-primary); }
 body.dark .sub-tab { background: rgba(255,255,255,.1); }
 body.dark .sub-tab.active { background: rgba(0,120,212,.3); color: #9ecbff; }
+/* 5 PM Rider Report manual inputs */
+.rider5pm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 4px;
+  background: rgba(255,255,255,.6);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 4px 12px rgba(0,0,0,.08);
+}
+.rider5pm-table th,
+.rider5pm-table td {
+  border: 1px solid rgba(0,48,94,.18);
+  padding: 8px 10px;
+  text-align: center;
+}
+.rider5pm-table th {
+  background: #f4d03f;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+.rider5pm-table th.col-header {
+  background: #f9e79f;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.rider5pm-table td.store-name {
+  font-weight: 600;
+  text-align: left;
+  background: rgba(255,255,255,.7);
+}
+.rider5pm-table input[type="number"] {
+  width: 72px;
+  padding: 6px 8px;
+  border: 1px solid rgba(0,48,94,.25);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+  background: rgba(255,255,255,.9);
+}
+body.dark .rider5pm-table {
+  background: rgba(0,0,0,.35);
+}
+body.dark .rider5pm-table th {
+  background: #c9a227;
+  color: #1a1a1a;
+}
+body.dark .rider5pm-table th.col-header {
+  background: #a88b1e;
+  color: #fff;
+}
+body.dark .rider5pm-table td.store-name {
+  background: rgba(0,0,0,.25);
+  color: #e8e8e8;
+}
+body.dark .rider5pm-table input[type="number"] {
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  border-color: rgba(255,255,255,.2);
+}
 @media (max-width: 600px) {
   .sasa-img { height: 70px; font-size: 48px; }
   .tool-button { min-width: 140px; }
+  .rider5pm-table input[type="number"] { width: 56px; }
 }
+
+/* ===== Excel-style report tables (match screenshots) ===== */
+.excel-report {
+  overflow-x: auto;
+  border-radius: 8px;
+  margin: 12px 0 18px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14);
+  border: 1px solid #999;
+}
+.excel-report table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  background: #fff;
+}
+.excel-report th,
+.excel-report td {
+  border: 1px solid #999;
+  padding: 7px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+.excel-report .report-title-orange {
+  background: #f4a261;
+  color: #1a1a1a;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 12px;
+  text-align: center;
+}
+.excel-report .report-title-purple {
+  background: #9b2d8a;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 12px;
+  text-align: center;
+}
+.excel-report .report-title-navy {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 12px;
+  text-align: center;
+}
+.excel-report .breach-header th {
+  background: #e9c46a;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+.excel-report .breach-row td:first-child {
+  background: #f4a261;
+  font-weight: 600;
+  text-align: left;
+}
+.excel-report .breach-row:nth-child(even) td:not(:first-child) {
+  background: #fef9ef;
+}
+.excel-report .pend-header th {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 600;
+}
+.excel-report .pend-key {
+  background: #fff;
+  text-align: left !important;
+  font-weight: 500;
+}
+.excel-report .pend-sno {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 600;
+  width: 42px;
+}
+.excel-report .pend-highlight {
+  background: #c77db5 !important;
+  color: #fff;
+  font-weight: 700;
+}
+.excel-report .pend-sub-header td {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 600;
+  text-align: left !important;
+}
+.excel-report .eod-header th {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+}
+.excel-report .eod-label {
+  text-align: left !important;
+  font-weight: 600;
+  background: #fff;
+}
+.excel-report .eod-row-blue td { background: #c5e0f5; }
+.excel-report .eod-row-blue .eod-label { background: #c5e0f5; }
+.excel-report .eod-row-gray td { background: #d0d0d0; }
+.excel-report .eod-row-gray .eod-label { background: #d0d0d0; }
+.excel-report .eod-total { background: #c5e0f5; font-weight: 700; }
+.excel-report .eod-breach-pct { color: #c00; font-weight: 700; }
+body.dark .excel-report table { background: #1a2332; color: #e8e8e8; }
+body.dark .excel-report th,
+body.dark .excel-report td { border-color: #3a4a5c; }
+body.dark .excel-report .report-title-orange { background: #c47a3a; color: #fff; }
+body.dark .excel-report .report-title-purple { background: #7a246c; }
+body.dark .excel-report .report-title-navy { background: #152a45; }
+body.dark .excel-report .breach-header th { background: #b89a4a; color: #fff; }
+body.dark .excel-report .breach-row td:first-child { background: #c47a3a; color: #fff; }
+body.dark .excel-report .pend-header th,
+body.dark .excel-report .pend-sno,
+body.dark .excel-report .pend-sub-header td,
+body.dark .excel-report .eod-header th { background: #152a45; }
+body.dark .excel-report .pend-highlight { background: #9b2d8a !important; }
+body.dark .excel-report .eod-row-blue td,
+body.dark .excel-report .eod-row-blue .eod-label,
+body.dark .excel-report .eod-total { background: #1a3a55; }
+body.dark .excel-report .eod-row-gray td,
+body.dark .excel-report .eod-row-gray .eod-label { background: #3a3a3a; }
+body.dark .excel-report .eod-label,
+body.dark .excel-report .pend-key { background: #1a2332; }
 </style>
 </head>
 <body>
@@ -306,19 +491,53 @@ body.dark .sub-tab.active { background: rgba(0,120,212,.3); color: #9ecbff; }
         <label>3. Indranagar CSV</label>
         <input type="file" id="fileIndranagar" accept=".csv">
       </div>
-      <div class="control-group">
-        <label>Kalyan Riders</label>
-        <input type="number" id="riderKalyan" min="0" value="6">
+    </div>
+
+    <!-- Rider Report (time updates on Generate) – fill manually (layout only; not used in report logic) -->
+    <div class="rider-section" style="margin-top:16px; padding-top:14px; border-top:1px solid rgba(0,48,94,.15);">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+        <h3 id="riderReportSectionTitle" style="margin:0; font-size:1rem;">Rider Report (fill manually)</h3>
+        <div id="riderReportTimeLabel" style="font-size:0.88rem; opacity:0.85; font-weight:600;">
+          Time: — (set on Generate)
+        </div>
       </div>
-      <div class="control-group">
-        <label>Indranagar Riders</label>
-        <input type="number" id="riderIndra" min="0" value="2">
-      </div>
-      <div class="control-group">
-        <label>Varthur Riders</label>
-        <input type="number" id="riderVarthur" min="0" value="3">
+      <div style="overflow-x:auto;">
+        <table class="rider5pm-table">
+          <thead>
+            <tr>
+              <th colspan="4" id="riderReportTableTitle" style="background:#f4d03f; font-size:1rem;">Rider Report — generate to set time</th>
+            </tr>
+            <tr>
+              <th class="col-header"></th>
+              <th class="col-header">Riders in Store</th>
+              <th class="col-header">Riders Out for delivery</th>
+              <th class="col-header">Rider completed the shift and logged out</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="store-name">Kalyan</td>
+              <td><input type="number" id="pm5InStoreKalyan" min="0" value="4"></td>
+              <td><input type="number" id="pm5OutKalyan" min="0" value="2"></td>
+              <td><input type="number" id="pm5LoggedOutKalyan" min="0" value="6"></td>
+            </tr>
+            <tr>
+              <td class="store-name">Indra</td>
+              <td><input type="number" id="pm5InStoreIndra" min="0" value="2"></td>
+              <td><input type="number" id="pm5OutIndra" min="0" value="1"></td>
+              <td><input type="number" id="pm5LoggedOutIndra" min="0" value="4"></td>
+            </tr>
+            <tr>
+              <td class="store-name">Varthur</td>
+              <td><input type="number" id="pm5InStoreVarthur" min="0" value="1"></td>
+              <td><input type="number" id="pm5OutVarthur" min="0" value="2"></td>
+              <td><input type="number" id="pm5LoggedOutVarthur" min="0" value="3"></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
+
     <div style="text-align:center; margin-top:18px;">
       <button class="tool-button" id="btnGenerate">🚀 Generate Reports</button>
     </div>
@@ -353,7 +572,10 @@ body.dark .sub-tab.active { background: rgba(0,120,212,.3); color: #9ecbff; }
 <div class="chat-box" id="chatBox">
   <b>Hi, I'm ST Assistant</b><br><br>
   • Upload 3 store CSVs<br>
-  • Set rider counts (Excel defaults: Kalyan 6, Indra 2, Varthur 3)<br>
+  • Fill Rider Report (In Store / Out for delivery / Logged out) — time updates on Generate<br>
+  • Active riders = In Store + Out for delivery (auto)<br>
+  • Report prepare time shows after Generate<br>
+  • Download any report as PNG from its tab<br>
   • Click Generate Reports<br>
   • Pendency now matches Excel SOP exactly<br>
   • Use “Clear from Breach” to correct any wrong breach counts<br><br>
@@ -621,20 +843,29 @@ function addPidgeColumns(df) {
 
     const adt = r['ADT(Actual Delivery Time)'];
     const tat = r.TAT;
-    if (!adt) r.SLA_STATUS = 'undelivered';
-    else if (!tat) r.SLA_STATUS = 'undelivered';
-    else r.SLA_STATUS = adt > tat ? 'SLA BREACH' : 'SLA MET';
+    // Prefer drop_time (Notes promise) as the true SLA deadline — matches EOD report
+    if (!adt) {
+      r.SLA_STATUS = 'undelivered';
+    } else if (r.drop_time) {
+      r.SLA_STATUS = adt > r.drop_time ? 'SLA BREACH' : 'SLA MET';
+    } else if (!tat) {
+      r.SLA_STATUS = 'undelivered';
+    } else {
+      r.SLA_STATUS = adt > tat ? 'SLA BREACH' : 'SLA MET';
+    }
 
     r.order_date = r.Order_datetime ? r.Order_datetime.toLocaleString('en-GB', { day: '2-digit', month: 'short' }) : '';
 
     const av = r.Model;
     const bh = r.Promise_time;
+    // New_Model drives 15/30/Other buckets in EOD & Breach reports (Promise_time from drop_time)
     if (['SDD Delivery', 'Overnight order'].includes(av)) r.New_Model = av;
     else if (bh == null) r.New_Model = av;
     else {
       const totalMin = bh / 60000;
-      if (totalMin <= 15) r.New_Model = '15 Min Delivery';
-      else if (totalMin <= 60) r.New_Model = '30 Min Delivery';
+      // Promise window buckets used by Zippee EOD report
+      if (totalMin <= 18) r.New_Model = '15 Min Delivery';
+      else if (totalMin <= 40) r.New_Model = '30 Min Delivery';
       else r.New_Model = av;
     }
 
@@ -655,9 +886,15 @@ function addPidgeColumns(df) {
     else if (val <= 30) r.Breach_bucket = '25-30 mins delay';
     else r.Breach_bucket = 'more than 30 mins delay';
 
+    // Excel SOP (PIDGE sheet):
+    //   Breach_delay = ceil(ADT - drop_time) mins if ADT > drop_time else 0
+    //   Breach acc. Breach Delay (BT) = yes if delay >= 2, else no
+    //   Breach acc. Breach Bucket (BU) = yes if not "on time", else no
+    //   Final Verdict = Yes ONLY when BT=yes AND BU=yes  (i.e. delay >= 2)
+    //   SLA_STATUS is independent and is NOT required for Final Verdict
     r.BT_flag = (val == null) ? 'NA' : (val < 2 ? 'no' : 'yes');
     r.BU_flag = (r.Breach_bucket === 'undelivered') ? 'NA' : (r.Breach_bucket === 'on time' ? 'no' : 'yes');
-    r.Final_Verdict = (r.BT_flag === 'yes' && r.BU_flag === 'yes' && r.SLA_STATUS === 'SLA BREACH') ? 'Yes' : 'No';
+    r.Final_Verdict = (r.BT_flag === 'yes' && r.BU_flag === 'yes') ? 'Yes' : 'No';
 
     return r;
   });
@@ -681,19 +918,27 @@ function effectiveVerdict(r) {
 
 /* ★★★ PENDENCY – EXACT EXCEL SOP ★★★ */
 function generatePendencyReport(df, reportDate) {
+  /* Pendency = CURRENT open orders (no ADT), including UNDELIVERED from prior days.
+     Matches Zippee manual SS:
+       Total Orders = Attempted + Not Dispatched + Picked Up + Intransit
+       Pending Order = Not Dispatched
+       Pendency % = Pending / Total Orders
+       Cancelled listed separately (not in Total Orders)
+  */
   const today = reportDate ? normalizeDate(reportDate) : null;
   const rows = [];
 
   for (const [label, channel] of Object.entries(STORES)) {
+    // Use full channel set so prior-day still-open UNDELIVERED are included
     const sub = df.filter(r => r.Channel === channel);
 
-    // Open = no ADT
+    // Open = no ADT (still pending in system)
     const open = sub.filter(r => !r['ADT(Actual Delivery Time)']);
 
     let attempted = 0, notDispatched = 0, zeroAttempt = 0, pickedUp = 0, intransit = 0, cancelled = 0;
 
-    // Cancelled (from full sub)
-    cancelled = sub.filter(r => (r.Status || '').toLowerCase() === 'cancelled').length;
+    // Cancelled from full open set
+    cancelled = open.filter(r => (r.Status || '').toLowerCase() === 'cancelled').length;
 
     open.forEach(r => {
       const fs = (r['Fulfillment Status'] || '').toString();
@@ -701,20 +946,17 @@ function generatePendencyReport(df, reportDate) {
       const fa = r['Failed Attempt Count'];
       const faN = (fa == null || fa === '') ? 0 : Number(fa);
 
-      // 1. Attempted first (UNDELIVERED or FA >= 1)
+      // Skip cancelled in operational buckets (already counted above)
+      if (st === 'cancelled') return;
+
+      // 1. Attempted Delivery = UNDELIVERED or Failed Attempt >= 1 (includes prior-day opens)
       if (fs === 'UNDELIVERED' || faN >= 1) {
         attempted++;
         return;
       }
 
-      // 2. Not Dispatched / Pending
-      //    - Status pending or empty FS
-      //    - OR FS=CREATED and CreateTS is today AND hour >= 7
-      const createTs = getCreateTsFromNotes(r.Notes);
-      const isCreatedTodayDaytime = fs === 'CREATED' && createTs && today &&
-        normalizeDate(createTs).getTime() === today.getTime() && createTs.getHours() >= 7;
-
-      if (st === 'pending' || !fs || isCreatedTodayDaytime) {
+      // 2. Not Dispatched = pending / empty FS / CREATED
+      if (st === 'pending' || !fs || fs === 'CREATED') {
         notDispatched++;
         if (faN === 0) zeroAttempt++;
         return;
@@ -733,11 +975,11 @@ function generatePendencyReport(df, reportDate) {
       }
     });
 
-    // Total = Not Dispatched + Picked Up + Intransit  (Attempted is separate)
-    const totalOps = notDispatched + pickedUp + intransit;
+    // Total Orders (pendency) = operational open stack (excludes Cancelled) — matches SS
+    const totalOps = attempted + notDispatched + pickedUp + intransit;
     const pendingOrder = notDispatched;
-    const pendencyPct = totalOps ? +(pendingOrder / totalOps * 100).toFixed(2) : 0;
-    const zeroAttemptPct = totalOps ? +(zeroAttempt / totalOps * 100).toFixed(1) : 0;
+    const pendencyPct = totalOps ? +((pendingOrder / totalOps) * 100).toFixed(2) : 0;
+    const zeroAttemptPct = totalOps ? +((zeroAttempt / totalOps) * 100).toFixed(1) : 0;
 
     rows.push({
       Store: label,
@@ -751,32 +993,50 @@ function generatePendencyReport(df, reportDate) {
       Intransit: intransit,
       Cancelled: cancelled,
       'Total Operational Pending': totalOps,
-      '0-Attempt %': zeroAttemptPct
+      '0-Attempt %': zeroAttemptPct,
+      'Rider Count': 0,
+      'Avg Order/Rider': 0
     });
   }
   return rows;
 }
 
-function generateBreachReport(df, reportDate) {
+function generateBreachReport(df, reportDate, dfAll) {
+  /* Total Orders = daily set (created|delivered today) + still-open UNDELIVERED from prior days
+     Matches manual SS (e.g. Kalyan 78 = 74 daily + 4 prior UNDELIVERED).
+     Delivered / Breach still computed only on orders with ADT (same-day delivered).
+  */
+  const full = dfAll || df;
   const rows = [];
   for (const [label, channel] of Object.entries(STORES)) {
     let sub = df.filter(r => r.Channel === channel);
     sub = sub.filter(r => (r['Fulfillment Status'] || '') !== 'RTO_DELIVERED');
 
-    // Total Orders = Daily set excluding UNDELIVERED
-    let totalOrders = sub.filter(r => (r['Fulfillment Status'] || '') !== 'UNDELIVERED').length;
+    // Daily portion (exclude UNDELIVERED from daily — they are counted via full set below)
+    const dailyCount = sub.filter(r => (r['Fulfillment Status'] || '') !== 'UNDELIVERED').length;
+
+    // Still-open UNDELIVERED from any day (prior days) for this channel
+    const priorUndel = full.filter(r =>
+      r.Channel === channel &&
+      (r['Fulfillment Status'] || '') === 'UNDELIVERED' &&
+      !r['ADT(Actual Delivery Time)']
+    ).length;
+
+    const totalOrders = dailyCount + priorUndel;
 
     const delivered = sub.filter(r => r['ADT(Actual Delivery Time)']);
     const deliveredCount = delivered.length;
 
-    const min15 = delivered.filter(r => r.Model === '15 Min Delivery').length;
-    const min30 = delivered.filter(r => r.Model === '30 Min Delivery').length;
+    // Use New_Model (Promise_time buckets) so 15/30/Other match EOD screenshot
+    const modelKey = r => (r.New_Model || r.Model || '');
+    const min15 = delivered.filter(r => modelKey(r) === '15 Min Delivery').length;
+    const min30 = delivered.filter(r => modelKey(r) === '30 Min Delivery').length;
     const other = deliveredCount - min15 - min30;
 
     const breach = delivered.filter(r => effectiveVerdict(r) === 'Yes');
     const breachCount = breach.length;
-    const b15 = breach.filter(r => r.Model === '15 Min Delivery').length;
-    const b30 = breach.filter(r => r.Model === '30 Min Delivery').length;
+    const b15 = breach.filter(r => modelKey(r) === '15 Min Delivery').length;
+    const b30 = breach.filter(r => modelKey(r) === '30 Min Delivery').length;
     const bOther = breachCount - b15 - b30;
 
     const breachPct = deliveredCount ? +(breachCount / deliveredCount * 100).toFixed(1) : 0;
@@ -841,11 +1101,47 @@ async function runPipeline() {
   }
 
   const mode = document.querySelector('input[name="mode"]:checked').value;
-  const riderMap = {
-    'Kalyan Nagar': +document.getElementById('riderKalyan').value || 0,
-    'Indranagar': +document.getElementById('riderIndra').value || 0,
-    'Varthur': +document.getElementById('riderVarthur').value || 0
+  // Derive from Rider Report only (Rider Count section removed)
+  // Active = In Store + Out for delivery
+  // Planned = In Store + Out + Logged out (full roster for the day)
+  function rrNum(id) {
+    const el = document.getElementById(id);
+    return el ? (+el.value || 0) : 0;
+  }
+  const activeMap = {
+    'Kalyan Nagar': rrNum('pm5InStoreKalyan') + rrNum('pm5OutKalyan'),
+    'Indranagar': rrNum('pm5InStoreIndra') + rrNum('pm5OutIndra'),
+    'Varthur': rrNum('pm5InStoreVarthur') + rrNum('pm5OutVarthur')
   };
+  const plannedMap = {
+    'Kalyan Nagar': rrNum('pm5InStoreKalyan') + rrNum('pm5OutKalyan') + rrNum('pm5LoggedOutKalyan'),
+    'Indranagar': rrNum('pm5InStoreIndra') + rrNum('pm5OutIndra') + rrNum('pm5LoggedOutIndra'),
+    'Varthur': rrNum('pm5InStoreVarthur') + rrNum('pm5OutVarthur') + rrNum('pm5LoggedOutVarthur')
+  };
+  // riderMap = active (used for Avg Order/Rider & efficiency)
+  const riderMap = { ...activeMap };
+
+  // Report prepare time (shown in rider section + Rider Report title)
+  const now = new Date();
+  const preparedStr = now.toLocaleString('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+  });
+  const prepEl = document.getElementById('reportPreparedAt');
+  if (prepEl) prepEl.textContent = 'Report prepared: ' + preparedStr;
+
+  // Dynamic Rider Report title from report creation time (not fixed 5 PM)
+  const hour12 = now.getHours() % 12 || 12;
+  const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+  const minStr = String(now.getMinutes()).padStart(2, '0');
+  const timeLabel = `${hour12}:${minStr} ${ampm}`;
+  const riderTitle = `${timeLabel} Rider Report`;
+  const sectionTitleEl = document.getElementById('riderReportSectionTitle');
+  const tableTitleEl = document.getElementById('riderReportTableTitle');
+  const timeLabelEl = document.getElementById('riderReportTimeLabel');
+  if (sectionTitleEl) sectionTitleEl.textContent = riderTitle + ' (fill manually)';
+  if (tableTitleEl) tableTitleEl.textContent = riderTitle;
+  if (timeLabelEl) timeLabelEl.textContent = 'Report time: ' + preparedStr;
 
   try {
     const [txtK, txtV, txtI] = await Promise.all([fK.text(), fV.text(), fI.text()]);
@@ -855,8 +1151,17 @@ async function runPipeline() {
     let dfV = loadAndClean(parseCSV(txtV), 'Varthur');
     let dfI = loadAndClean(parseCSV(txtI), 'Indranagar');
 
-    let df = [...dfK, ...dfV, ...dfI];
-    df = applyDateFilters(df, null, mode);
+    let dfAll = [...dfK, ...dfV, ...dfI];
+    // Strip RTO from full set (same as date filter first step) but keep prior-day open UNDELIVERED
+    dfAll = dfAll.filter(r => {
+      const remark = (r['Last Failed Remark'] || '').toString();
+      if (/RTO/i.test(remark)) return false;
+      if ((r['Fulfillment Status'] || '') === 'RTO_DELIVERED') return false;
+      return true;
+    });
+    dfAll = addPidgeColumns(dfAll);
+
+    let df = applyDateFilters([...dfK, ...dfV, ...dfI], null, mode);
 
     let reportDate = null;
     if (mode === 'daily' && df.length) {
@@ -873,8 +1178,12 @@ async function runPipeline() {
 
     window.ST = {
       df,
+      dfAll,  // full set for pendency (includes prior-day still-open UNDELIVERED)
       mode,
       riderMap,
+      plannedMap,
+      activeMap,
+      preparedAt: preparedStr,
       reportDate,
       clearedKeys: new Set()
     };
@@ -891,9 +1200,10 @@ async function runPipeline() {
 }
 
 function recomputeAndRender() {
-  const { df, riderMap, reportDate } = window.ST;
-  let pendency = generatePendencyReport(df, reportDate);
-  let breach = generateBreachReport(df, reportDate);
+  const { df, dfAll, riderMap, reportDate } = window.ST;
+  // Pendency uses full set (dfAll) so prior-day still-open UNDELIVERED count as Attempted
+  let pendency = generatePendencyReport(dfAll || df, reportDate);
+  let breach = generateBreachReport(df, reportDate, dfAll);
   let eod = generateEodSummary(pendency, breach);
 
   pendency = addRiderMetrics(pendency, riderMap);
@@ -949,31 +1259,130 @@ function renderResults() {
     <div class="kpi-card"><div class="label">Total Riders</div><div class="value">${totalRiders}</div></div>
     ${clearedCount ? `<div class="kpi-card"><div class="label">Manually Cleared</div><div class="value">${clearedCount}</div></div>` : ''}`;
 
-  // EOD
-  let eodHtml = '<div class="store-cards">';
-  eod.forEach(row => {
-    eodHtml += `<div class="store-card"><h4>${row.Store}</h4>
-      <div class="metric"><span>Orders</span><strong>${row['Total Orders (EOD)'] || row['Total Orders'] || 0}</strong></div>
-      <div class="metric"><span>Delivered</span><strong>${row.Delivered || 0}</strong></div>
-      <div class="metric"><span>Breach</span><strong>${row['Total Breach'] || 0} (${(row['Breach %']||0).toFixed(1)}%)</strong></div>
-      <div class="metric"><span>Riders</span><strong>${row['Rider Count']}</strong></div>
-      <div class="metric"><span>Avg/Rider</span><strong>${row['Avg Order/Rider']}</strong></div></div>`;
+  // Shared date for Excel-style report titles
+  const dateStr = reportDate
+    ? `${String(reportDate.getDate()).padStart(2,'0')}-${String(reportDate.getMonth()+1).padStart(2,'0')}-${reportDate.getFullYear()}`
+    : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+
+  function byStore(arr, store) { return arr.find(r => r.Store === store) || {}; }
+  const ind = byStore(eod, 'Indranagar');
+  const kal = byStore(eod, 'Kalyan Nagar');
+  const varth = byStore(eod, 'Varthur');
+  const indP = byStore(pendency, 'Indranagar');
+  const kalP = byStore(pendency, 'Kalyan Nagar');
+  const varP = byStore(pendency, 'Varthur');
+  const indB = byStore(breach, 'Indranagar');
+  const kalB = byStore(breach, 'Kalyan Nagar');
+  const varB = byStore(breach, 'Varthur');
+  const n = (v) => (v == null || v === '' ? 0 : Number(v));
+  const sum3 = (a, b, c) => n(a) + n(b) + n(c);
+
+  const plannedMap = window.ST.plannedMap || riderMap;
+  const activeMap = window.ST.activeMap || riderMap;
+  const plannedInd = plannedMap['Indranagar'] || 0;
+  const plannedKal = plannedMap['Kalyan Nagar'] || 0;
+  const plannedVar = plannedMap['Varthur'] || 0;
+  const activeInd = activeMap['Indranagar'] || 0;
+  const activeKal = activeMap['Kalyan Nagar'] || 0;
+  const activeVar = activeMap['Varthur'] || 0;
+  const effInd = activeInd ? +(n(ind.Delivered) / activeInd).toFixed(2) : 0;
+  const effKal = activeKal ? +(n(kal.Delivered) / activeKal).toFixed(2) : 0;
+  const effVar = activeVar ? +(n(varth.Delivered) / activeVar).toFixed(2) : 0;
+  const totalDeliveredEod = sum3(ind.Delivered, kal.Delivered, varth.Delivered);
+  const totalActive = activeInd + activeKal + activeVar;
+  const effTotal = totalActive ? +(totalDeliveredEod / totalActive).toFixed(2) : 0;
+
+  // ===== EOD (Excel screenshot layout) =====
+  const eodRows = [
+    { label: 'Total Orders', v: [n(ind['Total Orders (EOD)']||ind['Total Orders']), n(kal['Total Orders (EOD)']||kal['Total Orders']), n(varth['Total Orders (EOD)']||varth['Total Orders'])], cls: 'eod-row-blue' },
+    { label: 'Attempted Delivery', v: [n(ind['Attempted Delivery']), n(kal['Attempted Delivery']), n(varth['Attempted Delivery'])], cls: '' },
+    { label: 'Not Dispatched', v: [n(ind['Not Dispatched']), n(kal['Not Dispatched']), n(varth['Not Dispatched'])], cls: '' },
+    { label: 'Not Dispatched ( 0 Attempts )', v: [n(ind['0 Attempt']), n(kal['0 Attempt']), n(varth['0 Attempt'])], cls: '' },
+    { label: 'Pickedup', v: [n(ind['Picked Up']), n(kal['Picked Up']), n(varth['Picked Up'])], cls: '' },
+    { label: 'Intransit', v: [n(ind.Intransit), n(kal.Intransit), n(varth.Intransit)], cls: '' },
+    { label: 'Cancelled', v: [n(ind.Cancelled), n(kal.Cancelled), n(varth.Cancelled)], cls: '' },
+    { label: 'Total Delivered', v: [n(ind.Delivered), n(kal.Delivered), n(varth.Delivered)], cls: 'eod-row-blue' },
+    { label: '15 Mins Orders', v: [n(ind['15 Min Orders']), n(kal['15 Min Orders']), n(varth['15 Min Orders'])], cls: '' },
+    { label: '30 Mins Orders', v: [n(ind['30 Min Orders']), n(kal['30 Min Orders']), n(varth['30 Min Orders'])], cls: '' },
+    { label: 'Other Orders', v: [n(ind['Other Orders']), n(kal['Other Orders']), n(varth['Other Orders'])], cls: '' },
+    { label: 'On Time Delivered', v: [n(ind['On Time Delivered']), n(kal['On Time Delivered']), n(varth['On Time Delivered'])], cls: 'eod-row-blue' },
+    { label: 'Total Breach', v: [n(ind['Total Breach']), n(kal['Total Breach']), n(varth['Total Breach'])], cls: 'eod-row-gray' },
+    { label: '15 Mins Breach', v: [n(ind['15 Min Breach']), n(kal['15 Min Breach']), n(varth['15 Min Breach'])], cls: '' },
+    { label: '30 Mins Breach', v: [n(ind['30 Min Breach']), n(kal['30 Min Breach']), n(varth['30 Min Breach'])], cls: '' },
+    { label: 'Other Breach', v: [n(ind['Other Breach']), n(kal['Other Breach']), n(varth['Other Breach'])], cls: '' },
+    { label: 'Breach %', v: [
+        (n(ind.Delivered) ? (n(ind['Total Breach'])/n(ind.Delivered)*100) : 0),
+        (n(kal.Delivered) ? (n(kal['Total Breach'])/n(kal.Delivered)*100) : 0),
+        (n(varth.Delivered) ? (n(varth['Total Breach'])/n(varth.Delivered)*100) : 0)
+      ], cls: 'eod-row-gray', isPct: true },
+    { label: 'Planned Rider', v: [plannedInd, plannedKal, plannedVar], cls: '' },
+    { label: 'Active Rider', v: [activeInd, activeKal, activeVar], cls: '' },
+    { label: 'Efficiency of Delivered Orders', v: [effInd, effKal, effVar], cls: 'eod-row-blue', isEff: true }
+  ];
+
+  let eodHtml = `<div class="excel-report"><table>
+    <tr><td colspan="5" class="report-title-navy">Zippee &lt;&gt; Supertails EOD Report  ${dateStr}</td></tr>
+    <tr class="eod-header">
+      <th>Stores</th><th>Indra Nagar</th><th>Kalyan Nagar</th><th>Varthur</th><th>Total</th>
+    </tr>`;
+  eodRows.forEach(row => {
+    const tot = row.isPct
+      ? (sum3(row.v[0]*n(ind.Delivered)/100, row.v[1]*n(kal.Delivered)/100, row.v[2]*n(varth.Delivered)/100) / (totalDeliveredEod || 1) * 100)
+      : (row.isEff ? effTotal : sum3(row.v[0], row.v[1], row.v[2]));
+    const fmt = (x) => row.isPct ? (Number(x).toFixed(2) + '%') : (row.isEff ? Number(x).toFixed(2) : x);
+    const pctCls = row.isPct ? ' eod-breach-pct' : '';
+    eodHtml += `<tr class="${row.cls}">
+      <td class="eod-label">${row.label}</td>
+      <td class="${pctCls}">${fmt(row.v[0])}</td>
+      <td class="${pctCls}">${fmt(row.v[1])}</td>
+      <td class="${pctCls}">${fmt(row.v[2])}</td>
+      <td class="eod-total${pctCls}">${fmt(tot)}</td>
+    </tr>`;
   });
-  eodHtml += '</div><h4>Full EOD Table</h4>';
-  const eodCols = ['Store','Total Orders (EOD)','Delivered','On Time Delivered','Total Breach','Breach %','Rider Count','Avg Order/Rider',
-    'Attempted Delivery','Not Dispatched','0 Attempt','Picked Up','Intransit','Cancelled','15 Min Orders','30 Min Orders','Other Orders']
-    .filter(c => eod[0] && c in eod[0]);
-  eodHtml += tableHTML(eod, eodCols);
+  eodHtml += `</table></div>`;
+  eodHtml += `<div class="download-row" style="margin-bottom:12px;">
+    <button class="tool-button" onclick="downloadReportPng('eodReportTable','Zippee_Supertails_EOD_Report')">📷 Download EOD as PNG</button>
+  </div>`;
+  // wrap table for PNG capture
+  eodHtml = eodHtml.replace('class="excel-report"', 'class="excel-report" id="eodReportTable"');
   if (clearedCount) {
     eodHtml += `<div class="info">⚠️ ${clearedCount} order(s) manually cleared from breach.
       <button class="tool-button small" style="margin-left:10px;" onclick="clearAllClears()">Reset all clears</button></div>`;
   }
   document.getElementById('tab-eod').innerHTML = eodHtml;
 
-  // ===== PENDENCY =====
-  const pendCols = ['Store','Rider Count','Avg Order/Rider','Total Orders','Pending Order','Pendency %',
-    'Total Operational Pending','Attempted Delivery','Not Dispatched','0 Attempt','Picked Up','Intransit','Cancelled','0-Attempt %'];
-  let pendHtml = tableHTML(pendency, pendCols.filter(c => pendency[0] && c in pendency[0]));
+  // ===== PENDENCY (Excel screenshot layout) =====
+  function pendVal(o, key) { const v = o[key]; return v == null ? 0 : v; }
+  function pendPct(o) { const v = pendVal(o, 'Pendency %'); return (typeof v === 'number' ? v.toFixed(2) : v) + '%'; }
+
+  let pendHtml = `<div class="excel-report"><table>
+    <tr><td colspan="5" class="report-title-purple">Zippee &lt;&gt; Supertails Pendency Report  ${dateStr}</td></tr>
+    <tr class="pend-header">
+      <th class="pend-sno">S.no</th>
+      <th>Key Parameters</th>
+      <th>Indra Nagar<br><span style="font-weight:400;font-size:0.8em">Bharath</span></th>
+      <th>Kalyan Nagar<br><span style="font-weight:400;font-size:0.8em">Dhiva</span></th>
+      <th>Varthur<br><span style="font-weight:400;font-size:0.8em">Syeed</span></th>
+    </tr>
+    <tr><td class="pend-sno">1</td><td class="pend-key">Total Orders</td><td>${pendVal(indP,'Total Orders')}</td><td>${pendVal(kalP,'Total Orders')}</td><td>${pendVal(varP,'Total Orders')}</td></tr>
+    <tr><td class="pend-sno">2</td><td class="pend-key">Pending Order</td><td>${pendVal(indP,'Pending Order')}</td><td>${pendVal(kalP,'Pending Order')}</td><td>${pendVal(varP,'Pending Order')}</td></tr>
+    <tr><td class="pend-sno">3</td><td class="pend-key">Pendency %</td><td class="pend-highlight">${pendPct(indP)}</td><td class="pend-highlight">${pendPct(kalP)}</td><td class="pend-highlight">${pendPct(varP)}</td></tr>
+    <tr><td class="pend-sno">4</td><td class="pend-key">Rider Count</td><td>${pendVal(indP,'Rider Count')}</td><td>${pendVal(kalP,'Rider Count')}</td><td>${pendVal(varP,'Rider Count')}</td></tr>
+    <tr><td class="pend-sno">5</td><td class="pend-key">Avg Order/ Rider</td><td class="pend-highlight">${pendVal(indP,'Avg Order/Rider')}</td><td class="pend-highlight">${pendVal(kalP,'Avg Order/Rider')}</td><td class="pend-highlight">${pendVal(varP,'Avg Order/Rider')}</td></tr>
+    <tr class="pend-sub-header"><td></td><td>Sub Parameters</td><td>Indra Nagar</td><td>Kalyan Nagar</td><td>Varthur</td></tr>
+    <tr><td class="pend-sno">6</td><td class="pend-key">Attempted Delivery</td><td>${pendVal(indP,'Attempted Delivery')}</td><td>${pendVal(kalP,'Attempted Delivery')}</td><td>${pendVal(varP,'Attempted Delivery')}</td></tr>
+    <tr><td class="pend-sno">7</td><td class="pend-key">Not Dispatched</td><td>${pendVal(indP,'Not Dispatched')}</td><td>${pendVal(kalP,'Not Dispatched')}</td><td>${pendVal(varP,'Not Dispatched')}</td></tr>
+    <tr><td class="pend-sno">8</td><td class="pend-key">0 Attempted</td><td>${pendVal(indP,'0 Attempt')}</td><td>${pendVal(kalP,'0 Attempt')}</td><td>${pendVal(varP,'0 Attempt')}</td></tr>
+    <tr><td class="pend-sno">9</td><td class="pend-key">Picked Up</td><td>${pendVal(indP,'Picked Up')}</td><td>${pendVal(kalP,'Picked Up')}</td><td>${pendVal(varP,'Picked Up')}</td></tr>
+    <tr><td class="pend-sno">10</td><td class="pend-key">Intransit</td><td>${pendVal(indP,'Intransit')}</td><td>${pendVal(kalP,'Intransit')}</td><td>${pendVal(varP,'Intransit')}</td></tr>
+    <tr><td class="pend-sno">11</td><td class="pend-key">Cancelled</td><td>${pendVal(indP,'Cancelled')}</td><td>${pendVal(kalP,'Cancelled')}</td><td>${pendVal(varP,'Cancelled')}</td></tr>
+    <tr><td class="pend-sno">12</td><td class="pend-key">Courier Orders</td><td>0</td><td>0</td><td>0</td></tr>
+  </table></div>`;
+  pendHtml = pendHtml.replace('class="excel-report"', 'class="excel-report" id="pendReportTable"');
+  pendHtml += `<div class="download-row" style="margin-bottom:12px;">
+    <button class="tool-button" onclick="downloadReportPng('pendReportTable','Zippee_Supertails_Pendency_Report')">📷 Download Pendency as PNG</button>
+  </div>`;
+
   pendHtml += `<div class="info">
     <strong>Pendency logic (exact Excel SOP):</strong><br>
     • <b>Attempted</b> = UNDELIVERED or Failed Attempt ≥ 1<br>
@@ -983,7 +1392,6 @@ function renderResults() {
     • <b>Total Orders</b> = Not Dispatched + Picked Up + Intransit (Attempted is separate)
   </div>`;
 
-  // Open orders for detail (same classification)
   const today = reportDate ? normalizeDate(reportDate) : null;
   const openOrders = df.filter(r => {
     if ((r.Status || '').toLowerCase() === 'cancelled') return false;
@@ -1007,7 +1415,6 @@ function renderResults() {
     <div class="sub-tab" data-filter="undelivered">Attempted</div>
   </div>`;
   pendHtml += `<div id="pendDetailTable"></div>`;
-
   document.getElementById('tab-pend').innerHTML = pendHtml;
 
   const pendSubTabs = document.getElementById('pendSubTabs');
@@ -1038,9 +1445,7 @@ function renderResults() {
 
   function renderPendDetail(filter) {
     let list = openOrders;
-    if (filter !== 'all') {
-      list = openOrders.filter(r => classifyOpen(r) === filter);
-    }
+    if (filter !== 'all') list = openOrders.filter(r => classifyOpen(r) === filter);
     const cols = ['CDR ID','Reference ID','Channel','Customer Name','Status','Fulfillment Status','Model','Order_datetime','Rider Name','Failed Attempt Count','Last Failed Remark','Pickup to Drop Distance(Kms)']
       .filter(c => list[0] && (c in list[0] || c === 'Order_datetime'));
     document.getElementById('pendDetailTable').innerHTML =
@@ -1048,9 +1453,41 @@ function renderResults() {
       `<p style="margin-top:8px;font-size:0.85rem;opacity:0.8;">Showing ${list.length} order(s)</p>`;
   }
 
-  // Breach summary
-  const brCols = ['Store','Total Orders','Delivered','15 Min Orders','30 Min Orders','Other Orders','Total Breach','15 Min Breach','30 Min Breach','Other Breach','Breach %','Rider Count','Avg Order/Rider'];
-  let brHtml = tableHTML(breach, brCols.filter(c => breach[0] && c in breach[0]));
+  // ===== BREACH REPORT (Excel screenshot layout) =====
+  function brVal(o, key) { const v = o[key]; return v == null ? 0 : v; }
+  function brPct(o) { const v = brVal(o, 'Breach %'); return (typeof v === 'number' ? Math.round(v) : v) + '%'; }
+
+  let brHtml = `<div class="excel-report"><table>
+    <tr><td colspan="12" class="report-title-orange">Zippee &lt;&gt; Supertails Delivered/Breach Report  ${dateStr}</td></tr>
+    <tr class="breach-header">
+      <th>Stores</th><th>Total Orders</th><th>Delivered Orders</th><th>15 min Orders</th><th>30 min Orders</th><th>Other orders</th>
+      <th>Total Breach</th><th>15 Min Breach</th><th>30 Min Breach</th><th>Other Breach</th><th>Breach %</th><th>Rider Count</th>
+    </tr>`;
+  [
+    { name: 'Kalyan Nagar', obj: kalB },
+    { name: 'Indranagar', obj: indB },
+    { name: 'Varthur', obj: varB }
+  ].forEach(({ name, obj }) => {
+    brHtml += `<tr class="breach-row">
+      <td>${name}</td>
+      <td>${brVal(obj,'Total Orders')}</td>
+      <td>${brVal(obj,'Delivered')}</td>
+      <td>${brVal(obj,'15 Min Orders')}</td>
+      <td>${brVal(obj,'30 Min Orders')}</td>
+      <td>${brVal(obj,'Other Orders')}</td>
+      <td>${brVal(obj,'Total Breach')}</td>
+      <td>${brVal(obj,'15 Min Breach')}</td>
+      <td>${brVal(obj,'30 Min Breach')}</td>
+      <td>${brVal(obj,'Other Breach')}</td>
+      <td>${brPct(obj)}</td>
+      <td>${brVal(obj,'Rider Count')}</td>
+    </tr>`;
+  });
+  brHtml += `</table></div>`;
+  brHtml = brHtml.replace('class="excel-report"', 'class="excel-report" id="breachReportTable"');
+  brHtml += `<div class="download-row" style="margin-bottom:12px;">
+    <button class="tool-button" onclick="downloadReportPng('breachReportTable','Zippee_Supertails_Delivered_Breach_Report')">📷 Download Breach as PNG</button>
+  </div>`;
   brHtml += `<div class="info">
       <strong>Daily Mode:</strong> Created Today OR ADT/Terminal Today.<br>
       <b>Total Orders (Breach)</b> = Daily set excluding UNDELIVERED.<br>
@@ -1115,19 +1552,28 @@ function renderResults() {
   const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
   document.getElementById('tab-downloads').innerHTML = `
     <div class="download-row">
-      <button class="tool-button" onclick="downloadCSV('ST_EOD_${ts}.csv', window.ST.eod)">📥 EOD CSV</button>
-      <button class="tool-button" onclick="downloadCSV('ST_Pendency_${ts}.csv', window.ST.pendency)">📥 Pendency CSV</button>
-      <button class="tool-button" onclick="downloadCSV('ST_Breach_${ts}.csv', window.ST.breach)">📥 Breach CSV</button>
+      <button class="tool-button" onclick="downloadReportPng('eodReportTable','Zippee_Supertails_EOD_Report')">📷 EOD as PNG</button>
+      <button class="tool-button" onclick="downloadReportPng('breachReportTable','Zippee_Supertails_Delivered_Breach_Report')">📷 Breach as PNG</button>
+      <button class="tool-button" onclick="downloadReportPng('pendReportTable','Zippee_Supertails_Pendency_Report')">📷 Pendency as PNG</button>
+      <button class="tool-button" onclick="downloadEodExcelFormat()">📥 EOD CSV (Excel Format)</button>
+      <button class="tool-button" onclick="downloadBreachExcelFormat()">📥 Breach CSV (Excel Format)</button>
+      <button class="tool-button" onclick="downloadPendencyExcelFormat()">📥 Pendency CSV (Excel Format)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_EOD_${ts}.csv', window.ST.eod)">📥 EOD CSV (raw)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Pendency_${ts}.csv', window.ST.pendency)">📥 Pendency CSV (raw)</button>
+      <button class="tool-button" onclick="downloadCSV('ST_Breach_${ts}.csv', window.ST.breach)">📥 Breach CSV (raw)</button>
       <button class="tool-button" onclick="downloadCSV('ST_Processed_Full_${ts}.csv', window.ST.df)">📥 Full Processed Data</button>
       <button class="tool-button" onclick="downloadBreachOrders()">📥 Active Breach Orders</button>
     </div>
     <div class="info" style="margin-top:16px;">
-      Pendency now follows the exact Excel SOP from your screenshot.<br>
-      Indra Total = 1 · Kalyan Total = 12 (when data matches the report time).
+      EOD, Pendency &amp; Breach tabs match your Excel screenshot layouts.<br>
+      Use the “Excel Format” download buttons for the exact column/row order from the screenshots.
     </div>`;
 
+  const pm = window.ST.plannedMap || {};
+  const am = window.ST.activeMap || riderMap;
   document.getElementById('footer').innerHTML =
-    `ST Dashboard · Mode: <strong>${mode}</strong> · Processed ${df.length.toLocaleString()} orders · Riders: Kalyan=${riderMap['Kalyan Nagar']}, Indra=${riderMap['Indranagar']}, Varthur=${riderMap['Varthur']}` +
+    `ST Dashboard · Mode: <strong>${mode}</strong> · Processed ${df.length.toLocaleString()} orders · Active riders: Kalyan=${am['Kalyan Nagar']||0}, Indra=${am['Indranagar']||0}, Varthur=${am['Varthur']||0}` +
+    (window.ST.preparedAt ? ` · Prepared: ${window.ST.preparedAt}` : '') +
     (clearedCount ? ` · <strong>${clearedCount} manually cleared</strong>` : '');
 }
 
@@ -1163,6 +1609,125 @@ function downloadBreachOrders() {
   downloadCSV(`ST_Breach_Orders_${ts}.csv`, breachOrders, cols);
 }
 
+/** Download a report table as PNG image (uses html2canvas) */
+function downloadReportPng(elementId, filenamePrefix) {
+  const el = document.getElementById(elementId);
+  if (!el) {
+    alert('Report not ready. Generate reports first.');
+    return;
+  }
+  if (typeof html2canvas !== 'function') {
+    alert('PNG library not loaded. Check internet connection and refresh.');
+    return;
+  }
+  const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  html2canvas(el, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    useCORS: true,
+    logging: false
+  }).then(canvas => {
+    const a = document.createElement('a');
+    a.download = `${filenamePrefix}_${ts}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }).catch(err => {
+    console.error(err);
+    alert('PNG download failed: ' + err.message);
+  });
+}
+
+function downloadBreachExcelFormat() {
+  const breach = window.ST.breach || [];
+  const order = ['Kalyan Nagar', 'Indranagar', 'Varthur'];
+  const rows = order.map(s => {
+    const b = breach.find(x => x.Store === s) || {};
+    return {
+      Stores: s,
+      'Total Orders': b['Total Orders'] ?? 0,
+      'Delivered Orders': b.Delivered ?? 0,
+      '15 min Orders': b['15 Min Orders'] ?? 0,
+      '30 min Orders': b['30 Min Orders'] ?? 0,
+      'Other orders': b['Other Orders'] ?? 0,
+      'Total Breach': b['Total Breach'] ?? 0,
+      '15 Min Breach': b['15 Min Breach'] ?? 0,
+      '30 Min Breach': b['30 Min Breach'] ?? 0,
+      'Other Breach': b['Other Breach'] ?? 0,
+      'Breach %': (b['Breach %'] != null ? Math.round(b['Breach %']) + '%' : '0%'),
+      'Rider Count': b['Rider Count'] ?? 0
+    };
+  });
+  const cols = ['Stores','Total Orders','Delivered Orders','15 min Orders','30 min Orders','Other orders','Total Breach','15 Min Breach','30 Min Breach','Other Breach','Breach %','Rider Count'];
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  downloadCSV(`Zippee_Supertails_Delivered_Breach_Report_${ts}.csv`, rows, cols);
+}
+
+function downloadPendencyExcelFormat() {
+  const pendency = window.ST.pendency || [];
+  const get = (s, k) => { const p = pendency.find(x => x.Store === s) || {}; return p[k] ?? 0; };
+  const L = { i: 'Indra Nagar', k: 'Kalyan Nagar', v: 'Varthur' };
+  const rows = [
+    { 'S.no': 1, 'Key Parameters': 'Total Orders', [L.i]: get('Indranagar','Total Orders'), [L.k]: get('Kalyan Nagar','Total Orders'), [L.v]: get('Varthur','Total Orders') },
+    { 'S.no': 2, 'Key Parameters': 'Pending Order', [L.i]: get('Indranagar','Pending Order'), [L.k]: get('Kalyan Nagar','Pending Order'), [L.v]: get('Varthur','Pending Order') },
+    { 'S.no': 3, 'Key Parameters': 'Pendency %', [L.i]: get('Indranagar','Pendency %') + '%', [L.k]: get('Kalyan Nagar','Pendency %') + '%', [L.v]: get('Varthur','Pendency %') + '%' },
+    { 'S.no': 4, 'Key Parameters': 'Rider Count', [L.i]: get('Indranagar','Rider Count'), [L.k]: get('Kalyan Nagar','Rider Count'), [L.v]: get('Varthur','Rider Count') },
+    { 'S.no': 5, 'Key Parameters': 'Avg Order/ Rider', [L.i]: get('Indranagar','Avg Order/Rider'), [L.k]: get('Kalyan Nagar','Avg Order/Rider'), [L.v]: get('Varthur','Avg Order/Rider') },
+    { 'S.no': 6, 'Key Parameters': 'Attempted Delivery', [L.i]: get('Indranagar','Attempted Delivery'), [L.k]: get('Kalyan Nagar','Attempted Delivery'), [L.v]: get('Varthur','Attempted Delivery') },
+    { 'S.no': 7, 'Key Parameters': 'Not Dispatched', [L.i]: get('Indranagar','Not Dispatched'), [L.k]: get('Kalyan Nagar','Not Dispatched'), [L.v]: get('Varthur','Not Dispatched') },
+    { 'S.no': 8, 'Key Parameters': '0 Attempted', [L.i]: get('Indranagar','0 Attempt'), [L.k]: get('Kalyan Nagar','0 Attempt'), [L.v]: get('Varthur','0 Attempt') },
+    { 'S.no': 9, 'Key Parameters': 'Picked Up', [L.i]: get('Indranagar','Picked Up'), [L.k]: get('Kalyan Nagar','Picked Up'), [L.v]: get('Varthur','Picked Up') },
+    { 'S.no': 10, 'Key Parameters': 'Intransit', [L.i]: get('Indranagar','Intransit'), [L.k]: get('Kalyan Nagar','Intransit'), [L.v]: get('Varthur','Intransit') },
+    { 'S.no': 11, 'Key Parameters': 'Cancelled', [L.i]: get('Indranagar','Cancelled'), [L.k]: get('Kalyan Nagar','Cancelled'), [L.v]: get('Varthur','Cancelled') },
+    { 'S.no': 12, 'Key Parameters': 'Courier Orders', [L.i]: 0, [L.k]: 0, [L.v]: 0 }
+  ];
+  const cols = ['S.no', 'Key Parameters', L.i, L.k, L.v];
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  downloadCSV(`Zippee_Supertails_Pendency_Report_${ts}.csv`, rows, cols);
+}
+
+function downloadEodExcelFormat() {
+  const eod = window.ST.eod || [];
+  const plannedMap = window.ST.plannedMap || window.ST.riderMap || {};
+  const activeMap = window.ST.activeMap || window.ST.riderMap || {};
+  const by = (s) => eod.find(r => r.Store === s) || {};
+  const ind = by('Indranagar'), kal = by('Kalyan Nagar'), varth = by('Varthur');
+  const n = (v) => (v == null || v === '' ? 0 : Number(v));
+  const sum = (a,b,c) => n(a)+n(b)+n(c);
+  const pI = plannedMap['Indranagar']||0, pK = plannedMap['Kalyan Nagar']||0, pV = plannedMap['Varthur']||0;
+  const aI = activeMap['Indranagar']||0, aK = activeMap['Kalyan Nagar']||0, aV = activeMap['Varthur']||0;
+  const dI = n(ind.Delivered), dK = n(kal.Delivered), dV = n(varth.Delivered);
+  const totD = dI+dK+dV, totA = aI+aK+aV;
+  const eff = (d,a) => a ? +(d/a).toFixed(2) : 0;
+  const pct = (b,d) => d ? +((b/d)*100).toFixed(2) : 0;
+  const bI = n(ind['Total Breach']), bK = n(kal['Total Breach']), bV = n(varth['Total Breach']);
+  const totB = bI+bK+bV;
+  const rows = [
+    { Stores: 'Total Orders', 'Indra Nagar': n(ind['Total Orders (EOD)']||ind['Total Orders']), 'Kalyan Nagar': n(kal['Total Orders (EOD)']||kal['Total Orders']), Varthur: n(varth['Total Orders (EOD)']||varth['Total Orders']), Total: sum(ind['Total Orders (EOD)']||ind['Total Orders'], kal['Total Orders (EOD)']||kal['Total Orders'], varth['Total Orders (EOD)']||varth['Total Orders']) },
+    { Stores: 'Attempted Delivery', 'Indra Nagar': n(ind['Attempted Delivery']), 'Kalyan Nagar': n(kal['Attempted Delivery']), Varthur: n(varth['Attempted Delivery']), Total: sum(ind['Attempted Delivery'], kal['Attempted Delivery'], varth['Attempted Delivery']) },
+    { Stores: 'Not Dispatched', 'Indra Nagar': n(ind['Not Dispatched']), 'Kalyan Nagar': n(kal['Not Dispatched']), Varthur: n(varth['Not Dispatched']), Total: sum(ind['Not Dispatched'], kal['Not Dispatched'], varth['Not Dispatched']) },
+    { Stores: 'Not Dispatched ( 0 Attempts )', 'Indra Nagar': n(ind['0 Attempt']), 'Kalyan Nagar': n(kal['0 Attempt']), Varthur: n(varth['0 Attempt']), Total: sum(ind['0 Attempt'], kal['0 Attempt'], varth['0 Attempt']) },
+    { Stores: 'Pickedup', 'Indra Nagar': n(ind['Picked Up']), 'Kalyan Nagar': n(kal['Picked Up']), Varthur: n(varth['Picked Up']), Total: sum(ind['Picked Up'], kal['Picked Up'], varth['Picked Up']) },
+    { Stores: 'Intransit', 'Indra Nagar': n(ind.Intransit), 'Kalyan Nagar': n(kal.Intransit), Varthur: n(varth.Intransit), Total: sum(ind.Intransit, kal.Intransit, varth.Intransit) },
+    { Stores: 'Cancelled', 'Indra Nagar': n(ind.Cancelled), 'Kalyan Nagar': n(kal.Cancelled), Varthur: n(varth.Cancelled), Total: sum(ind.Cancelled, kal.Cancelled, varth.Cancelled) },
+    { Stores: 'Total Delivered', 'Indra Nagar': dI, 'Kalyan Nagar': dK, Varthur: dV, Total: totD },
+    { Stores: '15 Mins Orders', 'Indra Nagar': n(ind['15 Min Orders']), 'Kalyan Nagar': n(kal['15 Min Orders']), Varthur: n(varth['15 Min Orders']), Total: sum(ind['15 Min Orders'], kal['15 Min Orders'], varth['15 Min Orders']) },
+    { Stores: '30 Mins Orders', 'Indra Nagar': n(ind['30 Min Orders']), 'Kalyan Nagar': n(kal['30 Min Orders']), Varthur: n(varth['30 Min Orders']), Total: sum(ind['30 Min Orders'], kal['30 Min Orders'], varth['30 Min Orders']) },
+    { Stores: 'Other Orders', 'Indra Nagar': n(ind['Other Orders']), 'Kalyan Nagar': n(kal['Other Orders']), Varthur: n(varth['Other Orders']), Total: sum(ind['Other Orders'], kal['Other Orders'], varth['Other Orders']) },
+    { Stores: 'On Time Delivered', 'Indra Nagar': n(ind['On Time Delivered']), 'Kalyan Nagar': n(kal['On Time Delivered']), Varthur: n(varth['On Time Delivered']), Total: sum(ind['On Time Delivered'], kal['On Time Delivered'], varth['On Time Delivered']) },
+    { Stores: 'Total Breach', 'Indra Nagar': bI, 'Kalyan Nagar': bK, Varthur: bV, Total: totB },
+    { Stores: '15 Mins Breach', 'Indra Nagar': n(ind['15 Min Breach']), 'Kalyan Nagar': n(kal['15 Min Breach']), Varthur: n(varth['15 Min Breach']), Total: sum(ind['15 Min Breach'], kal['15 Min Breach'], varth['15 Min Breach']) },
+    { Stores: '30 Mins Breach', 'Indra Nagar': n(ind['30 Min Breach']), 'Kalyan Nagar': n(kal['30 Min Breach']), Varthur: n(varth['30 Min Breach']), Total: sum(ind['30 Min Breach'], kal['30 Min Breach'], varth['30 Min Breach']) },
+    { Stores: 'Other Breach', 'Indra Nagar': n(ind['Other Breach']), 'Kalyan Nagar': n(kal['Other Breach']), Varthur: n(varth['Other Breach']), Total: sum(ind['Other Breach'], kal['Other Breach'], varth['Other Breach']) },
+    { Stores: 'Breach %', 'Indra Nagar': pct(bI,dI)+'%', 'Kalyan Nagar': pct(bK,dK)+'%', Varthur: pct(bV,dV)+'%', Total: (totD ? +((totB/totD)*100).toFixed(2) : 0)+'%' },
+    { Stores: 'Planned Rider', 'Indra Nagar': pI, 'Kalyan Nagar': pK, Varthur: pV, Total: pI+pK+pV },
+    { Stores: 'Active Rider', 'Indra Nagar': aI, 'Kalyan Nagar': aK, Varthur: aV, Total: totA },
+    { Stores: 'Efficiency of Delivered Orders', 'Indra Nagar': eff(dI,aI), 'Kalyan Nagar': eff(dK,aK), Varthur: eff(dV,aV), Total: totA ? +(totD/totA).toFixed(2) : 0 }
+  ];
+  const cols = ['Stores','Indra Nagar','Kalyan Nagar','Varthur','Total'];
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  downloadCSV(`Zippee_Supertails_EOD_Report_${ts}.csv`, rows, cols);
+}
+
 /* Tabs + UI */
 document.getElementById('tabs').addEventListener('click', e => {
   if (!e.target.classList.contains('tab')) return;
@@ -1183,3 +1748,7 @@ function closeChat() { document.getElementById('chatBox').classList.remove('open
 </script>
 </body>
 </html>
+
+
+
+
