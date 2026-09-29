@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bolt→ Blaze data Converter</title>
+<title>Bolt → Blaze Converter &amp; Merger</title>
 <style>
 :root{font-family:Segoe UI,Arial,sans-serif}
 body{margin:0;background:#f4f6fa;color:#172033}
@@ -11,26 +11,41 @@ body{margin:0;background:#f4f6fa;color:#172033}
 .card{background:#fff;border:1px solid #e2e7ef;border-radius:18px;padding:30px;box-shadow:0 10px 30px rgba(20,30,60,.07)}
 h1{margin:0 0 8px;font-size:28px}
 p{color:#667085;line-height:1.5}
-.box{border:2px dashed #cbd5e1;border-radius:14px;padding:20px;margin:22px 0}
+.box{border:2px dashed #cbd5e1;border-radius:14px;padding:20px;margin:18px 0}
+.box small{display:block;color:#667085;margin-top:6px}
+select{padding:8px 10px;border-radius:8px;border:1px solid #cbd5e1;font:inherit;margin-top:8px;max-width:100%}
 button{border:0;border-radius:10px;padding:12px 18px;background:#1769e0;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
 button.alt{background:#eef2f7;color:#243047;margin-left:8px}
 .status{margin-top:18px;background:#f3f6fa;padding:13px 15px;border-radius:10px;white-space:pre-wrap}
-.good{color:#137333}.bad{color:#b42318}
-.badge{display:inline-block;background:#eef4ff;color:#175cd3;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:700;margin-top:8px}
+.good{color:#137333}.bad{color:#b42318}.warn{color:#9a5b00}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="card">
-<h1>Bolt→ Blaze Converter</h1>
-<p><b>Blaze is the fixed master template.</b> The output always uses its exact column positions. If Bolt does not contain a field, that Blaze column stays blank.</p>
+<h1>Bolt → Blaze Converter &amp; Merger</h1>
+<p>Converts the Bolt export into the Blaze layout. If you also add a Blaze file, the converted rows are merged into it and one combined file is downloaded. Columns are matched by name, and the output follows the Blaze file's column order.</p>
 
 <div class="box">
-<label><b>Upload Bolt data</b></label><br><br>
+<label for="file"><b>1. Bolt data</b> (required)</label><br><br>
 <input id="file" type="file" accept=".csv">
 </div>
 
-<button onclick="convert()">Convert & Download</button>
+<div class="box">
+<label for="blaze"><b>2. Blaze file to merge into</b> (optional)</label><br><br>
+<input id="blaze" type="file" accept=".csv">
+<small>Leave empty to download only the converted Bolt file.</small>
+<br>
+<label for="dupe"><b>If the same AWB is in both files</b></label><br>
+<select id="dupe">
+  <option value="bolt" selected>Keep the Bolt row (newer data) and drop the old Blaze row</option>
+  <option value="blaze">Keep the Blaze row and drop the Bolt row</option>
+  <option value="both">Keep both rows</option>
+</select>
+</div>
+
+<button id="go" onclick="run()">Convert &amp; Download</button>
 <button class="alt" onclick="resetPage()">Reset</button>
 
 <div id="status" class="status">Ready.</div>
@@ -38,193 +53,364 @@ button.alt{background:#eef2f7;color:#243047;margin-left:8px}
 </div>
 
 <script>
-const TARGET = ["Darkstore", "AWB Number", "Order Number", "Type", "Current Status", "Is Cancelled", "Creation Date", "Marketplace Order Date", "Ideal Delivery Start", "Ideal Delivery End", "Actual Delivery Date Time", "Actual Delivery Date", "Try & Buy", "Customer Name", "Customer Mobile", "Pickup Address", "Pickup Pincode", "Delivery Address", "Delivery Pincode", "Trip ID", "Rider ID", "Rider Name", "Rider Latitude", "Rider Longitude", "No. of Attempts", "Attempt Reason", "Total Quantity", "Weight", "Total Value", "Payment Mode", "Paid by", "Transaction ID", "Brand Name", "Shipment Ready Time", "Shipment Allocation Pending Time", "Shipment Pickup Pending Time", "Shipment Pickup In Progress Time", "Shipment Pickup Completed Time", "Shipment Out For Delivery Time", "Shipment Reached Delivery Time", "Shipment Delivery In Progress Time", "Shipment Delivered Time", "Shipment Delivery Attempted Time", "Shipment RTO Time", "Shipment Cancelled Time", "Shipment Pickup Attempted Time", "Shipment Out for Pickup Time", "Shipment Reached Pickup Time"];
+// Rider Name / Rider ID order now matches the real Blaze export (Name at index 19, ID at 20).
+const TARGET = ["Darkstore", "AWB Number", "Order Number", "Type", "Current Status", "Creation Date", "Marketplace Order Date", "Ideal Delivery Start", "Ideal Delivery End", "Actual Delivery Date Time", "Actual Delivery Date", "Try & Buy", "Customer Name", "Customer Mobile", "Pickup Address", "Pickup Pincode", "Delivery Address", "Delivery Pincode", "Trip ID", "Rider Name", "Rider ID", "Rider Latitude", "Rider Longitude", "No. of Attempts", "Attempt Reason", "Total Quantity", "Weight", "Total Value", "Payment Mode", "Paid by", "Transaction ID", "Brand Name", "Shipment Ready Time", "Shipment Allocation Pending Time", "Shipment Pickup Pending Time", "Shipment Pickup In Progress Time", "Shipment Pickup Completed Time", "Shipment Out For Delivery Time", "Shipment Reached Delivery Time", "Shipment Delivery In Progress Time", "Shipment Delivered Time", "Shipment Delivery Attempted Time", "Shipment RTO Time", "Shipment Cancelled Time", "Shipment Pickup Attempted Time", "Shipment Out for Pickup Time", "Shipment Reached Pickup Time"];
 
-// NOTE: "Is Cancelled" (index 5) and the Rider ID/Rider Name order (indices 20/21)
-// are known open discrepancies vs the real Blaze export and are NOT touched by this
-// update -- this pass only fixes Creation Date/Time, per current instructions.
+const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Creation Date": ["combine_datetime", "Creation Date", "Creation Time"], "Marketplace Order Date": ["format_datetime", "Marketplace Order Date"], "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
 
-const MAP = {"Darkstore": "Warehouse Name", "AWB Number": "Zippee AWB", "Order Number": "Order Number", "Type": "Shipment Type", "Current Status": "Current Status", "Is Cancelled": null, "Creation Date": ["combine_datetime", "Creation Date", "Creation Time"], "Marketplace Order Date": "Marketplace Order Date", "Ideal Delivery Start": "Ideal Delivery Start", "Ideal Delivery End": "Ideal Delivery End", "Actual Delivery Date Time": ["combine", "Actual Delivery Date", "Actual Delivery Time"], "Actual Delivery Date": "Actual Delivery Date", "Try & Buy": null, "Customer Name": "Customer Name", "Customer Mobile": "Customer Mobile", "Pickup Address": "Pickup Address", "Pickup Pincode": "Pickup Pincode", "Delivery Address": "Delivery Address", "Delivery Pincode": "Delivery Pincode", "Trip ID": "Trip Code", "Rider ID": "Rider User ID", "Rider Name": "Rider Name", "Rider Latitude": "Rider Last Lat", "Rider Longitude": "Rider Last Lng", "No. of Attempts": "Total Attempt Count", "Attempt Reason": "Latest Attempt Reason", "Total Quantity": "Total Quantity", "Weight": "Weight (g)", "Total Value": "Declared Value", "Payment Mode": "Payment Mode", "Paid by": "Collection Method", "Transaction ID": "Transaction Reference", "Brand Name": "Brand Name", "Shipment Ready Time": "Ready At", "Shipment Allocation Pending Time": "Allocation Pending At", "Shipment Pickup Pending Time": "Pickup Pending At", "Shipment Pickup In Progress Time": "Pickup In Progress At", "Shipment Pickup Completed Time": "Pickup Completed At", "Shipment Out For Delivery Time": "Out For Delivery At", "Shipment Reached Delivery Time": "Reached Delivery At", "Shipment Delivery In Progress Time": "Delivery In Progress At", "Shipment Delivered Time": ["combine", "Delivered Date", "Delivered Time"], "Shipment Delivery Attempted Time": "Delivery Attempted At", "Shipment RTO Time": "RTO At", "Shipment Cancelled Time": "Cancelled At", "Shipment Pickup Attempted Time": null, "Shipment Out for Pickup Time": null, "Shipment Reached Pickup Time": null};
+const DATE_COLS = ["Creation Date", "Marketplace Order Date"];
 
-if (TARGET[6] !== "Creation Date" || TARGET[5] !== "Is Cancelled") {
-  throw new Error("Target template indices are incorrect.");
-}
-if (!Array.isArray(MAP["Creation Date"]) || MAP["Creation Date"][0] !== "combine_datetime" || MAP["Is Cancelled"] !== null) {
-  throw new Error("Required field mappings are incorrect.");
+function showStatus(cls, text){
+  const s = document.getElementById('status');
+  s.className = 'status ' + cls;
+  s.textContent = text;
 }
 
-function parseCSV(text){
-  const rows=[]; let row=[]; let field=''; let inQuotes=false;
-  for(let i=0;i<text.length;i++){
-    const c=text[i], n=text[i+1];
-    if(c === '"'){
-      if(inQuotes && n === '"'){ field += '"'; i++; }
-      else { inQuotes = !inQuotes; }
-    } else if(c === ',' && !inQuotes){
-      row.push(field); field='';
-    } else if((c === '\r' || c === '\n') && !inQuotes){
-      if(c === '\r' && n === '\n') i++;
-      row.push(field); field='';
-      if(row.some(v => v !== '')) rows.push(row);
-      row=[];
-    } else {
-      field += c;
-    }
+// Sanity checks: report on the page instead of failing silently
+(function(){
+  const problems = [];
+  if (TARGET.length !== 47) problems.push('Template must have 47 columns.');
+  if (TARGET[5] !== "Creation Date" || TARGET[6] !== "Marketplace Order Date") problems.push('Creation Date / Marketplace Order Date are not at positions 6 and 7.');
+  if (TARGET[19] !== "Rider Name" || TARGET[20] !== "Rider ID") problems.push('Rider Name / Rider ID are not at positions 20 and 21.');
+  if (TARGET.includes("Is Cancelled") || "Is Cancelled" in MAP) problems.push('"Is Cancelled" must not be in the template.');
+  if (TARGET.some(t => !(t in MAP))) problems.push('Every template column needs a mapping.');
+  if (problems.length){
+    window.addEventListener('DOMContentLoaded', () => {
+      showStatus('bad', 'Setup error:\n' + problems.join('\n'));
+      document.getElementById('go').disabled = true;
+    });
   }
-  if(field !== '' || row.length){ row.push(field); }
-  if(row.some(v => v !== '')) rows.push(row);
+})();
+
+// ---------- File decoding ----------
+// Files are read as UTF-8. Some Blaze exports contain stray Windows-1252 bytes
+// (for example an en dash saved as a single 0x96 byte). Those bytes are converted
+// to the right character instead of turning into "�".
+const CP1252 = {0x80:'\u20AC',0x82:'\u201A',0x83:'\u0192',0x84:'\u201E',0x85:'\u2026',0x86:'\u2020',0x87:'\u2021',0x88:'\u02C6',0x89:'\u2030',0x8A:'\u0160',0x8B:'\u2039',0x8C:'\u0152',0x8E:'\u017D',0x91:'\u2018',0x92:'\u2019',0x93:'\u201C',0x94:'\u201D',0x95:'\u2022',0x96:'\u2013',0x97:'\u2014',0x98:'\u02DC',0x99:'\u2122',0x9A:'\u0161',0x9B:'\u203A',0x9C:'\u0153',0x9E:'\u017E',0x9F:'\u0178'};
+
+function utf8SeqLen(b, i){
+  const c = b[i]; let n;
+  if (c >= 0xC2 && c <= 0xDF) n = 2;
+  else if (c >= 0xE0 && c <= 0xEF) n = 3;
+  else if (c >= 0xF0 && c <= 0xF4) n = 4;
+  else return 0;
+  if (i + n > b.length) return 0;
+  for (let k = 1; k < n; k++) if ((b[i + k] & 0xC0) !== 0x80) return 0;
+  if (c === 0xE0 && b[i + 1] < 0xA0) return 0;
+  if (c === 0xED && b[i + 1] > 0x9F) return 0;
+  if (c === 0xF0 && b[i + 1] < 0x90) return 0;
+  if (c === 0xF4 && b[i + 1] > 0x8F) return 0;
+  return n;
+}
+
+function decodeBytes(buffer){
+  const b = new Uint8Array(buffer);
+  try {
+    return { text: new TextDecoder('utf-8', { fatal: true }).decode(b), fixed: 0 };
+  } catch (e) { /* mixed encoding, fall through */ }
+  const dec = new TextDecoder('utf-8');
+  const parts = [];
+  let start = 0, fixed = 0, i = 0;
+  while (i < b.length){
+    const c = b[i];
+    if (c < 0x80){ i++; continue; }
+    const n = utf8SeqLen(b, i);
+    if (n){ i += n; continue; }
+    parts.push(dec.decode(b.subarray(start, i)));
+    parts.push(CP1252[c] || String.fromCharCode(c));
+    fixed++; i++; start = i;
+  }
+  parts.push(dec.decode(b.subarray(start)));
+  return { text: parts.join(''), fixed };
+}
+
+// ---------- CSV ----------
+// Slice-based parser: fast enough for 50+ MB files.
+function parseCSV(text){
+  const rows = []; let row = [];
+  const n = text.length; let i = 0;
+  if (text.charCodeAt(0) === 0xFEFF) i = 1;
+  const endOfField = k => { while (k < n){ const ch = text.charCodeAt(k); if (ch === 44 || ch === 10 || ch === 13) break; k++; } return k; };
+  while (i < n){
+    let field;
+    if (text.charCodeAt(i) === 34){
+      const chunks = []; let j = i + 1;
+      for (;;){
+        const q = text.indexOf('"', j);
+        if (q === -1){ chunks.push(text.slice(j)); i = n; break; }
+        if (text.charCodeAt(q + 1) === 34){ chunks.push(text.slice(j, q + 1)); j = q + 2; continue; }
+        chunks.push(text.slice(j, q)); i = q + 1; break;
+      }
+      field = chunks.join('');
+      const k = endOfField(i);
+      if (k > i) field += text.slice(i, k);
+      i = k;
+    } else {
+      const k = endOfField(i);
+      field = text.slice(i, k);
+      i = k;
+    }
+    row.push(field);
+    if (i >= n) break;
+    const ch = text.charCodeAt(i);
+    if (ch === 44){ i++; if (i >= n) row.push(''); continue; }
+    if (ch === 13 && text.charCodeAt(i + 1) === 10) i++;
+    i++;
+    if (row.some(v => v !== '')) rows.push(row);
+    row = [];
+  }
+  if (row.length && row.some(v => v !== '')) rows.push(row);
   return rows;
 }
 
 function escapeCSV(v){
   v = v == null ? '' : String(v);
-  return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+  return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
 }
 
-function combine(a,b){
+function headerIndex(headerRow){
+  const headers = headerRow.map(h => h.replace(/^\uFEFF/, '').trim());
+  const idx = {};
+  headers.forEach((h, i) => { if (!(h in idx)) idx[h] = i; });
+  return { headers, idx };
+}
+
+// ---------- Date formatting ----------
+// Output: ="DD/MM/YYYY h:mm AM/PM" (hour not padded, minutes 2 digits)
+function combine(a, b){
   a = a == null ? '' : String(a).trim();
   b = b == null ? '' : String(b).trim();
-  if(!a) return b;
-  if(!b) return a;
+  if (!a) return b;
+  if (!b) return a;
   return a + ' ' + b;
 }
 
-// Creation Date
-// Bolt:  "Creation Date" = DD/MM/YYYY (day first, e.g. 24/09/2026)
-//        "Creation Time" = 24-hour HH:mm (e.g. 13:32)
-// Blaze: one field, ="DD/MM/YYYY h:mm AM/PM"  (e.g. ="24/09/2026 1:32 PM")
-//        hour not zero-padded, minutes always 2 digits, 00:xx -> 12:xx AM.
-// The date is already in Blaze's day-first order, so it is NOT reordered.
-// Rows whose values don't match these formats are counted and copied through as-is.
-let creationDateUnparsed = 0;
-
-function combineDateTime(dateStr, timeStr){
+function combineDateTime(dateStr, timeStr, col, unparsed){
   dateStr = (dateStr == null ? '' : String(dateStr)).trim();
   timeStr = (timeStr == null ? '' : String(timeStr)).trim();
-  if(!dateStr) return '';
+  if (!dateStr) return '';
 
   const d = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if(!d || +d[1] < 1 || +d[1] > 31 || +d[2] < 1 || +d[2] > 12){
-    creationDateUnparsed++;
+  if (!d || +d[1] < 1 || +d[1] > 31 || +d[2] < 1 || +d[2] > 12){
+    unparsed[col]++;
     return combine(dateStr, timeStr);
   }
-  const ddmmyyyy = d[1].padStart(2,'0') + '/' + d[2].padStart(2,'0') + '/' + d[3];
+  const ddmmyyyy = d[1].padStart(2, '0') + '/' + d[2].padStart(2, '0') + '/' + d[3];
+  if (!timeStr) return '="' + ddmmyyyy + '"';
 
-  if(!timeStr) return '="' + ddmmyyyy + '"';
-
-  // HH:mm, optional :ss (dropped), optional AM/PM if the file was re-saved in Excel
   const t = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
-  if(!t){
-    creationDateUnparsed++;
-    return '="' + ddmmyyyy + ' ' + timeStr + '"';
-  }
+  if (!t){ unparsed[col]++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
   let h = +t[1];
   const m = t[2];
-  if(t[3]){
-    if(h < 1 || h > 12){ creationDateUnparsed++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
+  if (t[3]){
+    if (h < 1 || h > 12){ unparsed[col]++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
     h = (h % 12) + (t[3].toUpperCase() === 'PM' ? 12 : 0);
   }
-  if(h > 23 || +m > 59){
-    creationDateUnparsed++;
-    return '="' + ddmmyyyy + ' ' + timeStr + '"';
-  }
-  const h12 = (h % 12) || 12;
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  if (h > 23 || +m > 59){ unparsed[col]++; return '="' + ddmmyyyy + ' ' + timeStr + '"'; }
+  return '="' + ddmmyyyy + ' ' + ((h % 12) || 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM') + '"';
+}
 
-  return '="' + ddmmyyyy + ' ' + h12 + ':' + m + ' ' + ampm + '"';
+function formatDateTime(str, col, unparsed){
+  str = (str == null ? '' : String(str)).trim();
+  if (!str) return '';
+  const sp = str.indexOf(' ');
+  if (sp === -1) return combineDateTime(str, '', col, unparsed);
+  return combineDateTime(str.slice(0, sp), str.slice(sp + 1), col, unparsed);
+}
+
+// ---------- Bolt conversion ----------
+// Returns rows as objects keyed by Blaze column name.
+function convertBolt(rows){
+  if (rows.length < 1) throw new Error('The Bolt file is empty.');
+  const { idx } = headerIndex(rows[0]);
+
+  const required = [];
+  Object.values(MAP).forEach(v => {
+    if (typeof v === 'string') required.push(v);
+    else if (Array.isArray(v) && (v[0] === 'combine' || v[0] === 'combine_datetime')) required.push(v[1], v[2]);
+    else if (Array.isArray(v) && v[0] === 'format_datetime') required.push(v[1]);
+  });
+  const missing = [...new Set(required.filter(h => idx[h] === undefined))];
+  if (missing.length) throw new Error('These Bolt columns were not found:\n' + missing.join('\n'));
+
+  const value = (row, h) => row[idx[h]] ?? '';
+  const unparsed = { "Creation Date": 0, "Marketplace Order Date": 0 };
+  const out = [];
+
+  for (let r = 1; r < rows.length; r++){
+    const row = rows[r];
+    const o = {};
+    for (const t of TARGET){
+      const rule = MAP[t];
+      if (rule === null) o[t] = '';
+      else if (typeof rule === 'string') o[t] = value(row, rule);
+      else if (rule[0] === 'combine') o[t] = combine(value(row, rule[1]), value(row, rule[2]));
+      else if (rule[0] === 'combine_datetime') o[t] = combineDateTime(value(row, rule[1]), value(row, rule[2]), t, unparsed);
+      else if (rule[0] === 'format_datetime') o[t] = formatDateTime(value(row, rule[1]), t, unparsed);
+    }
+    out.push(o);
+  }
+  return { rows: out, unparsed };
+}
+
+// ---------- Blaze file ----------
+// Per-row notes about Blaze rows; counted only for rows that end up in the merged file
+const flags = new WeakMap();
+const BLAZE_NATIVE_DT = /^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}\s*[AaPp][Mm]$/;
+
+function readBlaze(rows){
+  if (rows.length < 1) throw new Error('The Blaze file is empty.');
+  const { headers, idx } = headerIndex(rows[0]);
+
+  const missing = TARGET.filter(t => idx[t] === undefined);
+  const extra = headers.filter(h => h && !TARGET.includes(h));
+  if (missing.length || extra.length){
+    let msg = 'The Blaze file does not have the expected columns.';
+    if (missing.length) msg += '\nMissing:\n' + missing.join('\n');
+    if (extra.length) msg += '\nUnexpected:\n' + extra.join('\n');
+    throw new Error(msg);
+  }
+  const order = headers.filter(h => TARGET.includes(h));
+
+  const dummy = { "Creation Date": 0, "Marketplace Order Date": 0 };
+  const out = [];
+
+  for (let r = 1; r < rows.length; r++){
+    const row = rows[r];
+    const o = {};
+    for (const t of TARGET) o[t] = row[idx[t]] ?? '';
+    const f = { nonStandard: [], sciMobile: false, riderSwapped: false };
+
+    // Match the converted rows' date format when the Blaze value is in Blaze's own
+    // "DD/MM/YYYY h:mm AM/PM" format; anything else is left exactly as it is.
+    for (const c of DATE_COLS){
+      const v = String(o[c]).trim();
+      if (!v || v.startsWith('="')) continue;
+      if (BLAZE_NATIVE_DT.test(v)) o[c] = formatDateTime(v, c, dummy);
+      else f.nonStandard.push(c);
+    }
+    if (/^\d(\.\d+)?E\+\d+$/i.test(String(o["Customer Mobile"]).trim())) f.sciMobile = true;
+    const rn = String(o["Rider Name"]).trim(), ri = String(o["Rider ID"]).trim();
+    if (/^\d+$/.test(rn) && ri && !/^\d+$/.test(ri)) f.riderSwapped = true;
+
+    flags.set(o, f);
+    out.push(o);
+  }
+  return { rows: out, order };
+}
+
+// ---------- Output ----------
+function downloadCSV(order, rowObjects, filename){
+  const lines = [order.map(escapeCSV).join(',')];
+  for (const o of rowObjects) lines.push(order.map(h => escapeCSV(o[h])).join(','));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function readFile(file){
+  return decodeBytes(await file.arrayBuffer());
 }
 
 function resetPage(){
-  document.getElementById('file').value='';
-  const s=document.getElementById('status');
-  s.className='status';
-  s.textContent='Ready.';
+  document.getElementById('file').value = '';
+  document.getElementById('blaze').value = '';
+  document.getElementById('dupe').value = 'bolt';
+  showStatus('', 'Ready.');
 }
 
-async function convert(){
-  const file=document.getElementById('file').files[0];
-  const s=document.getElementById('status');
-  if(!file){
-    s.className='status bad';
-    s.textContent='Please upload Bolt CSV.';
-    return;
-  }
+async function run(){
+  const boltFile = document.getElementById('file').files[0];
+  const blazeFile = document.getElementById('blaze').files[0];
+  const policy = document.getElementById('dupe').value;
+  const btn = document.getElementById('go');
 
-  try{
-    s.className='status';
-    s.textContent='Reading Bolt data...';
-    creationDateUnparsed = 0;
+  if (!boltFile){ showStatus('bad', 'Add the Bolt CSV first.'); return; }
 
-    const text = await file.text();
-    const rows = parseCSV(text);
-    if(rows.length < 1) throw new Error('CSV is empty.');
+  btn.disabled = true;
+  try {
+    showStatus('', 'Reading Bolt data...');
+    await new Promise(r => setTimeout(r, 20));
+    const boltDecoded = await readFile(boltFile);
+    const bolt = convertBolt(parseCSV(boltDecoded.text));
 
-    const headers = rows[0].map((h,i) => (i===0 ? h.replace(/^\uFEFF/,'') : h).trim());
-    const idx = {};
-    headers.forEach((h,i) => { idx[h] = i; });
+    const warnings = [];
+    for (const [c, n] of Object.entries(bolt.unparsed)){
+      if (n) warnings.push(n + ' Bolt row(s) had a ' + c + ' in an unexpected format and were copied as-is.');
+    }
+    if (boltDecoded.fixed) warnings.push(boltDecoded.fixed + ' character(s) in the Bolt file were not valid UTF-8 and were repaired.');
 
-    const required = [];
-    Object.values(MAP).forEach(v=>{
-      if(typeof v === 'string') required.push(v);
-      else if(Array.isArray(v) && (v[0] === 'combine' || v[0] === 'combine_datetime')){
-        required.push(v[1],v[2]);
-      }
-    });
-
-    const missing = [...new Set(required.filter(h => idx[h] === undefined))];
-    if(missing.length){
-      throw new Error('These Bolt columns were not found:\n' + missing.join('\n'));
+    if (!blazeFile){
+      downloadCSV(TARGET, bolt.rows, 'Bolt_to_Blaze.csv');
+      showStatus(warnings.length ? 'warn' : 'good',
+        'Done. Downloaded Bolt_to_Blaze.csv\nRows converted: ' + bolt.rows.length +
+        '\nOutput columns: ' + TARGET.length +
+        (warnings.length ? '\n\nWarnings:\n' + warnings.join('\n') : ''));
+      return;
     }
 
-    const value = (row, header) => idx[header] === undefined ? '' : (row[idx[header]] ?? '');
+    showStatus('', 'Reading Blaze file...');
+    await new Promise(r => setTimeout(r, 20));
+    const blazeDecoded = await readFile(blazeFile);
+    const blaze = readBlaze(parseCSV(blazeDecoded.text));
 
-    const output=[TARGET];
+    // Merge: Blaze rows first, then converted Bolt rows
+    const key = o => String(o["AWB Number"]).trim();
+    let merged, dropped = 0;
+    const boltKeys = new Set(bolt.rows.map(key).filter(Boolean));
+    const blazeKeys = new Set(blaze.rows.map(key).filter(Boolean));
+    const overlap = [...boltKeys].filter(k => blazeKeys.has(k)).length;
 
-    for(let r=1;r<rows.length;r++){
-      const row=rows[r];
-      if(!row.some(v=>String(v).trim() !== '')) continue;
-
-      const outRow=TARGET.map(targetHeader=>{
-        const rule=MAP[targetHeader];
-
-        if(rule === null) return '';
-
-        if(Array.isArray(rule) && rule[0] === 'combine'){
-          return combine(value(row,rule[1]),value(row,rule[2]));
-        }
-
-        if(Array.isArray(rule) && rule[0] === 'combine_datetime'){
-          return combineDateTime(value(row,rule[1]),value(row,rule[2]));
-        }
-
-        return value(row,rule);
-      });
-
-      output.push(outRow);
+    if (policy === 'bolt'){
+      const keep = blaze.rows.filter(o => !boltKeys.has(key(o)));
+      dropped = blaze.rows.length - keep.length;
+      merged = keep.concat(bolt.rows);
+    } else if (policy === 'blaze'){
+      const keep = bolt.rows.filter(o => !blazeKeys.has(key(o)));
+      dropped = bolt.rows.length - keep.length;
+      merged = blaze.rows.concat(keep);
+    } else {
+      merged = blaze.rows.concat(bolt.rows);
     }
 
-    const csv = output.map(row=>row.map(escapeCSV).join(',')).join('\r\n');
-    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
+    downloadCSV(blaze.order, merged, 'Blaze_Merged.csv');
 
-    const a=document.createElement('a');
-    a.href=url;
-    a.download='Bolt_to_Blaze.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    // Warnings only for Blaze rows that are actually in the merged file
+    const st = { nonStandardDate: { "Creation Date": 0, "Marketplace Order Date": 0 }, sciMobile: 0, riderSwapped: 0 };
+    for (const o of merged){
+      const f = flags.get(o);
+      if (!f) continue;
+      f.nonStandard.forEach(c => st.nonStandardDate[c]++);
+      if (f.sciMobile) st.sciMobile++;
+      if (f.riderSwapped) st.riderSwapped++;
+    }
+    for (const [c, n] of Object.entries(st.nonStandardDate)){
+      if (n) warnings.push(n + ' Blaze row(s) had a ' + c + ' not in DD/MM/YYYY h:mm AM/PM format and were left as-is.');
+    }
+    if (st.sciMobile) warnings.push(st.sciMobile + ' Blaze row(s) have Customer Mobile in scientific notation (e.g. 9.19E+11). The digits were already lost before upload; re-export the Blaze file without saving it in Excel.');
+    if (st.riderSwapped) warnings.push(st.riderSwapped + ' Blaze row(s) look like they have Rider Name and Rider ID swapped. They were left as-is.');
+    if (blazeDecoded.fixed) warnings.push(blazeDecoded.fixed + ' character(s) in the Blaze file were not valid UTF-8 and were repaired.');
 
-    s.className = creationDateUnparsed ? 'status bad' : 'status good';
-    s.textContent='Done.\nRows converted: ' + (output.length-1) +
-      '\nOutput columns: ' + TARGET.length +
-      '\nCreation Date = Creation Date + Creation Time -> DD/MM/YYYY h:mm AM/PM.' +
-      (creationDateUnparsed
-        ? '\nWarning: ' + creationDateUnparsed + ' row(s) had a Creation Date/Time in an unexpected format and were copied as-is.'
-        : '');
-  }catch(err){
-    s.className='status bad';
-    s.textContent='Error: ' + err.message;
+    const policyText = policy === 'bolt' ? 'Old Blaze rows replaced by Bolt rows: ' + dropped
+                     : policy === 'blaze' ? 'Bolt rows skipped (already in Blaze): ' + dropped
+                     : 'Duplicate AWBs kept in both: ' + overlap;
+
+    showStatus(warnings.length ? 'warn' : 'good',
+      'Done. Downloaded Blaze_Merged.csv' +
+      '\nBlaze rows: ' + blaze.rows.length +
+      '\nBolt rows converted: ' + bolt.rows.length +
+      '\nAWBs in both files: ' + overlap +
+      '\n' + policyText +
+      '\nRows in merged file: ' + merged.length +
+      '\nOutput columns: ' + blaze.order.length +
+      (warnings.length ? '\n\nWarnings:\n' + warnings.join('\n') : ''));
+  } catch (err){
+    showStatus('bad', 'Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
   }
 }
 </script>
