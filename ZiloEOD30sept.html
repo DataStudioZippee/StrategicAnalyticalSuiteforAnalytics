@@ -143,7 +143,7 @@ input[data-dirty="1"]{
 
 <div class="header">
     <h1>Zippee &lt;&gt; Zilo EOD Report</h1>
-    <div class="sub">Combined KPI + Hourly Breach view</div>
+    <div class="sub">KPI view</div>
 </div>
 
 <!-- ============ CONTROLS ============ -->
@@ -173,7 +173,6 @@ input[data-dirty="1"]{
     <div class="controls">
         <button id="genBtn" onclick="generateReport()">Generate Report</button>
         <button onclick="downloadCard('reportCard','KPI')">Download KPI Report</button>
-        <button onclick="downloadCard('reportCard2','Hourly')">Download Hourly Report</button>
     </div>
     <div class="status-line" id="statusLine"></div>
 
@@ -341,40 +340,6 @@ input[data-dirty="1"]{
 </div>
 </div>
 
-<!-- ============ HOURLY BREACH CARD ============ -->
-<div class="card overflow-x" id="hourlyCardWrapper" style="display:none;">
-<div id="reportCard2">
-
-    <div style="text-align:center;margin-bottom:15px;">
-        <div id="hourlyTitle" style="font-size:24px;font-weight:800;margin-bottom:6px;">
-            Zilo EOD Hourly Breach Report
-        </div>
-        <div id="reportDateTime" style="font-size:14px;color:#555;font-weight:600;"></div>
-    </div>
-
-    <table id="hourlyTable">
-        <thead>
-            <tr>
-                <th rowspan="2">From</th>
-                <th rowspan="2">To</th>
-                <th colspan="4">Ghatkopar</th>
-                <th colspan="4">Malad</th>
-                <th colspan="4">Vashi</th>
-            </tr>
-            <tr>
-                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
-                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
-                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div class="footer">Powered by SASA Automation | Zippee</div>
-
-</div>
-</div>
-
 <script>
 const ORDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=0&single=true&output=csv";
 const RIDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=775811107&single=true&output=csv";
@@ -450,11 +415,8 @@ function updateHeadings(){
     const timeStr = h + " " + ampm;
 
     document.getElementById("reportTitle").innerText = "Zilo EOD " + label;
-    document.getElementById("hourlyTitle").innerText = "Zilo EOD " + label + " Hourly Breach Report";
     document.getElementById("date").innerText = fullDate;
     document.getElementById("time").innerText = timeStr;
-    document.getElementById("reportDateTime").innerHTML =
-        `<b>Date:</b> ${fullDate} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Time:</b> ${timeStr}`;
 
     const isD1 = sameDay(rd, yesterday());
     document.getElementById("dateHint").innerText = isD1 ? "D-1 (yesterday)" : "Custom date";
@@ -675,13 +637,6 @@ async function generateReport(){
         Vashi:     {60:0, 90:0, 120:0, others:0}
     };
 
-    const hourlyStats = {Ghatkopar:{}, Malad:{}, Vashi:{}};
-    STORES.forEach(store=>{
-        for (let h=7; h<=22; h++){
-            hourlyStats[store][h] = {total:0, delivered:0, breach:0};
-        }
-    });
-
     for (const store of STORES){
 
         const file = storeFiles[store];
@@ -746,7 +701,6 @@ async function generateReport(){
 
             const start = new Date(`1970-01-01 ${slotMatch[1]}:${slotMatch[2]}:00`);
             const end = new Date(`1970-01-01 ${slotMatch[3]}:${slotMatch[4]}:00`);
-            const slotHour = end.getHours();
             const actualPromise = (end - start) / 60000;
             const endMinute = parseInt(slotMatch[4], 10);
             const orderType = endMinute === 0 ? "SLOTTED" : "INSTANT";
@@ -754,12 +708,6 @@ async function generateReport(){
             let delayDuration = "NA";
             if (typeof serviceDuration === "number" && !isNaN(actualPromise)) {
                 delayDuration = actualPromise - serviceDuration;
-            }
-
-            // Hourly totals (bucketed by promised-slot end hour)
-            if (hourlyStats[store][slotHour]) {
-                hourlyStats[store][slotHour].total++;
-                if (status === "DELIVERED") hourlyStats[store][slotHour].delivered++;
             }
 
             const match = slot.match(/(\d{1,2}:\d{2})$/);
@@ -796,7 +744,6 @@ async function generateReport(){
             }
 
             if (isBreach) {
-                if (hourlyStats[store][slotHour]) hourlyStats[store][slotHour].breach++;
                 if (status === "DELIVERED") storeBreach[store]++;
                 return;
             }
@@ -815,12 +762,6 @@ async function generateReport(){
     // -------------------------------------------------
     renderKPITable(storeOrders, storeDelivered, storeRTO, storeBreach, storeDelay,
                     storeDeepPain, storeForwardRiderSet, storeBuckets);
-
-    // -------------------------------------------------
-    // 4. RENDER: HOURLY TABLE
-    // -------------------------------------------------
-    document.getElementById("hourlyCardWrapper").style.display = "block";
-    fillHourlyTable(hourlyStats, reportDate);
 
     setStatus("Report for " + dateLabel + " generated at " +
         new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ".");
@@ -890,35 +831,6 @@ function renderKPITable(storeOrders, storeDelivered, storeRTO, storeBreach, stor
             });
         }
     });
-}
-
-function fillHourlyTable(hourlyStats, reportDate){
-    const tbody = document.querySelector("#hourlyTable tbody");
-    tbody.innerHTML = "";
-
-    // Past dates (EOD) show the full day; only today is cut off at the current hour
-    const lastHour = sameDay(reportDate, new Date())
-        ? Math.min(new Date().getHours(), 22)
-        : 22;
-
-    function buildStoreCells(store, h){
-        const d = hourlyStats[store][h];
-        const pct = d.delivered ? ((d.breach / d.delivered) * 100).toFixed(0) + "%" : "--";
-        return `<td>${d.total}</td><td>${d.delivered}</td><td>${d.breach}</td><td>${pct}</td>`;
-    }
-
-    for (let h = 7; h <= lastHour; h++){
-        const tr = document.createElement("tr");
-        const from = String(h).padStart(2,"0") + ":00";
-        const to = String(h+1).padStart(2,"0") + ":00";
-        tr.innerHTML = `
-            <td>${from}</td><td>${to}</td>
-            ${buildStoreCells("Ghatkopar", h)}
-            ${buildStoreCells("Malad", h)}
-            ${buildStoreCells("Vashi", h)}
-        `;
-        tbody.appendChild(tr);
-    }
 }
 
 function downloadCard(elementId, kind){
