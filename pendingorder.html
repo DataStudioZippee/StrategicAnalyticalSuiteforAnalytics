@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Order Reports</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:Segoe UI,sans-serif;
+  background:
+    linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,.75)),
+    url("zippee.png") no-repeat center center fixed;
+  background-size:cover;
+  color:#fff;
+}
+.header{text-align:center;padding:14px;font-size:22px;font-weight:700}
+.container{width:95%;margin:auto}
+
+.store-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:10px;
+}
+.store-card{background:#2f4b66;padding:8px;border-radius:8px}
+.store-title{font-size:13px;font-weight:700;margin-bottom:4px;text-align:center}
+.store-count{font-size:11px;text-align:center;margin-top:3px;color:#cbd5e1}
+textarea{width:100%;height:80px;border:none;border-radius:6px;padding:6px;font-size:12px;box-sizing:border-box}
+
+button{border:none;border-radius:6px;cursor:pointer;font-weight:700}
+.action-btn{background:#0d6efd;color:white;padding:8px 18px}
+.download-btn{background:#16a34a;color:white;padding:8px 16px}
+.clear-btn{background:#6b7280;color:white;padding:8px 16px}
+
+.report{
+  background:white;
+  color:black;
+  padding:10px 14px;
+  border-radius:8px;
+  margin:20px auto;
+  width:max-content;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.report-title{text-align:center;font-size:18px;font-weight:700}
+.report-time{text-align:center;font-size:13px;margin:4px 0 10px}
+
+.report-grid{
+  display:grid;
+  grid-template-columns:repeat(4,max-content);
+  gap:12px;
+  justify-content:center;
+}
+@media (max-width:1200px){.report-grid{grid-template-columns:repeat(3,max-content)}}
+@media (max-width:900px){.report-grid{grid-template-columns:repeat(2,max-content)}}
+@media (max-width:600px){.report-grid{grid-template-columns:max-content}}
+
+.store-report{border:1px solid #e5e7eb;border-radius:6px;overflow:hidden}
+.store-report-title{
+  background:#2f4b66;color:#fff;
+  font-size:13px;font-weight:700;text-align:center;padding:5px 8px;
+}
+.store-report-sub{font-size:11px;font-weight:400;color:#cbd5e1}
+
+table{width:100%;border-collapse:collapse}
+th,td{
+  padding:4px 6px;
+  font-size:12px;
+  border-bottom:1px solid #ddd;
+  text-align:center;
+  white-space:nowrap;
+}
+th{background:#c55a11;color:white;font-weight:700}
+td.oid{font-family:Consolas,monospace;font-size:11.5px}
+.empty-row td{color:#6b7280;font-style:italic}
+
+.footer{text-align:center;font-size:11px;margin-top:8px;color:#333}
+.bottom-disclaimer{
+  text-align:center;
+  font-size:12px;
+  margin-bottom:20px;
+  color:#facc15;
+  font-weight:600;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">Order Report</div>
+
+<div class="container">
+
+<div class="store-grid" id="storeGrid"></div>
+
+<div style="text-align:center;margin:14px 0">
+  <button class="action-btn" onclick="generate()">Generate Report</button>
+  <button class="download-btn" onclick="downloadSingle('report1','Order_Report.png')">Download Report</button>
+  <button class="download-btn" onclick="copyReport()">Copy Top 10 Orders</button>
+  <button class="clear-btn" onclick="clearAll()">Clear All</button>
+</div>
+
+<!-- REPORT -->
+<div id="report1" class="report" style="display:none">
+  <div class="report-title">Mnow Order Pendency Report</div>
+  <div class="report-time" id="time1"></div>
+  <div class="report-grid" id="reportGrid"></div>
+  <div class="footer"><b>Powered by SASA Automation | Zippee</b></div>
+</div>
+
+<div class="bottom-disclaimer">
+  ⚠ On the dispatch screen, open the In Store tab and scroll the order table to the bottom before copying, so every order is included.
+</div>
+
+</div>
+
+<script>
+/* ===== STORES ===== */
+const stores=[
+"Kalyan Nagar Mnow","Basaveshwar Nagar Mnow","Jakkur Mnow","Begur Mnow",
+"Brookfield Mnow","Hulimavu Mnow","Sarjapur Road Mnow",
+"Manikonda Mnow","Gachibowli Mnow","Attapur Mnow","Nizampet Mnow"
+];
+const TOP_N = 10;
+
+const grid=document.getElementById("storeGrid");
+stores.forEach((s,k)=>{
+  grid.innerHTML+=`
+    <div class="store-card">
+      <div class="store-title">${s}</div>
+      <textarea id="in${k}" oninput="updateCount(${k})"></textarea>
+      <div class="store-count" id="cnt${k}">Empty</div>
+    </div>`;
+});
+
+/* ===== PARSER =====
+   Each order in the pasted dispatch screen starts with its Order ID
+   (e.g. MYSHLP0106471953). The first time after it is the Order Time,
+   the next two are the slot start and slot end. */
+const TIME_RE=/^(\d{1,2}):(\d{2})\s*([AP]M)$/i;
+const TIME_G=/\d{1,2}:\d{2}\s*[AP]M/gi;
+const ORDER_RE=/^[A-Z]{4,}\d{6,}$/;
+const STOP=new Set(["In Store","Checked Out","Out for Delivery","Returning to Store","Outside Store Geofence","View Inactive Riders","Rider","Rider skill","Order #"]);
+
+function toMin(t){
+  const m=TIME_RE.exec((t||"").trim());
+  if(!m) return null;
+  let h=+m[1]%12;
+  if(m[3].toUpperCase()==="PM") h+=12;
+  return h*60+ +m[2];
+}
+
+function parseOrders(text){
+  const l=(text||"").split(/\r?\n/).map(x=>x.replace(/\u00a0/g," ").replace(/\s+/g," ").trim()).filter(Boolean);
+  const orders=[], seen=new Set();
+  for(let i=0;i<l.length;i++){
+    if(!ORDER_RE.test(l[i])) continue;
+    const id=l[i];
+    let time=null, j=i+1;
+    while(j<l.length && !ORDER_RE.test(l[j]) && !STOP.has(l[j])){
+      if(!time){
+        const m=l[j].match(TIME_G);
+        if(m) time=m[0].replace(/\s+/," ").toUpperCase();
+      }
+      j++;
+    }
+    if(!seen.has(id)){ seen.add(id); orders.push({id,time,m:toMin(time)}); }
+    i=j-1;
+  }
+  // Ascending: oldest order time first
+  orders.sort((a,b)=>{
+    const x=a.m??99999, y=b.m??99999;
+    return x!==y ? x-y : a.id.localeCompare(b.id);
+  });
+  return orders;
+}
+
+function updateCount(k){
+  const v=document.getElementById("in"+k).value;
+  const el=document.getElementById("cnt"+k);
+  if(!v.trim()){ el.innerText="Empty"; return; }
+  const n=parseOrders(v).length;
+  el.innerText = n ? `${n} orders found` : "No orders found in this text";
+}
+
+function getCurrentTime(){
+  const now=new Date();
+  let h=now.getHours(); const m=now.getMinutes();
+  const ap=h>=12?"PM":"AM"; h=h%12||12;
+  return `${h}:${m<10?"0"+m:m} ${ap}`;
+}
+
+/* ===== GENERATE ===== */
+let lastData=[];
+function generate(){
+  lastData=[];
+  stores.forEach((s,k)=>{
+    const v=document.getElementById("in"+k).value;
+    if(!v.trim()) return;
+    const all=parseOrders(v);
+    lastData.push({store:s,total:all.length,top:all.slice(0,TOP_N)});
+  });
+
+  const rg=document.getElementById("reportGrid");
+  if(!lastData.length){
+    alert("Paste the dispatch screen text into at least one store box.");
+    return;
+  }
+
+  document.getElementById("time1").innerText=`Time: ${getCurrentTime()}`;
+  rg.innerHTML=lastData.map(d=>`
+    <div class="store-report">
+      <div class="store-report-title">${d.store}<br>
+        <span class="store-report-sub">Showing ${d.top.length} of ${d.total} orders</span>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Order ID</th><th>Order Time</th></tr></thead>
+        <tbody>
+          ${d.top.length ? d.top.map((o,n)=>`
+            <tr><td>${n+1}</td><td class="oid">${o.id}</td><td>${o.time||"-"}</td></tr>`).join("")
+          : `<tr class="empty-row"><td colspan="3">No orders found</td></tr>`}
+        </tbody>
+      </table>
+    </div>`).join("");
+
+  document.getElementById("report1").style.display="block";
+}
+
+/* ===== COPY (tab-separated, pastes into Google Sheets) ===== */
+function copyReport(){
+  if(!lastData.length) generate();
+  if(!lastData.length) return;
+  let text="Store\t#\tOrder ID\tOrder Time\n";
+  lastData.forEach(d=>d.top.forEach((o,n)=>{
+    text+=`${d.store}\t${n+1}\t${o.id}\t${o.time||""}\n`;
+  }));
+  navigator.clipboard.writeText(text.trim())
+    .then(()=>alert("Top 10 orders copied."))
+    .catch(()=>alert("Copy failed. Use Download Report instead."));
+}
+
+function clearAll(){
+  if(!confirm("Clear all 11 store boxes?")) return;
+  stores.forEach((s,k)=>{ document.getElementById("in"+k).value=""; updateCount(k); });
+  lastData=[];
+  document.getElementById("report1").style.display="none";
+}
+
+/* ===== DOWNLOAD ===== */
+function downloadSingle(id,name){
+  if(document.getElementById(id).style.display==="none") generate();
+  requestAnimationFrame(()=>{
+    html2canvas(document.getElementById(id),{scale:4,backgroundColor:"#fff"})
+    .then(c=>{
+      const a=document.createElement("a");
+      a.href=c.toDataURL("image/png");
+      a.download=name;
+      a.click();
+    });
+  });
+}
+</script>
+<script>
+/* ------------- SCREENSHOT / COPY DETERRENCE -------------- */
+function temporarilyBlur() {
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.backdropFilter = "blur(18px)";
+    overlay.style.background = "rgba(255,255,255,0.25)";
+    overlay.style.zIndex = "999999";
+    overlay.style.pointerEvents = "none";
+    document.body.appendChild(overlay);
+    setTimeout(()=> overlay.remove(), 1400);
+}
+document.addEventListener("keydown", function(e){
+    if (e.shiftKey && e.metaKey) temporarilyBlur();
+    if (e.shiftKey && e.key.toLowerCase() === "s" && e.target.tagName !== "TEXTAREA") temporarilyBlur();
+});
+document.addEventListener("keydown", function(e){
+    if (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4")) {
+        e.preventDefault(); temporarilyBlur(); alert("Mac screenshot shortcut blocked.");
+    }
+});
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("copy", e => {
+    if (e.target.tagName === "TEXTAREA") return;
+    e.preventDefault(); alert("Copying is disabled on this page.");
+});
+
+/* ------------- ANTI-INSPECT / DEVTOOLS -------------- */
+setInterval(function () {
+  const threshold = 160;
+  if (window.outerWidth - window.innerWidth > threshold ||
+      window.outerHeight - window.innerHeight > threshold) {
+    document.body.innerHTML = "<h2 style='text-align:center;margin-top:40px;'>Dev Tools are not allowed 🚫</h2>";
+  }
+}, 500);
+document.addEventListener("keydown", function(e){
+  if (e.keyCode === 123) e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(e.key)) e.preventDefault();
+  if (e.ctrlKey && ['U','u'].includes(e.key)) e.preventDefault();
+  if (e.ctrlKey && e.shiftKey) e.preventDefault();
+});
+</script>
+
+</body>
+</html>
