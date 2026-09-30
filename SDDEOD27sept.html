@@ -2129,7 +2129,7 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
     <th colspan="${darkstores.length + 1 + extraCol}" style="font-size:22px;padding:18px;
         background:#ffffff;color:#000000;text-align:center;font-weight:800;
         border-bottom:2px solid #dcdcdc;">
-        ZIPPEE &harr; ${esc(brand)} EOD REPORT | ${esc(formattedDate)}
+        ZIPPEE &lt;&gt; ${esc(brand)} EOD REPORT | ${esc(formattedDate)}
     </th>
 </tr>
 
@@ -2467,7 +2467,7 @@ function renderDarkstoreWiseReport(dateVal, baseRows){
 <table class="eod-table">
 <tr>
     <th colspan="10" style="background:#4ea6d8;color:#000;font-size:22px;font-weight:800;">
-        ZIPPEE &harr; DARKSTORE-WISE EOD REPORT | ${esc(formattedDate)}
+        ZIPPEE &lt;&gt; DARKSTORE-WISE EOD REPORT | ${esc(formattedDate)}
     </th>
 </tr>
 <tr>
@@ -2543,7 +2543,7 @@ function renderDarkstoreWiseReport(dateVal, baseRows){
 <table class="eod-table">
 <tr>
     <th colspan="2" style="background:#4ea6d8;color:#000;padding:18px 10px;">
-        <div style="font-size:18px;font-weight:800;white-space:nowrap;">ZIPPEE &harr; UNIQUE RIDER REPORT</div>
+        <div style="font-size:18px;font-weight:800;white-space:nowrap;">ZIPPEE &lt;&gt; UNIQUE RIDER REPORT</div>
         <div style="font-size:14px;font-weight:700;margin-top:6px;">${esc(formattedDate)}</div>
     </th>
 </tr>
@@ -2595,12 +2595,25 @@ function updateDsEodStatusForReport(leftOut, useSheet){
    DOWNLOADS
    ============================================================ */
 
+/* html2canvas can't draw <input> boxes properly (the value is drawn
+   too low and gets clipped). Before taking the picture, swap every
+   input in the cloned copy for plain text showing its value. */
+function inputsToText(clonedDoc){
+    clonedDoc.querySelectorAll("input[type=number]").forEach(inp => {
+        const span = clonedDoc.createElement("span");
+        span.textContent = inp.value !== "" ? inp.value : "0";
+        span.style.fontWeight = "700";
+        span.style.fontSize   = "14px";
+        inp.replaceWith(span);
+    });
+}
+
 function downloadBrandReport(tableId, brand){
 
     const report = document.getElementById(tableId);
     if(!report) return;
 
-    html2canvas(report, { scale:3, useCORS:true, scrollX:0, scrollY:0 })
+    html2canvas(report, { scale:3, useCORS:true, scrollX:0, scrollY:0, onclone:inputsToText })
     .then(canvas => {
         const link = document.createElement("a");
         link.download = String(brand).replace(/[^a-zA-Z0-9]/g,"_") + "_EOD_Report.png";
@@ -2617,7 +2630,7 @@ function downloadPNG(){
     const btns = report.querySelectorAll("button");
     btns.forEach(b => b.style.visibility = "hidden");
 
-    html2canvas(report, { scale:2, useCORS:true })
+    html2canvas(report, { scale:2, useCORS:true, onclone:inputsToText })
     .then(canvas => {
         btns.forEach(b => b.style.visibility = "visible");
         const link = document.createElement("a");
