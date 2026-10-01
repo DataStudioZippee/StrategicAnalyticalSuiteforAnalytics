@@ -186,7 +186,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         <div class="upload-box" style="cursor:default" id="recoBox">
             <div class="upload-icon">📊</div>
             <div><b>Reco Sheet</b></div>
-            <div style="margin-top:4px;font-size:13px">Zilo Reco Sheet — Cash + Static QR</div>
+            <div style="margin-top:4px;font-size:13px">Zilo Reco Sheet — Cash + Blaze QR</div>
             <div class="file-name" id="recoFileName">Fetching…</div>
             <div class="file-meta" id="recoMeta"></div>
             <button type="button" id="recoRetryBtn" class="retry-btn hidden">Retry fetch</button>
@@ -199,10 +199,10 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         <div class="step"><b>1. Stores</b>Malad + Ghatkopar + Vashi</div>
         <div class="step"><b>2. Payment Mode</b>Cash only</div>
         <div class="step"><b>3. Table 1</b>Reference ID → Sum of COD Amount</div>
-        <div class="step"><b>4. Table 2 & 3</b>Order ID → Cash + Static QR, then mismatches ≠ 0</div>
+        <div class="step"><b>4. Table 2 & 3</b>Order ID → Cash + Blaze QR, then mismatches ≠ 0</div>
     </div>
 
-    <div class="note">The three store files are combined into one table: only <b>Payment Mode = Cash</b> is kept, and <b>COD Amount</b> is summed per <b>Reference ID</b>. The Zilo Reco Sheet is fetched automatically from the published Google Sheet. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b> (blank cells count as 0). Table 3 matches each <b>Reference ID</b> from Table 1 to the same <b>Order ID</b> in Table 2 and shows every order where <b>Cash + Static QR − COD Amount ≠ 0</b>. All tables update automatically whenever a file is added or removed.</div>
+    <div class="note">The three store files are combined into one table: only <b>Payment Mode = Cash</b> is kept, and <b>COD Amount</b> is summed per <b>Reference ID</b>. The Zilo Reco Sheet is fetched automatically from the published Google Sheet. It is not filtered and is used to create <b>Order ID → Cash + Blaze QR</b> (blank cells count as 0). Table 3 matches each <b>Reference ID</b> from Table 1 to the same <b>Order ID</b> in Table 2 and shows every order where <b>Cash + Blaze QR − COD Amount ≠ 0</b>. All tables update automatically whenever a file is added or removed.</div>
 
     <div id="status" class="status"></div>
 
@@ -223,7 +223,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
 
     <section id="table2Section" class="hidden">
         <div class="table-header-row">
-            <h3>Table 2: Order ID vs Cash + Static QR</h3>
+            <h3>Table 2: Order ID vs Cash + Blaze QR</h3>
             <div class="table-actions">
                 <button type="button" class="icon-btn" data-act="copy" data-t="2">📋 Copy Table</button>
                 <button type="button" class="icon-btn" data-act="png" data-t="2">🖼️ Download PNG</button>
@@ -246,7 +246,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
             </div>
         </div>
         <div class="note">
-            Difference = Cash + Static QR (Table 2) − COD Amount (Table 1). Only orders where the difference is not 0 are shown.<br><b>Remarks:</b> Cash + Static QR = 0 and Difference &lt; 0 → Order ID Not Found · Difference &lt; 0 → Amount Mismatch · Difference &gt; 0 → Extra Amount
+            Difference = Cash + Blaze QR (Table 2) − COD Amount (Table 1). Orders with a difference above −1 and below +1 (including 0) are removed.<br><b>Remarks:</b> Cash + Blaze QR = 0 and Difference &lt; 0 → Order ID Not Found · Difference &lt; 0 → Amount Mismatch · Difference &gt; 0 → Extra Amount
         </div>
         <div class="note" id="table3Note"></div>
         <div class="table-wrap">
@@ -258,10 +258,10 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         <div class="kpis">
             <div class="kpi"><div class="value" id="kpiStores">0 / 3</div><div class="label">Stores Loaded</div></div>
             <div class="kpi"><div class="value">₹<span id="kpiT1">0</span></div><div class="label">Table 1 — Cash COD</div></div>
-            <div class="kpi"><div class="value">₹<span id="kpiT2">0</span></div><div class="label">Table 2 — Cash + Static QR</div></div>
+            <div class="kpi"><div class="value">₹<span id="kpiT2">0</span></div><div class="label">Table 2 — Cash + Blaze QR</div></div>
         </div>
         <div class="kpis" id="kpis3">
-            <div class="kpi"><div class="value" id="kpiMis">0</div><div class="label">Orders with Difference ≠ 0</div></div>
+            <div class="kpi"><div class="value" id="kpiMis">0</div><div class="label">Orders in Table 3</div></div>
             <div class="kpi"><div class="value" id="kpiMissing">0</div><div class="label">Order ID Not Found</div></div>
             <div class="kpi"><div class="value" id="kpiNet">₹0.00</div><div class="label">Net Difference (Table 3)</div></div>
         </div>
@@ -270,7 +270,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
 </main>
 
 <div class="ticker-bar">
-    <div class="ticker-content">Zippee • Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of Cash + Static QR by Order ID • Data is processed locally in your browser.</div>
+    <div class="ticker-content">Zippee • Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of Cash + Blaze QR by Order ID • Data is processed locally in your browser.</div>
 </div>
 
 <div class="loader-screen" id="loader">
@@ -462,7 +462,7 @@ function loadRecoText(text, sourceLabel){
     rows.forEach(r => {
         const key = String(r[idx.id] ?? "").trim();
         if (!key) { skipped++; return; }
-        items.push({ key, amt: toNum(r[idx.cash]) + toNum(r[idx.qr]) });   // Cash + Static QR (blank = 0)
+        items.push({ key, amt: toNum(r[idx.cash]) + toNum(r[idx.qr]) });   // Cash + Blaze QR (blank = 0)
     });
     recoItems = items;
     recoItems.skipped = skipped;
@@ -556,7 +556,7 @@ function processData(keepStatus){
             if (recoItems) {
                 table2Rows = pivot(recoItems);
                 t2Total = r2(table2Rows.reduce((s,r) => s + r.amt, 0));
-                renderTable("table2", "Order ID", "Cash + Static QR", table2Rows, t2Total);
+                renderTable("table2", "Order ID", "Cash + Blaze QR", table2Rows, t2Total);
                 const notes = [`${table2Rows.length.toLocaleString("en-IN")} Order IDs from ${recoItems.length.toLocaleString("en-IN")} rows · ${recoSource}`];
                 if (recoItems.skipped) notes.push(`${recoItems.skipped.toLocaleString("en-IN")} ${recoItems.skipped === 1 ? "row has" : "rows have"} no Order ID and ${recoItems.skipped === 1 ? "was" : "were"} left out`);
                 document.getElementById("table2Note").innerHTML = notes.map(escapeHTML).join("<br>");
@@ -568,8 +568,8 @@ function processData(keepStatus){
 
             // ---------- TABLE 3 ----------
             // Reference ID (Table 1) is the same key as Order ID (Table 2).
-            // Difference = Cash + Static QR (Table 2) − COD Amount (Table 1); keep only ≠ 0.
-            let missingCount = 0, netDiff = 0;
+            // Difference = Cash + Blaze QR (Table 2) − COD Amount (Table 1); keep only ≠ 0.
+            let missingCount = 0, netDiff = 0, roundCount = 0, roundSum = 0;
             table3Rows = [];
             if (okStores.length && recoItems) {
                 const t2Map = new Map();
@@ -593,8 +593,10 @@ function processData(keepStatus){
                     const received = found ? t2Map.get(k) : 0;
                     const diff = r2(received - r.amt);
                     if (diff === 0) return;
+                    // Ignore small differences above −1 and below +1 (paise rounding)
+                    if (diff > -1 && diff < 1) { roundCount++; roundSum += diff; return; }
                     // Remarks rules (checked in this order):
-                    //   Cash + Static QR = 0 and Difference < 0 → Order ID Not Found
+                    //   Cash + Blaze QR = 0 and Difference < 0 → Order ID Not Found
                     //   Difference < 0                         → Amount Mismatch
                     //   Difference > 0                         → Extra Amount
                     let remark;
@@ -612,12 +614,13 @@ function processData(keepStatus){
                 netDiff = r2(table3Rows.reduce((s, r) => s + r.diff, 0));
 
                 renderTable3(table3Rows);
-                const matchedOk = table1Rows.length - table3Rows.length;
+                const matchedOk = table1Rows.length - table3Rows.length - roundCount;
                 const count = rm => table3Rows.filter(r => r.remark === rm).length;
                 missingCount = count("Order ID Not Found");
                 document.getElementById("table3Note").innerHTML = [
                     `${table3Rows.length.toLocaleString("en-IN")} of ${table1Rows.length.toLocaleString("en-IN")} Reference IDs have a difference · ${matchedOk.toLocaleString("en-IN")} match exactly`,
-                    `Order ID Not Found: ${missingCount.toLocaleString("en-IN")} · Amount Mismatch: ${count("Amount Mismatch").toLocaleString("en-IN")} · Extra Amount: ${count("Extra Amount").toLocaleString("en-IN")}`
+                    `Order ID Not Found: ${missingCount.toLocaleString("en-IN")} · Amount Mismatch: ${count("Amount Mismatch").toLocaleString("en-IN")} · Extra Amount: ${count("Extra Amount").toLocaleString("en-IN")}`,
+                    `Removed ${roundCount.toLocaleString("en-IN")} ${roundCount === 1 ? "order" : "orders"} with a difference above −1 and below +1 (net ${fmt(r2(roundSum))})`
                 ].map(escapeHTML).join("<br>");
                 document.getElementById("table3Section").classList.remove("hidden");
             } else {
@@ -635,7 +638,7 @@ function processData(keepStatus){
             document.getElementById("kpiT1").textContent = fmt(t1Total);
             document.getElementById("kpiT2").textContent = fmt(t2Total);
             document.getElementById("logicText").textContent =
-                "Applied: Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of (Cash + Static QR) by Order ID • Table 3 → Reference ID = Order ID → Difference = (Cash + Static QR) − COD Amount → Remove Difference = 0";
+                "Applied: Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of (Cash + Blaze QR) by Order ID • Table 3 → Reference ID = Order ID → Difference = (Cash + Blaze QR) − COD Amount → Remove Difference above −1 and below +1";
 
             // ---------- Status ----------
             if (!keepStatus) {
@@ -683,7 +686,7 @@ function renderTable3(rows){
         <th>Rider Name</th>
         <th>Reference ID (Table 1)</th>
         <th class="num">COD Amount (Table 1)</th>
-        <th class="num">Cash + Static QR (Table 2)</th>
+        <th class="num">Cash + Blaze QR (Table 2)</th>
         <th class="num">Difference</th>
         <th>Remarks</th>
     </tr></thead><tbody>`;
@@ -712,7 +715,7 @@ function downloadTable3AsExcel(filename, btnEl){
     if(!table3Rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
     const rows = table3Rows;
     const aoa = [
-        ["Darkstore Name", "Delivered Date", "Rider Name", "Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Static QR (Table 2)", "Difference", "Remarks"],
+        ["Darkstore Name", "Delivered Date", "Rider Name", "Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Blaze QR (Table 2)", "Difference", "Remarks"],
         ...rows.map(r => [r.store, r.date, r.rider, r.key, r.cod, r.received, r.diff, r.remark]),
         ["Grand Total", "", "", "",
             r2(rows.reduce((s,r) => s + r.cod, 0)),
@@ -831,7 +834,7 @@ document.querySelectorAll(".icon-btn[data-act]").forEach(btn => {
             if (t === "3") return downloadTable3AsExcel(`Table3_Cash_Collection_Mismatch_${todayStamp()}.xlsx`, btn);
             return t === "1"
                 ? downloadRowsAsExcel(table1Rows, "Reference ID", "COD Amount", "Table 1", `Table1_Cash_COD_by_Reference_${todayStamp()}.xlsx`, btn)
-                : downloadRowsAsExcel(table2Rows, "Order ID", "Cash + Static QR", "Table 2", `Table2_Zilo_Cash_BlazeQR_by_Order_${todayStamp()}.xlsx`, btn);
+                : downloadRowsAsExcel(table2Rows, "Order ID", "Cash + Blaze QR", "Table 2", `Table2_Zilo_Cash_BlazeQR_by_Order_${todayStamp()}.xlsx`, btn);
         }
     });
 });
