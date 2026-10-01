@@ -246,7 +246,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
             </div>
         </div>
         <div class="note">
-            Difference = Cash + Blaze QR (Table 2) − COD Amount (Table 1). Only orders where the difference is not 0 are shown.
+            Difference = Cash + Blaze QR (Table 2) − COD Amount (Table 1). Only orders where the difference is not 0 are shown.<br><b>Remarks:</b> Cash + Blaze QR = 0 and Difference &lt; 0 → Order ID Not Found · Difference &lt; 0 → Amount Mismatch · Difference &gt; 0 → Extra Amount
         </div>
         <div class="note" id="table3Note"></div>
         <div class="table-wrap">
@@ -262,7 +262,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         </div>
         <div class="kpis" id="kpis3">
             <div class="kpi"><div class="value" id="kpiMis">0</div><div class="label">Orders with Difference ≠ 0</div></div>
-            <div class="kpi"><div class="value" id="kpiMissing">0</div><div class="label">Not Found in Table 2</div></div>
+            <div class="kpi"><div class="value" id="kpiMissing">0</div><div class="label">Order ID Not Found</div></div>
             <div class="kpi"><div class="value" id="kpiNet">₹0.00</div><div class="label">Net Difference (Table 3)</div></div>
         </div>
         <div class="note" id="logicText"></div>
@@ -566,8 +566,15 @@ function processData(keepStatus){
                     const received = found ? t2Map.get(k) : 0;
                     const diff = r2(received - r.amt);
                     if (diff === 0) return;
-                    if (!found) missingCount++;
-                    table3Rows.push({ key: r.key, cod: r.amt, received, diff, found });
+                    // Remarks rules (checked in this order):
+                    //   Cash + Blaze QR = 0 and Difference < 0 → Order ID Not Found
+                    //   Difference < 0                         → Amount Mismatch
+                    //   Difference > 0                         → Extra Amount
+                    let remark;
+                    if (received === 0 && diff < 0) remark = "Order ID Not Found";
+                    else if (diff < 0) remark = "Amount Mismatch";
+                    else remark = "Extra Amount";
+                    table3Rows.push({ key: r.key, cod: r.amt, received, diff, found, remark });
                 });
                 // Biggest shortfall first
                 table3Rows.sort((a, b) => a.diff - b.diff);
@@ -575,10 +582,11 @@ function processData(keepStatus){
 
                 renderTable3(table3Rows);
                 const matchedOk = table1Rows.length - table3Rows.length;
-                const amtMismatch = table3Rows.length - missingCount;
+                const count = rm => table3Rows.filter(r => r.remark === rm).length;
+                missingCount = count("Order ID Not Found");
                 document.getElementById("table3Note").innerHTML = [
                     `${table3Rows.length.toLocaleString("en-IN")} of ${table1Rows.length.toLocaleString("en-IN")} Reference IDs have a difference · ${matchedOk.toLocaleString("en-IN")} match exactly`,
-                    `Not found in Table 2: ${missingCount.toLocaleString("en-IN")} · Amount different: ${amtMismatch.toLocaleString("en-IN")}`
+                    `Order ID Not Found: ${missingCount.toLocaleString("en-IN")} · Amount Mismatch: ${count("Amount Mismatch").toLocaleString("en-IN")} · Extra Amount: ${count("Extra Amount").toLocaleString("en-IN")}`
                 ].map(escapeHTML).join("<br>");
                 document.getElementById("table3Section").classList.remove("hidden");
             } else {
@@ -632,6 +640,8 @@ function renderTable(tableId, keyLabel, amtLabel, rows, total){
     document.getElementById(tableId).innerHTML = html;
 }
 
+const REMARK_COLORS = { "Order ID Not Found":"#c0392b", "Amount Mismatch":"#b9600a", "Extra Amount":"#0a7a3d" };
+
 function renderTable3(rows){
     const tCod = r2(rows.reduce((s,r) => s + r.cod, 0));
     const tRec = r2(rows.reduce((s,r) => s + r.received, 0));
@@ -641,9 +651,10 @@ function renderTable3(rows){
         <th class="num">COD Amount (Table 1)</th>
         <th class="num">Cash + Blaze QR (Table 2)</th>
         <th class="num">Difference</th>
+        <th>Remarks</th>
     </tr></thead><tbody>`;
     if (!rows.length) {
-        html += `<tr><td colspan="4" style="text-align:center;color:#0a7a3d;font-weight:700">All orders match. No differences found.</td></tr>`;
+        html += `<tr><td colspan="5" style="text-align:center;color:#0a7a3d;font-weight:700">All orders match. No differences found.</td></tr>`;
     }
     rows.forEach(r => {
         const color = r.diff < 0 ? "#c0392b" : "#0a7a3d";
@@ -652,9 +663,10 @@ function renderTable3(rows){
             <td class="num">${fmt(r.cod)}</td>
             <td class="num">${fmt(r.received)}</td>
             <td class="num" style="color:${color};font-weight:700">${fmt(r.diff)}</td>
+            <td style="color:${REMARK_COLORS[r.remark]};font-weight:700">${escapeHTML(r.remark)}</td>
         </tr>`;
     });
-    html += `<tr class="grand"><td>Grand Total</td><td class="num">${fmt(tCod)}</td><td class="num">${fmt(tRec)}</td><td class="num">${fmt(tDiff)}</td></tr></tbody>`;
+    html += `<tr class="grand"><td>Grand Total</td><td class="num">${fmt(tCod)}</td><td class="num">${fmt(tRec)}</td><td class="num">${fmt(tDiff)}</td><td></td></tr></tbody>`;
     document.getElementById("table3").innerHTML = html;
 }
 
@@ -663,15 +675,15 @@ function downloadTable3AsExcel(filename, btnEl){
     if(!table3Rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
     const rows = table3Rows;
     const aoa = [
-        ["Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Blaze QR (Table 2)", "Difference"],
-        ...rows.map(r => [r.key, r.cod, r.received, r.diff]),
+        ["Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Blaze QR (Table 2)", "Difference", "Remarks"],
+        ...rows.map(r => [r.key, r.cod, r.received, r.diff, r.remark]),
         ["Grand Total",
             r2(rows.reduce((s,r) => s + r.cod, 0)),
             r2(rows.reduce((s,r) => s + r.received, 0)),
-            r2(rows.reduce((s,r) => s + r.diff, 0))]
+            r2(rows.reduce((s,r) => s + r.diff, 0)), ""]
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{wch:42},{wch:20},{wch:24},{wch:16}];
+    ws["!cols"] = [{wch:42},{wch:20},{wch:24},{wch:16},{wch:20}];
     for (let i = 2; i <= aoa.length; i++) {
         ["B","C","D"].forEach(col => { const c = ws[col+i]; if (c) c.z = "#,##0.00"; });
     }
