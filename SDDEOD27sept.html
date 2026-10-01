@@ -163,6 +163,12 @@ tr:hover td{
     font-weight:700;
 }
 
+/* Kapiva "Total" column (class was used but had no style before) */
+.gray{
+    background:#f0f0f0;
+    color:#000000;
+}
+
 .footer{
     text-align:center;
     margin-top:28px;
@@ -515,6 +521,8 @@ input[type=date]{
             <b>Metrics Logic:</b><br><br>
             <b>Report Window</b> = Creation Date after (D-1) &lt;brand's cutoff hour&gt; and up to and including (D) &lt;brand's cutoff hour&gt;.
             Each brand's cutoff hour comes from Column B of the Brand Sheet &mdash; see the window note above, or each report's header below, for the exact time used.<br>
+            <b>Brand Aliases</b> = Brand Name values listed in the built-in alias list (e.g. every Krishna Herbal spelling) are combined into one report,
+            even if that exact spelling is not in the Brand Sheet. They use the cutoff of their group's Brand Sheet row.<br>
             <b>Darkstore Columns</b> (brand-wise reports) = every darkstore in the file appears. Darkstores listed in the Darkstore Sheet are renamed to their Name,
             and darkstores sharing a Name are combined into one column. Darkstores not in the sheet keep their usual label.<br>
             <b>Darkstore-Wise Report</b> = only darkstores listed in the DS EOD tab appear, renamed to their Name; darkstores sharing a Name are merged into one row.
@@ -611,22 +619,29 @@ const PINCODE_SHEET_URL =
 
 /* Fallback cutoff hour (24h clock) used only when:
      - a brand row in the sheet has a missing/invalid Cutoff value, or
-     - a row belongs to a brand that isn't in the sheet at all
+     - a row belongs to a brand that isn't in the sheet at all and has
+       no alias group in the sheet
    (that second case only affects the grand-total summary — brands
    outside the sheet never get their own report table). */
 const DEFAULT_CUTOFF_HOUR = 16;
 
 /* ------------------------------------------------------------
    BRAND ALIASES — merge multiple raw Brand Name values from the
-   file into ONE combined report. Keyed on the SHEET brand name
-   (lowercase); value is the display name used for the merged
-   report. A brand with no entry here just uses its own name.
-   Cutoff is still read per-row from whichever raw brand name that
-   row actually carries, so this merge doesn't affect cutoff logic.
+   file into ONE combined report. Keys are the raw Brand Name
+   (lowercase); value is the display name of the merged report.
+
+   An alias works even if that exact spelling is NOT in the Brand
+   Sheet, as long as at least one Brand Sheet row belongs to the
+   same group (e.g. "Krishna's Hebral & Ayurveda"). A spelling that
+   isn't in the sheet uses the cutoff of its group's sheet row.
+
+   When the brand gets renamed in the system again, add the new
+   spelling here (lowercase).
    ------------------------------------------------------------ */
 const BRAND_ALIASES = {
-    "krishna's hebral & ayurveda": "Krishna Herbal",
-    "sandipani healthcare":        "Krishna Herbal"
+    "krishna's hebral & ayurveda":                        "Krishna Herbal",
+    "sandipani healthcare":                               "Krishna Herbal",
+    "krishna's hebral & ayurveda (sandipani healthcare)": "Krishna Herbal"
 };
 
 function canonicalBrand(name){
@@ -1020,9 +1035,21 @@ function parseAttempts(row){
     return isNaN(n) ? 0 : n;
 }
 
-/* Cutoff hour for a given brand name (falls back to DEFAULT_CUTOFF_HOUR) */
+/* Cutoff hour for a given brand name.
+   1. the brand's own row in the Brand Sheet
+   2. otherwise, if the brand is an alias (e.g. a new Krishna Herbal
+      spelling), the cutoff of a Brand Sheet row in the same group
+   3. otherwise DEFAULT_CUTOFF_HOUR */
 function effectiveCutoff(brandRaw){
-    const c = brandCutoffs.get(String(brandRaw).trim().toLowerCase());
+    const key = String(brandRaw).trim().toLowerCase();
+    let c = brandCutoffs.get(key);
+
+    if(c === undefined){
+        const group = canonicalBrand(brandRaw).toLowerCase();
+        const sibling = allowedBrands.find(b => canonicalBrand(b).toLowerCase() === group);
+        if(sibling) c = brandCutoffs.get(sibling.toLowerCase());
+    }
+
     return (typeof c === "number" && !isNaN(c)) ? c : DEFAULT_CUTOFF_HOUR;
 }
 
@@ -1788,8 +1815,13 @@ document.getElementById("reportDate").addEventListener("change", () => {
     render();
 });
 
+/* Debounced, so pasting/typing a long AWB list doesn't re-run
+   the whole report on every keystroke */
+let awbRenderTimer = null;
 document.getElementById("awbFilter").addEventListener("input", () => {
-    if(fileLoaded) render();
+    if(!fileLoaded) return;
+    clearTimeout(awbRenderTimer);
+    awbRenderTimer = setTimeout(render, 300);
 });
 
 document.getElementById("reloadBrands").addEventListener("click", loadSheets);
@@ -1980,7 +2012,8 @@ function render(){
         : null;
 
     /* Each row is filtered against its OWN brand's cutoff window
-       (falls back to DEFAULT_CUTOFF_HOUR for brands not in the sheet).
+       (alias brands use their group's cutoff; anything else not in
+       the sheet falls back to DEFAULT_CUTOFF_HOUR).
        Exception: for the two Krishna Herbal warehouse darkstores, when
        an AWB list is pasted, matching is by AWB number only and the
        cutoff window is skipped entirely for those rows. */
@@ -1996,6 +2029,13 @@ function render(){
         const win = getWindow(effectiveCutoff(r.brand));
         return r.created > win.start && r.created <= win.end;
     });
+
+    /* AWBs pasted in the box that were not found in the file at all */
+    let awbNotFound = [];
+    if(awbSet){
+        const fileAwbs = new Set(baseRows.map(r => r.awb));
+        awbNotFound = [...awbSet].filter(a => !fileAwbs.has(a));
+    }
 
     const formattedDate = fmtDMYFromISO(dateVal);
 
@@ -2058,13 +2098,29 @@ function render(){
     const brandToGroup = new Map();
     allowedBrands.forEach(b => brandToGroup.set(b.toLowerCase(), canonicalBrand(b)));
 
+    /* Alias spellings that are NOT in the Brand Sheet still join their
+       group's report, as long as the group itself is in the sheet.
+       (Fixes "Krishna's Hebral & Ayurveda (SANDIPANI HEALTHCARE)"
+       being dropped from the Krishna Herbal report.) */
+    Object.entries(BRAND_ALIASES).forEach(([rawKey, group]) => {
+        if(!brandToGroup.has(rawKey) && groupSeen.has(group.toLowerCase())){
+            const display = reportGroups.find(g => g.toLowerCase() === group.toLowerCase());
+            brandToGroup.set(rawKey, display);
+        }
+    });
+
     const brandStats = {};
     reportGroups.forEach(g => brandStats[g] = {});
+
+    const unlistedBrands = new Map(); // brand in window but not in sheet/aliases -> order count
 
     rows.forEach(r => {
 
         const group = brandToGroup.get(r.brand.toLowerCase());
-        if(!group) return;
+        if(!group){
+            if(r.brand) unlistedBrands.set(r.brand, (unlistedBrands.get(r.brand) || 0) + 1);
+            return;
+        }
 
         const store = brandStats[group];
         const dsKey = brandDarkstoreGroupKey(r.darkstore, group);
@@ -2323,9 +2379,30 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
         cls = "warn";
     }
 
+    if(awbSet){
+        msg += "<br>AWB box: <b>" + awbSet.size + "</b> AWB(s) pasted";
+        if(awbNotFound.length){
+            msg += ", <b>" + awbNotFound.length + "</b> not found in the file: " +
+                   esc(awbNotFound.slice(0, 20).join(", ")) +
+                   (awbNotFound.length > 20 ? " &hellip;" : "");
+            cls = "warn";
+        } else {
+            msg += ", all found in the file.";
+        }
+    }
+
     if(emptyBrands.length){
         msg += "<br>No orders in this window for: <b>" +
                esc(emptyBrands.join(", ")) + "</b>";
+        cls = "warn";
+    }
+
+    if(unlistedBrands.size){
+        const list = [...unlistedBrands].sort((a, b) => b[1] - a[1])
+            .map(([b, n]) => esc(b) + " (" + n + ")");
+        msg += "<br>Brand names in this window that are NOT in the Brand Sheet or the alias list " +
+               "(not in any brand report &mdash; add them to the sheet if they should be): " +
+               list.join(", ");
         cls = "warn";
     }
 
