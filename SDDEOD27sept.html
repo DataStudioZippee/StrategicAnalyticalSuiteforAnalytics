@@ -474,7 +474,7 @@ input[type=date]{
                 </label>
                 <input type="file" id="kapivaFileInput" accept=".xlsx,.xls,.csv" multiple>
                 <div class="window-note" style="margin-top:8px;font-size:12px;">
-                    Uses a 4:00 PM &rarr; 4:00 PM window on the Created column, removes excluded Shipping Address Pincodes and rows where Sale Order Status or
+                    Uses a 4:00 PM &rarr; 4:00 PM window on the Created column, removes excluded Billing Address Pincodes and rows where Sale Order Status or
                     Sale Order Item Status is CANCELLED, then counts unique Display Order Codes per Facility.
                     Selecting files again replaces the previous set.
                 </div>
@@ -529,7 +529,7 @@ input[type=date]{
             Rows follow the order of the DS EOD tab. Uses a fixed 4:00 PM &rarr; 4:00 PM window for every brand.<br>
             <b>Test Orders</b> = any row whose Darkstore or Brand Name starts or ends with "test" (any case) is removed from every report.<br>
             <b>Excluded Pincodes</b> = every pincode in the Pincode Sheet is removed from both uploads
-            &mdash; Delivery Pincode in the shipment file and Shipping Address Pincode in the Kapiva order files &mdash; before any count.<br>
+            &mdash; Delivery Pincode in the shipment file and Billing Address Pincode in the Kapiva order files &mdash; before any count.<br>
             <b>Total Orders</b> = Count of all rows/orders in the window<br>
             <b>Kapiva Total Orders</b> = from the Kapiva order files: Created after (D-1) 4:00 PM and up to and including (D) 4:00 PM,
             excluding CANCELLED in Sale Order Status or Sale Order Item Status, counted as unique Display Order Codes per Facility.
@@ -613,7 +613,7 @@ const DS_EOD_SHEET_EDIT_URL =
 /* Excluded pincodes sheet (tab "Pincode"): Column A = City (for
    reference only), Column B = Pincode. Every pincode here is removed
    from BOTH uploads: "Delivery Pincode" in the shipment file and
-   "Shipping Address Pincode" in the Kapiva order files. */
+   "Billing Address Pincode" in the Kapiva order files. */
 const PINCODE_SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=890855388&single=true&output=csv";
 
@@ -711,8 +711,12 @@ const KAPIVA_ORDERS_CUTOFF_HOUR = 16;
 const KAPIVA_REQUIRED_COLUMNS = [
     "Created", "Facility", "Display Order Code",
     "Sale Order Status", "Sale Order Item Status",
-    "Shipping Address Pincode"
+    "Billing Address Pincode"
 ];
+
+/* Pincode column in the Kapiva order files that is checked against
+   the Pincode sheet. */
+const KAPIVA_PINCODE_COLUMN = "Billing Address Pincode";
 
 /* Facility value in the order files -> Kapiva report column
    (the Name from the Darkstore sheet). Matched case-insensitively. */
@@ -1299,7 +1303,7 @@ async function handleKapivaFiles(e){
                 displayCode: cleanCell(row[col("Display Order Code")]),
                 soStatus:    cleanCell(row[col("Sale Order Status")]).toUpperCase(),
                 soiStatus:   cleanCell(row[col("Sale Order Item Status")]).toUpperCase(),
-                pincode:     normPincode(row[col("Shipping Address Pincode")])
+                pincode:     normPincode(row[col(KAPIVA_PINCODE_COLUMN)])
             }));
 
             info.push({ name:file.name, rows:json.length });
@@ -1715,7 +1719,7 @@ async function loadPincodes(){
         let msg = "<b>" + pins.size + " pincode(s)</b> excluded from the Pincode sheet" +
                   (byCity.size ? ": " + [...byCity].map(([c, n]) => esc(c) + " " + n).join(", ") : "") +
                   "." +
-                  "<br>Removed from Delivery Pincode (shipment file) and Shipping Address Pincode (Kapiva order files).";
+                  "<br>Removed from Delivery Pincode (shipment file) and Billing Address Pincode (Kapiva order files).";
         let cls = "ok";
 
         if(invalid.length){
