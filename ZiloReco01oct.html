@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zippee <> Zilo Reconciliation Report</title>
+<style>
+:root{
+    --zippee-primary:#00305E;
+    --zippee-secondary:#0078D4;
+    --text-dark:#1d2a38;
+    --card-bg:rgba(255,255,255,.15);
+}
+body.dark{
+    --zippee-primary:#dce9ff;
+    --text-dark:#f5f5f5;
+    --card-bg:rgba(0,0,0,.35);
+    background:#0b1320 !important;
+}
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:"Segoe UI",sans-serif;
+    background:linear-gradient(135deg,#dcecff,#f5f9ff 45%,#d8ecff);
+    min-height:100vh;
+    overflow-x:hidden;
+}
+body::before{
+    content:""; position:fixed; inset:0;
+    background:rgba(255,255,255,.25);
+    z-index:-1;
+}
+.header-main{
+    background:rgba(0,48,94,.92);
+    color:white; position:fixed; top:0; width:100%;
+    padding:10px 8px; display:flex; justify-content:center;
+    align-items:center; gap:10px; z-index:20;
+}
+h1{margin:0;font-size:22px}
+.container{
+    margin:100px auto 70px auto; width:92%; max-width:1100px;
+    padding:26px 22px; border-radius:18px;
+    background:var(--card-bg); backdrop-filter:blur(10px);
+    box-shadow:0 8px 30px rgba(0,0,0,.2); color:var(--text-dark);
+}
+.hero{text-align:center;margin-bottom:18px}
+.hero h2{margin:4px 0;font-size:25px;color:var(--zippee-primary)}
+.hero p{margin:5px 0 15px}
+.upload-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:10px
+}
+.upload-box{
+    border:2px dashed #0078D4; border-radius:16px;
+    padding:28px 15px; background:rgba(255,255,255,.48);
+    text-align:center; cursor:pointer; transition:.2s;
+    display:flex; flex-direction:column; color:#1d2a38;
+}
+.upload-box:hover{transform:translateY(-2px);background:rgba(255,255,255,.65)}
+.upload-box.drag{background:rgba(0,120,212,.18)}
+.upload-box.loaded{border-style:solid;border-color:#0a7a3d}
+.upload-box.failed{border-color:#c0392b}
+.upload-box input{display:none}
+.upload-icon{font-size:34px}
+.file-name{font-weight:700;margin-top:8px;word-break:break-all}
+.file-meta{font-size:12px;margin-top:4px;color:#5a6b7d}
+.remove-link{margin-top:8px;font-size:12px;color:#c0392b;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;align-self:center}
+.button-group{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:18px 0}
+.steps{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;
+}
+.step{
+    background:rgba(255,255,255,.55);border-radius:12px;padding:13px;
+    box-shadow:0 4px 12px rgba(0,0,0,.12);font-size:13px;color:#1d2a38;
+}
+.step b{display:block;color:#00305E;margin-bottom:5px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+.kpi{
+    background:rgba(255,255,255,.62);border-radius:14px;padding:16px;text-align:center;
+    box-shadow:0 5px 15px rgba(0,0,0,.13);color:#1d2a38;
+}
+.kpi .value{font-size:25px;font-weight:800;color:#00305E}
+.kpi .label{font-size:12px;margin-top:4px}
+.status{text-align:center;font-weight:700;margin:12px}
+.status.error{color:#c0392b}
+.table-wrap{overflow:auto;border-radius:12px;background:rgba(255,255,255,.7);max-height:430px;color:#1d2a38}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:8px 10px;border-bottom:1px solid #d8e2ec;white-space:nowrap;text-align:left}
+th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
+td.num,th.num{text-align:right}
+tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bottom:0}
+.hidden{display:none !important}
+.note{
+    background:rgba(0,120,212,.10);padding:11px 14px;border-radius:10px;
+    font-size:13px;margin-top:12px
+}
+.toggle-dark{
+    position:fixed;top:10px;right:15px;background:white;border:0;
+    border-radius:50px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:50;
+}
+.table-header-row{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;margin-bottom:4px;margin-top:22px;
+}
+.table-header-row h3{margin:0}
+.table-actions{display:flex;gap:8px;flex-wrap:wrap}
+.icon-btn{
+    border:1px solid #b9d7f4;background:#fff;color:#00305E;
+    padding:6px 12px;border-radius:8px;font-size:12.5px;font-weight:700;
+    cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px;
+    min-width:auto;
+}
+.icon-btn:hover{background:#eaf4ff;transform:translateY(-1px)}
+.icon-btn:active{transform:translateY(0)}
+.retry-btn{margin-top:12px;border:none;border-radius:8px;background:#00305E;color:#fff;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;align-self:center}
+.manual-link{margin-top:8px;font-size:12px;color:#00305E;text-decoration:underline;cursor:pointer}
+.ticker-bar{
+    position:fixed;bottom:0;width:100%;background:rgba(0,48,94,.94);
+    color:white;padding:7px 0;overflow:hidden;z-index:5;font-size:12px
+}
+.ticker-content{white-space:nowrap;display:inline-block;padding-left:100%;animation:marq 35s linear infinite}
+@keyframes marq{to{transform:translateX(-100%)}}
+.loader-screen{
+    position:fixed;inset:0;background:#001c38;color:white;display:none;
+    flex-direction:column;justify-content:center;align-items:center;z-index:999
+}
+.spinner{width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:900px){
+    .upload-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:700px){
+    .steps,.kpis{grid-template-columns:1fr 1fr}
+}
+@media(max-width:500px){
+    .upload-grid,.steps,.kpis{grid-template-columns:1fr}
+    .container{width:96%;padding:20px 12px}
+}
+</style>
+</head>
+<body>
+<button class="toggle-dark" onclick="document.body.classList.toggle('dark')">☾ Dark</button>
+
+<header class="header-main">
+    <div style="font-size:26px">⚡</div>
+    <h1>Zippee &lt;&gt; Zilo Reconciliation Report</h1>
+</header>
+
+<main class="container">
+    <section class="hero">
+        <h2>Cash Collection Report</h2>
+        <p>Upload the COD collection report for each store. The Zilo Reco Sheet is fetched automatically.</p>
+    </section>
+
+    <div class="upload-grid">
+        <label class="upload-box" for="file-Malad" data-store="Malad">
+            <div class="upload-icon">🏬</div>
+            <div><b>Malad</b></div>
+            <div style="margin-top:4px;font-size:13px">COD orders collection report</div>
+            <div class="file-name">No file selected</div>
+            <div class="file-meta"></div>
+            <input id="file-Malad" type="file" accept=".csv,text/csv">
+        </label>
+
+        <label class="upload-box" for="file-Ghatkopar" data-store="Ghatkopar">
+            <div class="upload-icon">🏬</div>
+            <div><b>Ghatkopar</b></div>
+            <div style="margin-top:4px;font-size:13px">COD orders collection report</div>
+            <div class="file-name">No file selected</div>
+            <div class="file-meta"></div>
+            <input id="file-Ghatkopar" type="file" accept=".csv,text/csv">
+        </label>
+
+        <label class="upload-box" for="file-Vashi" data-store="Vashi">
+            <div class="upload-icon">🏬</div>
+            <div><b>Vashi</b></div>
+            <div style="margin-top:4px;font-size:13px">COD orders collection report</div>
+            <div class="file-name">No file selected</div>
+            <div class="file-meta"></div>
+            <input id="file-Vashi" type="file" accept=".csv,text/csv">
+        </label>
+
+        <div class="upload-box" style="cursor:default" id="recoBox">
+            <div class="upload-icon">📊</div>
+            <div><b>Reco Sheet</b></div>
+            <div style="margin-top:4px;font-size:13px">Zilo Reco Sheet — Cash + Blaze QR</div>
+            <div class="file-name" id="recoFileName">Fetching…</div>
+            <div class="file-meta" id="recoMeta"></div>
+            <button type="button" id="recoRetryBtn" class="retry-btn hidden">Retry fetch</button>
+            <label class="manual-link hidden" id="recoManual" for="recoFile">or upload the sheet CSV</label>
+            <input id="recoFile" type="file" accept=".csv,text/csv" style="display:none">
+        </div>
+    </div>
+
+    <div class="steps">
+        <div class="step"><b>1. Stores</b>Malad + Ghatkopar + Vashi</div>
+        <div class="step"><b>2. Payment Mode</b>Cash only</div>
+        <div class="step"><b>3. Table 1</b>Reference ID → Sum of COD Amount</div>
+        <div class="step"><b>4. Table 2 & 3</b>Order ID → Cash + Blaze QR, then mismatches ≠ 0</div>
+    </div>
+
+    <div class="note">The three store files are combined into one table: only <b>Payment Mode = Cash</b> is kept, and <b>COD Amount</b> is summed per <b>Reference ID</b>. The Zilo Reco Sheet is fetched automatically from the published Google Sheet. It is not filtered and is used to create <b>Order ID → Cash + Blaze QR</b> (blank cells count as 0). Table 3 matches each <b>Reference ID</b> from Table 1 to the same <b>Order ID</b> in Table 2 and shows every order where <b>Cash + Blaze QR − COD Amount ≠ 0</b>. All tables update automatically whenever a file is added or removed.</div>
+
+    <div id="status" class="status"></div>
+
+    <section id="table1Section" class="hidden">
+        <div class="table-header-row">
+            <h3>Table 1: Reference ID vs Cash COD Amount</h3>
+            <div class="table-actions">
+                <button type="button" class="icon-btn" data-act="copy" data-t="1">📋 Copy Table</button>
+                <button type="button" class="icon-btn" data-act="png" data-t="1">🖼️ Download PNG</button>
+                <button type="button" class="icon-btn" data-act="xlsx" data-t="1">📊 Download Excel</button>
+            </div>
+        </div>
+        <div class="note" id="table1Note"></div>
+        <div class="table-wrap">
+            <table id="table1"></table>
+        </div>
+    </section>
+
+    <section id="table2Section" class="hidden">
+        <div class="table-header-row">
+            <h3>Table 2: Order ID vs Cash + Blaze QR</h3>
+            <div class="table-actions">
+                <button type="button" class="icon-btn" data-act="copy" data-t="2">📋 Copy Table</button>
+                <button type="button" class="icon-btn" data-act="png" data-t="2">🖼️ Download PNG</button>
+                <button type="button" class="icon-btn" data-act="xlsx" data-t="2">📊 Download Excel</button>
+            </div>
+        </div>
+        <div class="note" id="table2Note"></div>
+        <div class="table-wrap">
+            <table id="table2"></table>
+        </div>
+    </section>
+
+    <section id="table3Section" class="hidden">
+        <div class="table-header-row">
+            <h3>Table 3: Cash Collection Mismatch</h3>
+            <div class="table-actions">
+                <button type="button" class="icon-btn" data-act="copy" data-t="3">📋 Copy Table</button>
+                <button type="button" class="icon-btn" data-act="png" data-t="3">🖼️ Download PNG</button>
+                <button type="button" class="icon-btn" data-act="xlsx" data-t="3">📊 Download Excel</button>
+            </div>
+        </div>
+        <div class="note">
+            Difference = Cash + Blaze QR (Table 2) − COD Amount (Table 1). Only orders where the difference is not 0 are shown.
+        </div>
+        <div class="note" id="table3Note"></div>
+        <div class="table-wrap">
+            <table id="table3"></table>
+        </div>
+    </section>
+
+    <section id="results" class="hidden">
+        <div class="kpis">
+            <div class="kpi"><div class="value" id="kpiStores">0 / 3</div><div class="label">Stores Loaded</div></div>
+            <div class="kpi"><div class="value">₹<span id="kpiT1">0</span></div><div class="label">Table 1 — Cash COD</div></div>
+            <div class="kpi"><div class="value">₹<span id="kpiT2">0</span></div><div class="label">Table 2 — Cash + Blaze QR</div></div>
+        </div>
+        <div class="kpis" id="kpis3">
+            <div class="kpi"><div class="value" id="kpiMis">0</div><div class="label">Orders with Difference ≠ 0</div></div>
+            <div class="kpi"><div class="value" id="kpiMissing">0</div><div class="label">Not Found in Table 2</div></div>
+            <div class="kpi"><div class="value" id="kpiNet">₹0.00</div><div class="label">Net Difference (Table 3)</div></div>
+        </div>
+        <div class="note" id="logicText"></div>
+    </section>
+</main>
+
+<div class="ticker-bar">
+    <div class="ticker-content">Zippee • Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of Cash + Blaze QR by Order ID • Data is processed locally in your browser.</div>
+</div>
+
+<div class="loader-screen" id="loader">
+    <div class="spinner"></div>
+    <b>Processing data...</b>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+// Published Google Sheet (Zilo Reco Sheet) — CSV export link.
+const RECO_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvJpRq8jgxs1oEONygmRPwY_47EZ4Ywae28_PIrE5Rg4ZYLg7tq5Pu2Johesal8g5BQgNPbidwusRd/pub?gid=0&single=true&output=csv";
+
+const STORES = ["Malad", "Ghatkopar", "Vashi"];
+const storeData = {};     // store -> { fileName, size, items:[{key, amt}], total, allRows } | { fileName, error }
+let recoItems = null;     // [{key, amt}] from the Zilo Reco Sheet
+let recoSource = "";
+let table1Rows = [];      // [{key, amt}] — final pivot
+let table2Rows = [];
+let table3Rows = [];      // [{key, cod, received, diff, found}] — mismatches only
+let recoFetchInProgress = false;
+
+const statusEl = document.getElementById("status");
+const recoFileName = document.getElementById("recoFileName");
+const recoMeta = document.getElementById("recoMeta");
+const recoRetryBtn = document.getElementById("recoRetryBtn");
+const recoManual = document.getElementById("recoManual");
+
+// ---------- helpers ----------
+function parseCSV(text) {
+    const out=[]; let row=[], cell="", quoted=false;
+    for(let i=0;i<text.length;i++){
+        const c=text[i], n=text[i+1];
+        if(c === '"' && quoted && n === '"'){cell+='"';i++;continue;}
+        if(c === '"'){quoted=!quoted;continue;}
+        if(c === ',' && !quoted){row.push(cell);cell="";continue;}
+        if((c === '\n' || c === '\r') && !quoted){
+            if(c === '\r' && n === '\n') i++;
+            row.push(cell); cell="";
+            if(row.some(x=>x!=="")) out.push(row);
+            row=[]; continue;
+        }
+        cell+=c;
+    }
+    if(cell!=="" || row.length){row.push(cell); if(row.some(x=>x!=="")) out.push(row);}
+    return out;
+}
+function cleanHeader(h){ return String(h ?? "").replace(/\uFEFF/g,"").replace(/\u00A0/g," ").trim().replace(/\s+/g," ").toLowerCase(); }
+function normalize(v){ return String(v ?? "").trim().toLowerCase(); }
+function toNum(v){ const n = Number(String(v ?? "").replace(/[₹,\s]/g,"")); return Number.isFinite(n) ? n : 0; }
+function r2(n){ return Math.round(n*100)/100; }
+function fmt(n){ return n.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function escapeHTML(v){
+    return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function setStatus(text, isError){
+    statusEl.textContent = text;
+    statusEl.classList.toggle("error", !!isError);
+}
+function todayStamp(){
+    const d = new Date();
+    return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
+}
+
+// Parse CSV text into { headerMap, rows } and confirm required columns exist.
+function readTable(text, required, label){
+    if (/^\s*<(!doctype|html)/i.test(text)) {
+        throw new Error(label + " returned a web page instead of CSV. Check that the sheet is still published to the web as CSV.");
+    }
+    const parsed = parseCSV(text);
+    if (parsed.length < 2) throw new Error(label + " has no data rows.");
+    const headers = parsed[0];
+    const idx = {};
+    const missing = [];
+    for (const [k, name] of Object.entries(required)) {
+        const i = headers.findIndex(h => cleanHeader(h) === cleanHeader(name));
+        if (i === -1) missing.push(name); else idx[k] = i;
+    }
+    if (missing.length) {
+        throw new Error(label + " is missing: " + missing.join(", ") + ". Columns found: " + headers.filter(Boolean).join(", "));
+    }
+    return { idx, rows: parsed.slice(1) };
+}
+
+// Sum amounts per key → [{key, amt}] sorted by amount, highest first.
+function pivot(items){
+    const map = new Map();
+    items.forEach(({key, amt}) => map.set(key, (map.get(key) || 0) + amt));
+    return Array.from(map, ([key, amt]) => ({ key, amt: r2(amt) })).sort((a,b) => b.amt - a.amt);
+}
+
+// ---------- Store uploads (Table 1 inputs) ----------
+document.querySelectorAll(".upload-box[data-store]").forEach(box => {
+    const store = box.dataset.store;
+    const input = box.querySelector("input");
+
+    input.addEventListener("change", async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        await loadStoreFile(store, file);
+        input.value = "";
+    });
+    box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("drag"); });
+    box.addEventListener("dragleave", () => box.classList.remove("drag"));
+    box.addEventListener("drop", async e => {
+        e.preventDefault();
+        box.classList.remove("drag");
+        const file = e.dataTransfer.files[0];
+        if (!file || !file.name.toLowerCase().endsWith(".csv")) return;
+        await loadStoreFile(store, file);
+    });
+});
+
+async function loadStoreFile(store, file){
+    try {
+        const text = await file.text();
+        const { idx, rows } = readTable(text, { ref:"Reference ID", mode:"Payment Mode", amt:"COD Amount" }, store + " file");
+        const items = [];
+        let total = 0;
+        rows.forEach(r => {
+            if (normalize(r[idx.mode]) !== "cash") return;          // Filter: Payment Mode = cash only
+            const key = String(r[idx.ref] ?? "").trim();             // Row: Reference ID
+            if (!key) return;
+            const amt = toNum(r[idx.amt]);                          // Value: COD Amount
+            items.push({ key, amt });
+            total += amt;
+        });
+        storeData[store] = { fileName: file.name, size: file.size, items, total, allRows: rows.length };
+    } catch (err) {
+        storeData[store] = { fileName: file.name, error: err.message };
+    }
+    renderStoreBox(store);
+    processData();
+}
+
+function renderStoreBox(store){
+    const box = document.querySelector(`.upload-box[data-store="${store}"]`);
+    const s = storeData[store];
+    const nameEl = box.querySelector(".file-name");
+    const metaEl = box.querySelector(".file-meta");
+    box.classList.remove("loaded","failed");
+    const oldRemove = box.querySelector(".remove-link");
+    if (oldRemove) oldRemove.remove();
+
+    if (!s) { nameEl.textContent = "No file selected"; metaEl.textContent = ""; return; }
+
+    nameEl.textContent = s.fileName;
+    if (s.error) {
+        box.classList.add("failed");
+        metaEl.innerHTML = `<span style="color:#c0392b">${escapeHTML(s.error)}</span>`;
+    } else {
+        box.classList.add("loaded");
+        metaEl.textContent = `${s.items.length.toLocaleString("en-IN")} cash of ${s.allRows.toLocaleString("en-IN")} orders · ₹${fmt(s.total)}`;
+    }
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "remove-link";
+    rm.textContent = "Remove file";
+    rm.addEventListener("click", e => {
+        e.preventDefault(); e.stopPropagation();
+        delete storeData[store];
+        renderStoreBox(store);
+        processData();
+    });
+    box.appendChild(rm);
+}
+
+// ---------- Zilo Reco Sheet (Table 2 input) — fetched automatically ----------
+function loadRecoText(text, sourceLabel){
+    const { idx, rows } = readTable(text, { id:"Order ID", cash:"Cash", qr:"Blaze QR" }, "Zilo Reco Sheet");
+    const items = [];
+    let skipped = 0;
+    rows.forEach(r => {
+        const key = String(r[idx.id] ?? "").trim();
+        if (!key) { skipped++; return; }
+        items.push({ key, amt: toNum(r[idx.cash]) + toNum(r[idx.qr]) });   // Cash + Blaze QR (blank = 0)
+    });
+    recoItems = items;
+    recoItems.skipped = skipped;
+    recoSource = sourceLabel;
+    recoFileName.textContent = `${rows.length.toLocaleString("en-IN")} rows loaded`;
+    recoMeta.textContent = sourceLabel + " · " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+    recoRetryBtn.classList.add("hidden");
+    recoManual.classList.add("hidden");
+    document.getElementById("recoBox").classList.remove("failed");
+    document.getElementById("recoBox").classList.add("loaded");
+}
+
+async function fetchRecoData(){
+    if (recoFetchInProgress) return;
+    recoFetchInProgress = true;
+    recoRetryBtn.classList.add("hidden");
+    recoManual.classList.add("hidden");
+    recoFileName.textContent = "Fetching…";
+    recoMeta.textContent = "";
+    setStatus("Fetching the Zilo Reco Sheet from Google Sheets…");
+
+    try {
+        const res = await fetch(RECO_SHEET_CSV_URL, { cache: "no-store" });
+        if (!res.ok) {
+            throw new Error(`Google Sheet request failed (HTTP ${res.status}). Make sure the sheet is still published to the web as CSV.`);
+        }
+        loadRecoText(await res.text(), "Fetched from Google Sheet");
+        processData();
+    } catch (err) {
+        recoItems = null;
+        const msg = err instanceof TypeError
+            ? "Couldn't reach the Google Sheet. Check your internet connection and that the sheet is published, then retry."
+            : err.message;
+        recoFileName.textContent = "Fetch failed";
+        recoMeta.textContent = "";
+        recoRetryBtn.classList.remove("hidden");
+        recoManual.classList.remove("hidden");
+        document.getElementById("recoBox").classList.remove("loaded");
+        document.getElementById("recoBox").classList.add("failed");
+        setStatus("Error fetching the Zilo Reco Sheet: " + msg, true);
+        processData(true);
+    } finally {
+        recoFetchInProgress = false;
+    }
+}
+
+recoRetryBtn.addEventListener("click", () => fetchRecoData());
+document.getElementById("recoFile").addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+        loadRecoText(await file.text(), file.name);
+        processData();
+    } catch (err) {
+        setStatus("Error reading " + file.name + ": " + err.message, true);
+    }
+    e.target.value = "";
+});
+
+// ---------- Build both tables ----------
+function processData(keepStatus){
+    document.getElementById("loader").style.display = "flex";
+    setTimeout(() => {
+        try {
+            const okStores = STORES.filter(s => storeData[s] && !storeData[s].error);
+            const failedStores = STORES.filter(s => storeData[s] && storeData[s].error);
+
+            // ---------- TABLE 1 ----------
+            const t1Items = okStores.flatMap(s => storeData[s].items);
+            table1Rows = pivot(t1Items);
+            const t1Total = r2(table1Rows.reduce((s,r) => s + r.amt, 0));
+
+            if (okStores.length) {
+                renderTable("table1", "Reference ID", "COD Amount", table1Rows, t1Total);
+                const notes = [`${table1Rows.length.toLocaleString("en-IN")} Reference IDs from ${t1Items.length.toLocaleString("en-IN")} cash orders · Stores: ${okStores.join(", ")}`];
+                const notLoaded = STORES.filter(s => !okStores.includes(s));
+                if (notLoaded.length) notes.push(`Not included yet: ${notLoaded.join(", ")}`);
+                // Same file added to two stores?
+                const sigs = {};
+                okStores.forEach(s => { const k = storeData[s].fileName + "|" + storeData[s].size; (sigs[k] = sigs[k] || []).push(s); });
+                Object.values(sigs).filter(a => a.length > 1).forEach(a =>
+                    notes.push(`⚠️ ${a.join(" and ")} have the same file, so those amounts are counted twice. Remove one and add the right file.`));
+                document.getElementById("table1Note").innerHTML = notes.map(escapeHTML).join("<br>");
+                document.getElementById("table1Section").classList.remove("hidden");
+            } else {
+                document.getElementById("table1Section").classList.add("hidden");
+            }
+
+            // ---------- TABLE 2 ----------
+            let t2Total = 0;
+            if (recoItems) {
+                table2Rows = pivot(recoItems);
+                t2Total = r2(table2Rows.reduce((s,r) => s + r.amt, 0));
+                renderTable("table2", "Order ID", "Cash + Blaze QR", table2Rows, t2Total);
+                const notes = [`${table2Rows.length.toLocaleString("en-IN")} Order IDs from ${recoItems.length.toLocaleString("en-IN")} rows · ${recoSource}`];
+                if (recoItems.skipped) notes.push(`${recoItems.skipped.toLocaleString("en-IN")} ${recoItems.skipped === 1 ? "row has" : "rows have"} no Order ID and ${recoItems.skipped === 1 ? "was" : "were"} left out`);
+                document.getElementById("table2Note").innerHTML = notes.map(escapeHTML).join("<br>");
+                document.getElementById("table2Section").classList.remove("hidden");
+            } else {
+                table2Rows = [];
+                document.getElementById("table2Section").classList.add("hidden");
+            }
+
+            // ---------- TABLE 3 ----------
+            // Reference ID (Table 1) is the same key as Order ID (Table 2).
+            // Difference = Cash + Blaze QR (Table 2) − COD Amount (Table 1); keep only ≠ 0.
+            let missingCount = 0, netDiff = 0;
+            table3Rows = [];
+            if (okStores.length && recoItems) {
+                const t2Map = new Map();
+                table2Rows.forEach(r => t2Map.set(normalize(r.key), r.amt));
+
+                table1Rows.forEach(r => {
+                    const k = normalize(r.key);
+                    const found = t2Map.has(k);
+                    const received = found ? t2Map.get(k) : 0;
+                    const diff = r2(received - r.amt);
+                    if (diff === 0) return;
+                    if (!found) missingCount++;
+                    table3Rows.push({ key: r.key, cod: r.amt, received, diff, found });
+                });
+                // Biggest shortfall first
+                table3Rows.sort((a, b) => a.diff - b.diff);
+                netDiff = r2(table3Rows.reduce((s, r) => s + r.diff, 0));
+
+                renderTable3(table3Rows);
+                const matchedOk = table1Rows.length - table3Rows.length;
+                const amtMismatch = table3Rows.length - missingCount;
+                document.getElementById("table3Note").innerHTML = [
+                    `${table3Rows.length.toLocaleString("en-IN")} of ${table1Rows.length.toLocaleString("en-IN")} Reference IDs have a difference · ${matchedOk.toLocaleString("en-IN")} match exactly`,
+                    `Not found in Table 2: ${missingCount.toLocaleString("en-IN")} · Amount different: ${amtMismatch.toLocaleString("en-IN")}`
+                ].map(escapeHTML).join("<br>");
+                document.getElementById("table3Section").classList.remove("hidden");
+            } else {
+                document.getElementById("table3Section").classList.add("hidden");
+            }
+
+            // ---------- KPIs ----------
+            const anything = okStores.length || recoItems;
+            document.getElementById("kpis3").classList.toggle("hidden", !(okStores.length && recoItems));
+            document.getElementById("kpiMis").textContent = table3Rows.length.toLocaleString("en-IN");
+            document.getElementById("kpiMissing").textContent = missingCount.toLocaleString("en-IN");
+            document.getElementById("kpiNet").textContent = (netDiff < 0 ? "-₹" : "₹") + fmt(Math.abs(netDiff));
+            document.getElementById("results").classList.toggle("hidden", !anything);
+            document.getElementById("kpiStores").textContent = `${okStores.length} / ${STORES.length}`;
+            document.getElementById("kpiT1").textContent = fmt(t1Total);
+            document.getElementById("kpiT2").textContent = fmt(t2Total);
+            document.getElementById("logicText").textContent =
+                "Applied: Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of (Cash + Blaze QR) by Order ID • Table 3 → Reference ID = Order ID → Difference = (Cash + Blaze QR) − COD Amount → Remove Difference = 0";
+
+            // ---------- Status ----------
+            if (!keepStatus) {
+                if (failedStores.length) {
+                    setStatus(`Couldn't use the ${failedStores.join(", ")} file. ${storeData[failedStores[0]].error}`, true);
+                } else if (!okStores.length && recoItems) {
+                    setStatus("Zilo Reco Sheet loaded. Now upload the store files.");
+                } else if (okStores.length && !recoItems) {
+                    setStatus(`Table 1 ready with ${okStores.length} of 3 stores. Waiting for the Zilo Reco Sheet.`);
+                } else if (okStores.length) {
+                    const misText = `${table3Rows.length.toLocaleString("en-IN")} orders have a difference.`;
+                    setStatus(okStores.length === 3
+                        ? `Processing complete. ${misText}`
+                        : `Processing complete with ${okStores.length} of 3 stores. ${misText} Upload the rest to complete the reconciliation.`);
+                } else {
+                    setStatus("Upload the store files to build Table 1.");
+                }
+            }
+        } catch (err) {
+            setStatus("Error: " + err.message, true);
+        } finally {
+            document.getElementById("loader").style.display = "none";
+        }
+    }, 80);
+}
+
+function renderTable(tableId, keyLabel, amtLabel, rows, total){
+    let html = `<thead><tr><th>${escapeHTML(keyLabel)}</th><th class="num">${escapeHTML(amtLabel)}</th></tr></thead><tbody>`;
+    rows.forEach(r => {
+        html += `<tr><td>${escapeHTML(r.key)}</td><td class="num">${fmt(r.amt)}</td></tr>`;
+    });
+    html += `<tr class="grand"><td>Grand Total</td><td class="num">${fmt(total)}</td></tr></tbody>`;
+    document.getElementById(tableId).innerHTML = html;
+}
+
+function renderTable3(rows){
+    const tCod = r2(rows.reduce((s,r) => s + r.cod, 0));
+    const tRec = r2(rows.reduce((s,r) => s + r.received, 0));
+    const tDiff = r2(rows.reduce((s,r) => s + r.diff, 0));
+    let html = `<thead><tr>
+        <th>Reference ID (Table 1)</th>
+        <th class="num">COD Amount (Table 1)</th>
+        <th class="num">Cash + Blaze QR (Table 2)</th>
+        <th class="num">Difference</th>
+    </tr></thead><tbody>`;
+    if (!rows.length) {
+        html += `<tr><td colspan="4" style="text-align:center;color:#0a7a3d;font-weight:700">All orders match. No differences found.</td></tr>`;
+    }
+    rows.forEach(r => {
+        const color = r.diff < 0 ? "#c0392b" : "#0a7a3d";
+        html += `<tr>
+            <td>${escapeHTML(r.key)}</td>
+            <td class="num">${fmt(r.cod)}</td>
+            <td class="num">${fmt(r.received)}</td>
+            <td class="num" style="color:${color};font-weight:700">${fmt(r.diff)}</td>
+        </tr>`;
+    });
+    html += `<tr class="grand"><td>Grand Total</td><td class="num">${fmt(tCod)}</td><td class="num">${fmt(tRec)}</td><td class="num">${fmt(tDiff)}</td></tr></tbody>`;
+    document.getElementById("table3").innerHTML = html;
+}
+
+function downloadTable3AsExcel(filename, btnEl){
+    if(typeof XLSX === "undefined"){ flashBtn(btnEl, "Excel lib failed to load", true); return; }
+    if(!table3Rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+    const rows = table3Rows;
+    const aoa = [
+        ["Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Blaze QR (Table 2)", "Difference"],
+        ...rows.map(r => [r.key, r.cod, r.received, r.diff]),
+        ["Grand Total",
+            r2(rows.reduce((s,r) => s + r.cod, 0)),
+            r2(rows.reduce((s,r) => s + r.received, 0)),
+            r2(rows.reduce((s,r) => s + r.diff, 0))]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{wch:42},{wch:20},{wch:24},{wch:16}];
+    for (let i = 2; i <= aoa.length; i++) {
+        ["B","C","D"].forEach(col => { const c = ws[col+i]; if (c) c.z = "#,##0.00"; });
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Table 3");
+    XLSX.writeFile(wb, filename);
+}
+
+// ---------- Table export helpers: Copy / PNG / Excel ----------
+function flashBtn(btnEl, text, isError){
+    if(!btnEl) return;
+    if(!btnEl.dataset.originalText) btnEl.dataset.originalText = btnEl.innerHTML;
+    btnEl.textContent = text;
+    btnEl.style.color = isError ? "#c0392b" : "#0a7a3d";
+    clearTimeout(btnEl._flashTimer);
+    btnEl._flashTimer = setTimeout(() => {
+        btnEl.innerHTML = btnEl.dataset.originalText;
+        btnEl.style.color = "";
+    }, 1600);
+}
+
+function tableToTSV(table){
+    return Array.from(table.rows).map(row =>
+        Array.from(row.cells).map(cell => cell.textContent.trim()).join("\t")
+    ).join("\n");
+}
+
+async function copyTableToClipboard(tableId, btnEl){
+    const table = document.getElementById(tableId);
+    if(!table || !table.rows.length){ flashBtn(btnEl, "Nothing to copy", true); return; }
+    try{
+        if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+            const htmlBlob = new Blob([table.outerHTML], {type:"text/html"});
+            const textBlob = new Blob([tableToTSV(table)], {type:"text/plain"});
+            await navigator.clipboard.write([new ClipboardItem({"text/html": htmlBlob, "text/plain": textBlob})]);
+            flashBtn(btnEl, "✅ Copied!");
+            return;
+        }
+        throw new Error("Clipboard API unavailable");
+    }catch(err){
+        try{
+            const range = document.createRange();
+            range.selectNode(table);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            const ok = document.execCommand("copy");
+            sel.removeAllRanges();
+            if(!ok) throw new Error("execCommand copy failed");
+            flashBtn(btnEl, "✅ Copied!");
+        }catch(e2){
+            flashBtn(btnEl, "Copy failed", true);
+        }
+    }
+}
+
+function downloadTableAsPNG(tableId, filename, btnEl){
+    if(typeof html2canvas === "undefined"){ flashBtn(btnEl, "PNG lib failed to load", true); return; }
+    const table = document.getElementById(tableId);
+    const wrap = table ? table.closest(".table-wrap") : null;
+    if(!wrap || !table.rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+
+    // Expand the scroll box so the entire table is captured.
+    const prevMaxHeight = wrap.style.maxHeight;
+    const prevOverflow = wrap.style.overflow;
+    wrap.style.maxHeight = "none";
+    wrap.style.overflow = "visible";
+
+    html2canvas(wrap, {backgroundColor:"#ffffff", scale:2}).then(canvas => {
+        wrap.style.maxHeight = prevMaxHeight;
+        wrap.style.overflow = prevOverflow;
+        canvas.toBlob(blob => {
+            if(!blob){ flashBtn(btnEl, "Table too large for PNG", true); return; }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = filename; a.click();
+            URL.revokeObjectURL(url);
+        });
+    }).catch(() => {
+        wrap.style.maxHeight = prevMaxHeight;
+        wrap.style.overflow = prevOverflow;
+        flashBtn(btnEl, "PNG export failed", true);
+    });
+}
+
+// Excel export keeps amounts as real numbers (not text) so they can be summed in Excel.
+function downloadRowsAsExcel(rows, keyLabel, amtLabel, sheetName, filename, btnEl){
+    if(typeof XLSX === "undefined"){ flashBtn(btnEl, "Excel lib failed to load", true); return; }
+    if(!rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
+    const total = r2(rows.reduce((s,r) => s + r.amt, 0));
+    const aoa = [[keyLabel, amtLabel], ...rows.map(r => [r.key, r.amt]), ["Grand Total", total]];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{wch:42},{wch:18}];
+    for (let i = 2; i <= aoa.length; i++) { const c = ws["B"+i]; if (c) c.z = "#,##0.00"; }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, filename);
+}
+
+document.querySelectorAll(".icon-btn[data-act]").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const t = btn.dataset.t, act = btn.dataset.act;
+        const tableId = "table" + t;
+        if (act === "copy") return copyTableToClipboard(tableId, btn);
+        const names = { "1":"Cash_COD_by_Reference", "2":"Zilo_Cash_BlazeQR_by_Order", "3":"Cash_Collection_Mismatch" };
+        if (act === "png") return downloadTableAsPNG(tableId, `Table${t}_${names[t]}_${todayStamp()}.png`, btn);
+        if (act === "xlsx") {
+            if (t === "3") return downloadTable3AsExcel(`Table3_Cash_Collection_Mismatch_${todayStamp()}.xlsx`, btn);
+            return t === "1"
+                ? downloadRowsAsExcel(table1Rows, "Reference ID", "COD Amount", "Table 1", `Table1_Cash_COD_by_Reference_${todayStamp()}.xlsx`, btn)
+                : downloadRowsAsExcel(table2Rows, "Order ID", "Cash + Blaze QR", "Table 2", `Table2_Zilo_Cash_BlazeQR_by_Order_${todayStamp()}.xlsx`, btn);
+        }
+    });
+});
+
+// Fetch the Zilo Reco Sheet as soon as the page opens.
+fetchRecoData();
+</script>
+</body>
+</html>
