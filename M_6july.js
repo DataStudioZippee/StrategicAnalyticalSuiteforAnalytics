@@ -70,6 +70,17 @@ const CITY_STORES = {
 const ALL_STORES = STORE_ORDER;
 
 /* =========================
+   OVERNIGHT ORDERS
+   Exact, case-sensitive match on the "Order Tags" column.
+   Overnight orders are excluded from every metric.
+========================= */
+const OVERNIGHT_TAG = '["OVERNIGHT"]';
+
+function isOvernightOrder(row) {
+  return String(row["Order Tags"] ?? "").trim() === OVERNIGHT_TAG;
+}
+
+/* =========================
    GLOBAL STATE
 ========================= */
 
@@ -121,11 +132,11 @@ function loadLiveProjections() {
 
         storeColumns.forEach(col => {
           const normalized = col
-  .trim()
-  .toLowerCase()
-  .replace(/_/g, " ")
-  .replace(/\s+/g, " ")
-  .replace(" mnow", " mnow");
+            .trim()
+            .toLowerCase()
+            .replace(/_/g, " ")
+            .replace(/\s+/g, " ")
+            .replace(" mnow", " mnow");
           if (!ALL_STORES.includes(normalized)) return;
 
           const val = Number(row[col]) || 0;
@@ -196,13 +207,13 @@ document.addEventListener("DOMContentLoaded", () => {
   updateCurrentDateHeader();
   updateDateTime();
 
-setInterval(() => {
-  if (!selectedDateTime) {   // ✅ sirf live mode me
-    loadLiveProjections();
-    updateCurrentDateHeader();
-    updateDateTime();
-  }
-}, 60 * 1000);
+  setInterval(() => {
+    if (!selectedDateTime) {   // ✅ sirf live mode me
+      loadLiveProjections();
+      updateCurrentDateHeader();
+      updateDateTime();
+    }
+  }, 60 * 1000);
 
 });
 function getEffectiveHour() {
@@ -282,14 +293,14 @@ function getProjectionForStore(storeName) {
 
   const fullDay = activeProjectionData.stores[storeName] || 0;
 
-const effectiveDT = getEffectiveDateTime();
-const day = getDayName(effectiveDT);
-const hour = effectiveDT.getHours();
+  const effectiveDT = getEffectiveDateTime();
+  const day = getDayName(effectiveDT);
+  const hour = effectiveDT.getHours();
 
-const cumulativePercent = getTodayCumulativePercentage(day, hour);
+  const cumulativePercent = getTodayCumulativePercentage(day, hour);
 
-const till = Math.round(fullDay * (cumulativePercent / 100));
-const buffer = Math.round(till * 1.15);
+  const till = Math.round(fullDay * (cumulativePercent / 100));
+  const buffer = Math.round(till * 1.15);
 
   return { fullDay, till, buffer };
 }
@@ -313,8 +324,8 @@ function generateSummaryTable() {
 
   activeProjectionData = data;
   // 🔥 Update header date dynamically
-const [mm, dd, yyyy] = data.date.split("/");
-document.getElementById("currentDate").textContent = `${dd}/${mm}/${yyyy}`;
+  const [mm, dd, yyyy] = data.date.split("/");
+  document.getElementById("currentDate").textContent = `${dd}/${mm}/${yyyy}`;
 
 
   // 2️⃣ Time + cumulative %
@@ -325,12 +336,12 @@ document.getElementById("currentDate").textContent = `${dd}/${mm}/${yyyy}`;
 
   // (label optional, numbers pe koi effect nahi)
   const label = getCumulativeHourLabel(hour);
-const hour12 = hour % 12 || 12;
-const suffix = hour < 12 ? "AM" : "PM";
-const simpleLabel = `${hour12} ${suffix}`;
+  const hour12 = hour % 12 || 12;
+  const suffix = hour < 12 ? "AM" : "PM";
+  const simpleLabel = `${hour12} ${suffix}`;
 
-document.getElementById("tillHourMain").textContent = simpleLabel;
-document.getElementById("tillHourBuffer").textContent = simpleLabel;
+  document.getElementById("tillHourMain").textContent = simpleLabel;
+  document.getElementById("tillHourBuffer").textContent = simpleLabel;
 
 
   // 3️⃣ Build rows (REAL cumulative)
@@ -380,10 +391,6 @@ document.getElementById("tillHourBuffer").textContent = simpleLabel;
  *****************************************************/
 
 /* =========================
-   GLOBAL HOLDERS
-========================= */
-
-/* =========================
    FILE UPLOAD HANDLER
 ========================= */
 
@@ -417,6 +424,8 @@ function processFile() {
 
 /* =========================
    AGGREGATION LOGIC
+   - Breach    : Delivered + Breached = Yes (any duration)
+   - Deep Pain : Delivered + Breached = Yes + duration > 15 min
 ========================= */
 
 function aggregateOrders(data) {
@@ -425,6 +434,7 @@ function aggregateOrders(data) {
   let attempted = {};
   let cancelled = {};
   let deepPain = {};
+  let breach = {};
 
   data.forEach(row => {
     let store = (row["Store Name"] || "")
@@ -435,6 +445,10 @@ function aggregateOrders(data) {
 
     if (!ALL_STORES.includes(store)) return;
 
+    // Overnight orders are skipped for every metric
+    // (Total, Delivered, Attempted, Cancelled, Breach, Deep Pain).
+    if (isOvernightOrder(row)) return;
+
     let status = (row["Order Status"] || "").toLowerCase();
     let breached = (row["Breached"] || "").toLowerCase();
     let breachMin = Number(row["Breached Duration (In Min)"]) || 0;
@@ -443,6 +457,9 @@ function aggregateOrders(data) {
 
     if (status === "delivered") {
       delivered[store] = (delivered[store] || 0) + 1;
+      if (breached === "yes") {
+        breach[store] = (breach[store] || 0) + 1;
+      }
       if (breached === "yes" && breachMin > 15) {
         deepPain[store] = (deepPain[store] || 0) + 1;
       }
@@ -454,8 +471,11 @@ function aggregateOrders(data) {
       cancelled[store] = (cancelled[store] || 0) + 1;
     }
   });
-  extractDeepPainOrders(data);
-  extractDeepPainOrders_details(data);
+
+  // Deep pain lists also exclude overnight orders
+  const sameDayData = data.filter(row => !isOvernightOrder(row));
+  extractDeepPainOrders(sameDayData);
+  extractDeepPainOrders_details(sameDayData);
 
   generateSummaryPage(
     storeOrders,
@@ -463,7 +483,8 @@ function aggregateOrders(data) {
     attempted,
     cancelled,
     {},
-    deepPain
+    deepPain,
+    breach
   );
 }
 
@@ -471,6 +492,10 @@ function aggregateOrders(data) {
 
 /* =========================
    SUMMARY TABLE
+   Column index map (used by buildFinalTable):
+   0 Store | 1 Total | 2 Cancelled | 3 Cancelled % | 4 Delivered
+   5 Attempted | 6 Breached | 7 Breach % | 8 Deep Pain | 9 Deep Pain %
+   10 Actual Riders | 11 Idle Rider | 12 BF
 ========================= */
 
 function generateSummaryPage(
@@ -479,7 +504,8 @@ function generateSummaryPage(
   attemptedOrders,
   cancelledOrders,
   actualRiders,
-  deepPainOrders
+  deepPainOrders,
+  breachOrders
 ) {
   let html = `
   <table class="clean-table" id="summaryTable">
@@ -491,6 +517,8 @@ function generateSummaryPage(
         <th>Cancelled %</th>
         <th>Delivered</th>
         <th>Attempted</th>
+        <th>Breached</th>
+        <th>Breach %</th>
         <th>Deep Pain</th>
         <th>Deep Pain %</th>
         <th>Actual Riders</th>
@@ -506,10 +534,11 @@ function generateSummaryPage(
     cancel: 0,
     deliver: 0,
     attempt: 0,
-    deep: 0
+    deep: 0,
+    breach: 0
   };
 
-STORE_ORDER.forEach(store => {
+  STORE_ORDER.forEach(store => {
     const total = storeOrders[store] || 0;
     const cancel = cancelledOrders[store] || 0;
     const deliver = deliveredOrders[store] || 0;
@@ -518,12 +547,15 @@ STORE_ORDER.forEach(store => {
 
     const cancelPct = total ? (((cancel + attempt) / total) * 100).toFixed(2) : "0.00";
     const deepPct = deliver ? ((deep / deliver) * 100).toFixed(2) : "0.00";
+    const brc = breachOrders[store] || 0;
+    const breachPct = deliver ? ((brc / deliver) * 100).toFixed(2) : "0.00";
 
     totals.total += total;
     totals.cancel += cancel;
     totals.deliver += deliver;
     totals.attempt += attempt;
     totals.deep += deep;
+    totals.breach += brc;
 
     html += `
       <tr>
@@ -533,6 +565,8 @@ STORE_ORDER.forEach(store => {
         <td>${cancelPct}%</td>
         <td>${deliver}</td>
         <td>${attempt}</td>
+        <td>${brc}</td>
+        <td>${breachPct}%</td>
         <td>${deep}</td>
         <td>${deepPct}%</td>
         <td><input class="summary-input"></td>
@@ -552,6 +586,8 @@ STORE_ORDER.forEach(store => {
         <td></td>
         <td>${totals.deliver}</td>
         <td>${totals.attempt}</td>
+        <td>${totals.breach}</td>
+        <td></td>
         <td>${totals.deep}</td>
         <td></td>
         <td></td><td></td><td></td>
@@ -576,51 +612,51 @@ function bindFinalTableButton() {
   if (!btn) return;
 
   btn.onclick = () => {
-  const rows = document.querySelectorAll("#summaryTable tbody tr");
+    const rows = document.querySelectorAll("#summaryTable tbody tr");
 
-  let allRows = [];
+    let allRows = [];
 
-  rows.forEach(r => {
-    const store = r
-      .querySelector("td")
-      ?.innerText
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ");
+    rows.forEach(r => {
+      const store = r
+        .querySelector("td")
+        ?.innerText
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
 
-    if (!store || store === "total") return;
+      if (!store || store === "total") return;
 
-    allRows.push(r.cloneNode(true));
-  });
+      allRows.push(r.cloneNode(true));
+    });
 
-  const currentTime = new Date().toLocaleTimeString([], {
-  hour: '2-digit',
-  minute: '2-digit'
-});
+    const currentTime = new Date().toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-document.getElementById("output").innerHTML = `
-  <button onclick="downloadTablePNG('allStoresTable','All_Stores_Report')">
-    ⬇ Download
-  </button>
+    document.getElementById("output").innerHTML = `
+      <button onclick="downloadTablePNG('allStoresTable','All_Stores_Report')">
+        ⬇ Download
+      </button>
 
-  <div id="allStoresTable">
+      <div id="allStoresTable">
 
-    <h2 style="
-        text-align:center;
-        margin-bottom:15px;
-        margin-top:10px;
-        color:#0b1f3b;
-        font-size:26px;
-        font-weight:700;
-    ">
-      Myntra Performance Report | ${currentTime}
-    </h2>
+        <h2 style="
+            text-align:center;
+            margin-bottom:15px;
+            margin-top:10px;
+            color:#0b1f3b;
+            font-size:26px;
+            font-weight:700;
+        ">
+          Myntra Performance Report | ${currentTime}
+        </h2>
 
-    ${buildFinalTable(allRows)}
+        ${buildFinalTable(allRows)}
 
-  </div>
-`;
-};
+      </div>
+    `;
+  };
 }
 
 function formatStoreName(store) {
@@ -629,14 +665,26 @@ function formatStoreName(store) {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/* =========================
+   BREACH % CONDITIONAL FORMATTING
+   < 4%   → Green
+   4–8%   → Yellow
+   > 8%   → Red
+========================= */
+function getBreachStyle(pct) {
+  if (pct < 4)  return "color:#1B5E20; font-weight:600;";   // Green
+  if (pct <= 8) return "color:#B8860B; font-weight:600;";   // Yellow (dark amber, readable on white)
+  return "color:#C62828; font-weight:600;";                 // Red
+}
+
 function buildFinalTable(rows) {
   const base = document.getElementById("summaryTable").cloneNode(true);
   base.className = "clean-table";
 
   const oldTfoot = base.querySelector("tfoot");
   if (oldTfoot) oldTfoot.remove();
- const now = getEffectiveDateTime();
-const hourLabel = getCumulativeHourLabel(getEffectiveHour());
+  const now = getEffectiveDateTime();
+  const hourLabel = getCumulativeHourLabel(getEffectiveHour());
   /* =========================
      REBUILD HEADER (ONLY REQUIRED COLUMNS)
   ========================= */
@@ -645,19 +693,18 @@ const hourLabel = getCumulativeHourLabel(getEffectiveHour());
     <tr>
       <th>Store</th>
       <th>Projected Orders</th>
-    <th>Hourly Projection</th>
-    
+      <th>Hourly Projection</th>
       <th>Total Orders</th>
       <th>Cancelled %</th>
       <th>Delivered Orders</th>
+      <th>Breach %</th>
       <th>Deep Pain %</th>
       <th>Actual Riders</th>
       <th>Idle Rider</th>
       <th>BF</th>
       <th>Attainment %</th>
-      <th>Deep Pain Order</th>
+      <th>Deep Pain Orders</th>
       <th>Additional Orders</th>
-      
     </tr>
   `;
 
@@ -680,6 +727,7 @@ const hourLabel = getCumulativeHourLabel(getEffectiveHour());
 
   let sumCancelledPct = 0;
   let sumDeepPainPct = 0;
+  let sumBreachPct = 0;
   let sumBF = 0;
   let sumOrderAttainment = 0;
   let sumActualDeepPainPct = 0;
@@ -696,30 +744,31 @@ const hourLabel = getCumulativeHourLabel(getEffectiveHour());
     const totalOrders = Number(tds[1]?.innerText) || 0;
     const cancelledPct = parseFloat(tds[3]?.innerText.replace("%", "")) || 0;
     const delivered = Number(tds[4]?.innerText) || 0;
-    const deepPain = Number(tds[6]?.innerText) || 0;
-    const deepPainPct = parseFloat(tds[7]?.innerText.replace("%", "")) || 0;
+    const breachPct = parseFloat(tds[7]?.innerText.replace("%", "")) || 0;
+    const deepPain = Number(tds[8]?.innerText) || 0;
+    const deepPainPct = parseFloat(tds[9]?.innerText.replace("%", "")) || 0;
     const deepPainColor = deepPainPct < 5 ? "#1B5E20" : "#7A1F1F";
 
 
-    const actualRiders = Number(tds[8]?.querySelector("input")?.value) || 0;
-    const idleRider = Number(tds[9]?.querySelector("input")?.value) || 0;
-    const bf = Number(tds[10]?.querySelector("input")?.value) || 0;
+    const actualRiders = Number(tds[10]?.querySelector("input")?.value) || 0;
+    const idleRider = Number(tds[11]?.querySelector("input")?.value) || 0;
+    const bf = Number(tds[12]?.querySelector("input")?.value) || 0;
 
     /* ===== Projection lookup ===== */
     const proj = getProjectionForStore(store);
 
-const projFull = proj.fullDay;
-const projTill = proj.till;
-const projBuffer = proj.buffer;
+    const projFull = proj.fullDay;
+    const projTill = proj.till;
+    const projBuffer = proj.buffer;
 
     const orderAttainment = Number(projTill) > 0
-  ? ((Number(totalOrders) / Number(projTill)) * 100).toFixed(2)
-  : "0.00";
-  const attainmentColor =
-  parseFloat(orderAttainment) > 100 ? "#FFD54F" : "transparent";
+      ? ((Number(totalOrders) / Number(projTill)) * 100).toFixed(2)
+      : "0.00";
+    const attainmentColor =
+      parseFloat(orderAttainment) > 100 ? "#FFD54F" : "transparent";
 
-const attainmentTextColor =
-  parseFloat(orderAttainment) > 100 ? "#000000" : "#000000";
+    const attainmentTextColor =
+      parseFloat(orderAttainment) > 100 ? "#000000" : "#000000";
     const additionalOrders = Math.max(totalOrders - projTill, 0);
 
     const actualDeepPain = delivered
@@ -740,6 +789,7 @@ const attainmentTextColor =
 
     sumCancelledPct += cancelledPct;
     sumDeepPainPct += deepPainPct;
+    sumBreachPct += breachPct;
     sumBF += bf;
     sumOrderAttainment += parseFloat(orderAttainment);
     sumActualDeepPainPct += parseFloat(actualDeepPain);
@@ -752,26 +802,25 @@ const attainmentTextColor =
       <td>${formatStoreName(store)}</td>
       <td>${projFull}</td>
       <td>${projTill}</td>
-      
       <td>${totalOrders}</td>
       <td>${cancelledPct}%</td>
       <td>${delivered}</td>
+      <td style="${getBreachStyle(breachPct)}">${breachPct}%</td>
       <td style="color:${deepPainColor}; font-weight:600;">
-      ${deepPainPct}%
+        ${deepPainPct}%
       </td>
       <td>${actualRiders}</td>
       <td>${idleRider}</td>
       <td>${bf}</td>
       <td style="
-    background:${attainmentColor};
-    color:${attainmentTextColor};
-    font-weight:600;
-">
-  ${orderAttainment}%
-</td>
+        background:${attainmentColor};
+        color:${attainmentTextColor};
+        font-weight:600;
+      ">
+        ${orderAttainment}%
+      </td>
       <td>${deepPain}</td>
       <td>${additionalOrders}</td>
-      
     `;
 
     tbody.appendChild(tr);
@@ -789,44 +838,43 @@ const attainmentTextColor =
     <td>Total</td>
     <td>${sumProjFull}</td>
     <td>${sumProjTill}</td>
-    
     <td>${sumTotalOrders}</td>
     <td>${(sumCancelledPct / storeCount).toFixed(2)}%</td>
     <td>${sumDelivered}</td>
+    <td>${(sumBreachPct / storeCount).toFixed(2)}%</td>
     <td style="color:${(sumDeepPainPct / storeCount) < 5 ? "#2ecc71" : "#e74c3c"}; font-weight:700;">
-    ${(sumDeepPainPct / storeCount).toFixed(2)}%
-     </td>
+      ${(sumDeepPainPct / storeCount).toFixed(2)}%
+    </td>
     <td>${sumActualRiders}</td>
     <td>${sumIdleRider}</td>
     <td>${(sumBF / storeCount).toFixed(2)}</td>
     <td>${totalAttainment}%</td>
     <td>${sumDeepPainCount}</td>
     <td>${sumAdditionalOrders}</td>
-    
   `;
 
   tbody.appendChild(totalRow);
   /* =========================
-   FOOTER ROW (BRANDING)
-========================= */
-const footerRow = document.createElement("tr");
+     FOOTER ROW (BRANDING)
+  ========================= */
+  const footerRow = document.createElement("tr");
 
-footerRow.innerHTML = `
-  <td colspan="14"
-      style="
-        text-align:center;
-        font-size:12px;
-        font-weight:500;
-        padding:10px;
-        color:#000;
-        border-top:1px solid #ddd;
-        letter-spacing:0.3px;
-      ">
-    Powered by SASA Automation | Zippee
-  </td>
-`;
+  footerRow.innerHTML = `
+    <td colspan="14"
+        style="
+          text-align:center;
+          font-size:12px;
+          font-weight:500;
+          padding:10px;
+          color:#000;
+          border-top:1px solid #ddd;
+          letter-spacing:0.3px;
+        ">
+      Powered by SASA Automation | Zippee
+    </td>
+  `;
 
-tbody.appendChild(footerRow);
+  tbody.appendChild(footerRow);
 
   return base.outerHTML;
 }
