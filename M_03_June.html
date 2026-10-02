@@ -417,6 +417,8 @@ function processFile() {
 
 /* =========================
    AGGREGATION LOGIC
+   - Breach    : Delivered + Breached = Yes (any duration)
+   - Deep Pain : Delivered + Breached = Yes + duration > 15 min
 ========================= */
 
 function aggregateOrders(data) {
@@ -425,6 +427,7 @@ function aggregateOrders(data) {
   let attempted = {};
   let cancelled = {};
   let deepPain = {};
+  let breach = {};
 
   data.forEach(row => {
     let store = (row["Store Name"] || "")
@@ -443,6 +446,9 @@ function aggregateOrders(data) {
 
     if (status === "delivered") {
       delivered[store] = (delivered[store] || 0) + 1;
+      if (breached === "yes") {
+        breach[store] = (breach[store] || 0) + 1;
+      }
       if (breached === "yes" && breachMin > 15) {
         deepPain[store] = (deepPain[store] || 0) + 1;
       }
@@ -463,7 +469,8 @@ function aggregateOrders(data) {
     attempted,
     cancelled,
     {},
-    deepPain
+    deepPain,
+    breach
   );
 }
 
@@ -471,6 +478,10 @@ function aggregateOrders(data) {
 
 /* =========================
    SUMMARY TABLE
+   Column index map (used by buildFinalTable):
+   0 Store | 1 Total | 2 Cancelled | 3 Cancelled % | 4 Delivered
+   5 Attempted | 6 Breached | 7 Breach % | 8 Deep Pain | 9 Deep Pain %
+   10 Avg Rider/Hr | 11 Unique Riders | 12 Avg BF/Hr
 ========================= */
 
 function generateSummaryPage(
@@ -479,7 +490,8 @@ function generateSummaryPage(
   attemptedOrders,
   cancelledOrders,
   actualRiders,
-  deepPainOrders
+  deepPainOrders,
+  breachOrders
 ) {
   let html = `
   <table class="clean-table" id="summaryTable">
@@ -491,6 +503,8 @@ function generateSummaryPage(
         <th>Cancelled %</th>
         <th>Delivered</th>
         <th>Attempted</th>
+        <th>Breached</th>
+        <th>Breach %</th>
         <th>Deep Pain</th>
         <th>Deep Pain %</th>
         <th>Avg Rider/Hr</th>
@@ -506,7 +520,8 @@ function generateSummaryPage(
     cancel: 0,
     deliver: 0,
     attempt: 0,
-    deep: 0
+    deep: 0,
+    breach: 0
   };
 
 STORE_ORDER.forEach(store => {
@@ -518,12 +533,15 @@ STORE_ORDER.forEach(store => {
 
     const cancelPct = total ? (((cancel + attempt) / total) * 100).toFixed(2) : "0.00";
     const deepPct = deliver ? ((deep / deliver) * 100).toFixed(2) : "0.00";
+    const brc = breachOrders[store] || 0;
+    const breachPct = deliver ? ((brc / deliver) * 100).toFixed(2) : "0.00";
 
     totals.total += total;
     totals.cancel += cancel;
     totals.deliver += deliver;
     totals.attempt += attempt;
     totals.deep += deep;
+    totals.breach += brc;
 
     html += `
       <tr>
@@ -533,6 +551,8 @@ STORE_ORDER.forEach(store => {
         <td>${cancelPct}%</td>
         <td>${deliver}</td>
         <td>${attempt}</td>
+        <td>${brc}</td>
+        <td>${breachPct}%</td>
         <td>${deep}</td>
         <td>${deepPct}%</td>
         <td><input class="summary-input"></td>
@@ -552,6 +572,8 @@ STORE_ORDER.forEach(store => {
         <td></td>
         <td>${totals.deliver}</td>
         <td>${totals.attempt}</td>
+        <td>${totals.breach}</td>
+        <td></td>
         <td>${totals.deep}</td>
         <td></td>
         <td></td><td></td><td></td>
@@ -641,6 +663,18 @@ function formatStoreName(store) {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/* =========================
+   BREACH % CONDITIONAL FORMATTING (text colour only)
+   < 4%   → Green
+   4–8%   → Yellow (dark amber, readable on white)
+   > 8%   → Red
+========================= */
+function getBreachStyle(pct) {
+  if (pct < 4)  return "color:#1B5E20; font-weight:600;";   // Green
+  if (pct <= 8) return "color:#B8860B; font-weight:600;";   // Yellow
+  return "color:#C62828; font-weight:600;";                 // Red
+}
+
 function buildFinalTable(rows) {
   const base = document.getElementById("summaryTable").cloneNode(true);
   base.className = "clean-table";
@@ -665,6 +699,7 @@ const hourLabel = getCumulativeHourLabel(getEffectiveHour());
       <th>Avg Rider/Hr</th>
       <th>Unique Rider</th>
       <th>Avg BF/Hr</th>
+      <th>Breach %</th>
       <th>Deep Pain %</th>
       <th>Additional Orders</th>
     </tr>
@@ -689,6 +724,7 @@ const hourLabel = getCumulativeHourLabel(getEffectiveHour());
 
   let sumCancelledPct = 0;
   let sumDeepPainPct = 0;
+  let sumBreachPct = 0;
   let sumBF = 0;
   let sumOrderAttainment = 0;
   
@@ -705,14 +741,15 @@ const hourLabel = getCumulativeHourLabel(getEffectiveHour());
     const totalOrders = Number(tds[1]?.innerText) || 0;
     const cancelledPct = parseFloat(tds[3]?.innerText.replace("%", "")) || 0;
     const delivered = Number(tds[4]?.innerText) || 0;
-    const deepPain = Number(tds[6]?.innerText) || 0;
-    const deepPainPct = parseFloat(tds[7]?.innerText.replace("%", "")) || 0;
+    const breachPct = parseFloat(tds[7]?.innerText.replace("%", "")) || 0;
+    const deepPain = Number(tds[8]?.innerText) || 0;
+    const deepPainPct = parseFloat(tds[9]?.innerText.replace("%", "")) || 0;
     const deepPainColor = deepPainPct < 5 ? "#1B5E20" : "#7A1F1F";
 
 
-    const actualRiders = Number(tds[8]?.querySelector("input")?.value) || 0;
-    const idleRider = Number(tds[9]?.querySelector("input")?.value) || 0;
-    const bf = Number(tds[10]?.querySelector("input")?.value) || 0;
+    const actualRiders = Number(tds[10]?.querySelector("input")?.value) || 0;
+    const idleRider = Number(tds[11]?.querySelector("input")?.value) || 0;
+    const bf = Number(tds[12]?.querySelector("input")?.value) || 0;
 
     /* ===== Projection lookup ===== */
     const proj = getProjectionForStore(store);
@@ -749,6 +786,7 @@ const attainmentTextColor =
 
     sumCancelledPct += cancelledPct;
     sumDeepPainPct += deepPainPct;
+    sumBreachPct += breachPct;
     sumBF += bf;
     sumOrderAttainment += parseFloat(orderAttainment);
 
@@ -782,6 +820,10 @@ const attainmentTextColor =
       <td>${actualRiders}</td>
       <td>${idleRider}</td>
       <td>${bf}</td>
+
+      <td style="${getBreachStyle(breachPct)}">
+        ${breachPct}%
+      </td>
 
       <td style="color:${deepPainColor}; font-weight:600;">
         ${deepPainPct}%
@@ -825,6 +867,8 @@ const attainmentTextColor =
     <td>${avgActualRiders}</td>
     <td>${sumIdleRider}</td>
     <td>${(sumBF / storeCount).toFixed(2)}</td>
+
+    <td>${(sumBreachPct / storeCount).toFixed(2)}%</td>
 
     <td style="color:${(sumDeepPainPct / storeCount) < 5 ? "#2ecc71" : "#e74c3c"}; font-weight:700;">
       ${(sumDeepPainPct / storeCount).toFixed(2)}%
