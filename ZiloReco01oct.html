@@ -186,7 +186,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         <div class="upload-box" style="cursor:default" id="recoBox">
             <div class="upload-icon">📊</div>
             <div><b>Reco Sheet</b></div>
-            <div style="margin-top:4px;font-size:13px">Zilo Reco Sheet — Cash + Static QR </div>
+            <div style="margin-top:4px;font-size:13px">Zilo Reco Sheet — Cash + Static QR</div>
             <div class="file-name" id="recoFileName">Fetching…</div>
             <div class="file-meta" id="recoMeta"></div>
             <button type="button" id="recoRetryBtn" class="retry-btn hidden">Retry fetch</button>
@@ -199,10 +199,10 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         <div class="step"><b>1. Stores</b>Malad + Ghatkopar + Vashi</div>
         <div class="step"><b>2. Payment Mode</b>Cash only</div>
         <div class="step"><b>3. Table 1</b>Reference ID → Sum of COD Amount</div>
-        <div class="step"><b>4. Table 2 & 3</b>Order ID → Cash + Static QR , then mismatches ≠ 0</div>
+        <div class="step"><b>4. Table 2 & 3</b>Order ID → Cash + Static QR, then mismatches ≠ 0</div>
     </div>
 
-    <div class="note">The three store files are combined into one table: only <b>Payment Mode = Cash</b> is kept, and <b>COD Amount</b> is summed per <b>Reference ID</b>. The Zilo Reco Sheet is fetched automatically from the published Google Sheet. It is not filtered and is used to create <b>Order ID → Cash + Static QR </b> (blank cells count as 0). Table 3 matches each <b>Reference ID</b> from Table 1 to the same <b>Order ID</b> in Table 2 and shows every order where <b>Cash + Static QR  − COD Amount ≠ 0</b>. All tables update automatically whenever a file is added or removed.</div>
+    <div class="note">The three store files are combined into one table: only <b>Payment Mode = Cash</b> is kept, and <b>COD Amount</b> is summed per <b>Reference ID</b>. The Zilo Reco Sheet is fetched automatically from the published Google Sheet. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b> (blank cells count as 0). Table 3 matches each <b>Reference ID</b> from Table 1 to the same <b>Order ID</b> in Table 2 and shows every order where <b>Cash + Static QR − COD Amount ≠ 0</b>. All tables update automatically whenever a file is added or removed.</div>
 
     <div id="status" class="status"></div>
 
@@ -223,7 +223,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
 
     <section id="table2Section" class="hidden">
         <div class="table-header-row">
-            <h3>Table 2: Order ID vs Cash + Static QR </h3>
+            <h3>Table 2: Order ID vs Cash + Static QR</h3>
             <div class="table-actions">
                 <button type="button" class="icon-btn" data-act="copy" data-t="2">📋 Copy Table</button>
                 <button type="button" class="icon-btn" data-act="png" data-t="2">🖼️ Download PNG</button>
@@ -246,7 +246,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
             </div>
         </div>
         <div class="note">
-            Difference = Cash + Static QR  (Table 2) − COD Amount (Table 1). Orders with a difference above −1 and below +1 (including 0) are removed.<br><b>Remarks:</b> Cash + Static QR  = 0 and Difference &lt; 0 → Order ID Not Found · Difference &lt; 0 → Amount Mismatch · Difference &gt; 0 → Extra Amount
+            Difference = Cash + Static QR (Table 2) − COD Amount (Table 1). Orders with a difference above −1 and below +1 (including 0) are removed.<br><b>Remarks:</b> Cash + Static QR = 0 and Difference &lt; 0 → Order ID Not Found · Difference &lt; 0 → Amount Mismatch · Difference &gt; 0 → Extra Amount
         </div>
         <div class="note" id="table3Note"></div>
         <div class="table-wrap">
@@ -258,7 +258,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
         <div class="kpis">
             <div class="kpi"><div class="value" id="kpiStores">0 / 3</div><div class="label">Stores Loaded</div></div>
             <div class="kpi"><div class="value">₹<span id="kpiT1">0</span></div><div class="label">Table 1 — Cash COD</div></div>
-            <div class="kpi"><div class="value">₹<span id="kpiT2">0</span></div><div class="label">Table 2 — Cash + Static QR </div></div>
+            <div class="kpi"><div class="value">₹<span id="kpiT2">0</span></div><div class="label">Table 2 — Cash + Static QR</div></div>
         </div>
         <div class="kpis" id="kpis3">
             <div class="kpi"><div class="value" id="kpiMis">0</div><div class="label">Orders in Table 3</div></div>
@@ -270,7 +270,7 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
 </main>
 
 <div class="ticker-bar">
-    <div class="ticker-content">Zippee • Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of Cash + Static QR  by Order ID • Data is processed locally in your browser.</div>
+    <div class="ticker-content">Zippee • Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of Cash + Static QR by Order ID • Data is processed locally in your browser.</div>
 </div>
 
 <div class="loader-screen" id="loader">
@@ -284,6 +284,9 @@ tr.grand td{font-weight:800;background:#eaf4ff;color:#00305E;position:sticky;bot
 <script>
 // Published Google Sheet (Zilo Reco Sheet) — CSV export link.
 const RECO_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvJpRq8jgxs1oEONygmRPwY_47EZ4Ywae28_PIrE5Rg4ZYLg7tq5Pu2Johesal8g5BQgNPbidwusRd/pub?gid=0&single=true&output=csv";
+
+// Accepted header names for the QR column in the Zilo Reco Sheet (first match wins).
+const RECO_QR_COLUMNS = ["Static QR", "Blaze QR"];
 
 const STORES = ["Malad", "Ghatkopar", "Vashi"];
 const storeData = {};     // store -> { fileName, size, items:[{key, amt}], total, allRows } | { fileName, error }
@@ -336,7 +339,7 @@ function todayStamp(){
     return String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
 }
 
-// Parse CSV text into { headerMap, rows } and confirm required columns exist.
+// Parse CSV text into { idx, rows, optIdx } and confirm required columns exist.
 function readTable(text, required, label){
     if (/^\s*<(!doctype|html)/i.test(text)) {
         throw new Error(label + " returned a web page instead of CSV. Check that the sheet is still published to the web as CSV.");
@@ -354,7 +357,7 @@ function readTable(text, required, label){
         throw new Error(label + " is missing: " + missing.join(", ") + ". Columns found: " + headers.filter(Boolean).join(", "));
     }
     const optIdx = name => headers.findIndex(h => cleanHeader(h) === cleanHeader(name));
-    return { idx, rows: parsed.slice(1), optIdx };
+    return { idx, rows: parsed.slice(1), optIdx, headers };
 }
 
 // "2026-09-12 16:07:42" or "12/09/2026" → "12-09-2026"
@@ -392,7 +395,11 @@ document.querySelectorAll(".upload-box[data-store]").forEach(box => {
         e.preventDefault();
         box.classList.remove("drag");
         const file = e.dataTransfer.files[0];
-        if (!file || !file.name.toLowerCase().endsWith(".csv")) return;
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+            setStatus(`${file.name} is not a CSV file. Drop the ${store} report as .csv.`, true);
+            return;
+        }
         await loadStoreFile(store, file);
     });
 });
@@ -455,19 +462,25 @@ function renderStoreBox(store){
 }
 
 // ---------- Zilo Reco Sheet (Table 2 input) — fetched automatically ----------
+// Sheet columns: Dark Store, Delivery Date, Order ID, Brand Name, Pay on Delivery, Cash, Static QR, Rider Name, UPI Reference No
 function loadRecoText(text, sourceLabel){
-    const { idx, rows } = readTable(text, { id:"Order ID", cash:"Cash", qr:"Blaze QR" }, "Zilo Reco Sheet");
+    const { idx, rows, optIdx, headers } = readTable(text, { id:"Order ID", cash:"Cash" }, "Zilo Reco Sheet");
+    const qrI = RECO_QR_COLUMNS.map(optIdx).find(i => i >= 0);
+    if (qrI === undefined) {
+        throw new Error("Zilo Reco Sheet is missing: " + RECO_QR_COLUMNS.join(" (or ") + ")" +
+            ". Columns found: " + headers.filter(Boolean).join(", "));
+    }
     const items = [];
     let skipped = 0;
     rows.forEach(r => {
         const key = String(r[idx.id] ?? "").trim();
         if (!key) { skipped++; return; }
-        items.push({ key, amt: toNum(r[idx.cash]) + toNum(r[idx.qr]) });   // Cash + Static QR  (blank = 0)
+        items.push({ key, amt: toNum(r[idx.cash]) + toNum(r[qrI]) });   // Cash + Static QR (blank = 0)
     });
     recoItems = items;
     recoItems.skipped = skipped;
     recoSource = sourceLabel;
-    recoFileName.textContent = `${rows.length.toLocaleString("en-IN")} rows loaded`;
+    recoFileName.textContent = `${items.length.toLocaleString("en-IN")} orders loaded`;
     recoMeta.textContent = sourceLabel + " · " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
     recoRetryBtn.classList.add("hidden");
     recoManual.classList.add("hidden");
@@ -487,22 +500,25 @@ async function fetchRecoData(){
     try {
         const res = await fetch(RECO_SHEET_CSV_URL, { cache: "no-store" });
         if (!res.ok) {
-            throw new Error(`Google Sheet request failed (HTTP ${res.status}). Make sure the sheet is still published to the web as CSV.`);
+            const e = new Error(`Google Sheet request failed (HTTP ${res.status}). Make sure the sheet is still published to the web as CSV.`);
+            e.isNetwork = true;
+            throw e;
         }
         loadRecoText(await res.text(), "Fetched from Google Sheet");
         processData();
     } catch (err) {
         recoItems = null;
+        const isNetwork = err instanceof TypeError || err.isNetwork;
         const msg = err instanceof TypeError
             ? "Couldn't reach the Google Sheet. Check your internet connection and that the sheet is published, then retry."
             : err.message;
-        recoFileName.textContent = "Fetch failed";
+        recoFileName.textContent = isNetwork ? "Fetch failed" : "Sheet format error";
         recoMeta.textContent = "";
         recoRetryBtn.classList.remove("hidden");
         recoManual.classList.remove("hidden");
         document.getElementById("recoBox").classList.remove("loaded");
         document.getElementById("recoBox").classList.add("failed");
-        setStatus("Error fetching the Zilo Reco Sheet: " + msg, true);
+        setStatus((isNetwork ? "Error fetching the Zilo Reco Sheet: " : "Error reading the Zilo Reco Sheet: ") + msg, true);
         processData(true);
     } finally {
         recoFetchInProgress = false;
@@ -522,7 +538,7 @@ document.getElementById("recoFile").addEventListener("change", async e => {
     e.target.value = "";
 });
 
-// ---------- Build both tables ----------
+// ---------- Build all tables ----------
 function processData(keepStatus){
     document.getElementById("loader").style.display = "flex";
     setTimeout(() => {
@@ -556,7 +572,7 @@ function processData(keepStatus){
             if (recoItems) {
                 table2Rows = pivot(recoItems);
                 t2Total = r2(table2Rows.reduce((s,r) => s + r.amt, 0));
-                renderTable("table2", "Order ID", "Cash + Static QR ", table2Rows, t2Total);
+                renderTable("table2", "Order ID", "Cash + Static QR", table2Rows, t2Total);
                 const notes = [`${table2Rows.length.toLocaleString("en-IN")} Order IDs from ${recoItems.length.toLocaleString("en-IN")} rows · ${recoSource}`];
                 if (recoItems.skipped) notes.push(`${recoItems.skipped.toLocaleString("en-IN")} ${recoItems.skipped === 1 ? "row has" : "rows have"} no Order ID and ${recoItems.skipped === 1 ? "was" : "were"} left out`);
                 document.getElementById("table2Note").innerHTML = notes.map(escapeHTML).join("<br>");
@@ -568,12 +584,16 @@ function processData(keepStatus){
 
             // ---------- TABLE 3 ----------
             // Reference ID (Table 1) is the same key as Order ID (Table 2).
-            // Difference = Cash + Static QR  (Table 2) − COD Amount (Table 1); keep only ≠ 0.
+            // Difference = Cash + Static QR (Table 2) − COD Amount (Table 1); keep only ≠ 0.
             let missingCount = 0, netDiff = 0, roundCount = 0, roundSum = 0;
             table3Rows = [];
             if (okStores.length && recoItems) {
+                // Case-insensitive lookup; IDs that differ only by case are added together.
                 const t2Map = new Map();
-                table2Rows.forEach(r => t2Map.set(normalize(r.key), r.amt));
+                table2Rows.forEach(r => {
+                    const k = normalize(r.key);
+                    t2Map.set(k, r2((t2Map.get(k) || 0) + r.amt));
+                });
 
                 // Reference ID → Darkstore / Delivered Date / Rider Name from the store files.
                 // A Reference ID split across several orders keeps every distinct value.
@@ -596,9 +616,9 @@ function processData(keepStatus){
                     // Ignore small differences above −1 and below +1 (paise rounding)
                     if (diff > -1 && diff < 1) { roundCount++; roundSum += diff; return; }
                     // Remarks rules (checked in this order):
-                    //   Cash + Static QR  = 0 and Difference < 0 → Order ID Not Found
-                    //   Difference < 0                         → Amount Mismatch
-                    //   Difference > 0                         → Extra Amount
+                    //   Cash + Static QR = 0 and Difference < 0 → Order ID Not Found
+                    //   Difference < 0                        → Amount Mismatch
+                    //   Difference > 0                        → Extra Amount
                     let remark;
                     if (received === 0 && diff < 0) remark = "Order ID Not Found";
                     else if (diff < 0) remark = "Amount Mismatch";
@@ -638,7 +658,7 @@ function processData(keepStatus){
             document.getElementById("kpiT1").textContent = fmt(t1Total);
             document.getElementById("kpiT2").textContent = fmt(t2Total);
             document.getElementById("logicText").textContent =
-                "Applied: Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of (Cash + Static QR ) by Order ID • Table 3 → Reference ID = Order ID → Difference = (Cash + Static QR ) − COD Amount → Remove Difference above −1 and below +1";
+                "Applied: Malad + Ghatkopar + Vashi → Payment Mode = Cash → Sum of COD Amount by Reference ID • Zilo Reco Sheet → Sum of (Cash + Static QR) by Order ID • Table 3 → Reference ID = Order ID → Difference = (Cash + Static QR) − COD Amount → Remove Difference above −1 and below +1";
 
             // ---------- Status ----------
             if (!keepStatus) {
@@ -686,7 +706,7 @@ function renderTable3(rows){
         <th>Rider Name</th>
         <th>Reference ID (Table 1)</th>
         <th class="num">COD Amount (Table 1)</th>
-        <th class="num">Cash + Static QR  (Table 2)</th>
+        <th class="num">Cash + Static QR (Table 2)</th>
         <th class="num">Difference</th>
         <th>Remarks</th>
     </tr></thead><tbody>`;
@@ -715,7 +735,7 @@ function downloadTable3AsExcel(filename, btnEl){
     if(!table3Rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
     const rows = table3Rows;
     const aoa = [
-        ["Darkstore Name", "Delivered Date", "Rider Name", "Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Static QR  (Table 2)", "Difference", "Remarks"],
+        ["Darkstore Name", "Delivered Date", "Rider Name", "Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Static QR (Table 2)", "Difference", "Remarks"],
         ...rows.map(r => [r.store, r.date, r.rider, r.key, r.cod, r.received, r.diff, r.remark])
     ];   // no Grand Total row in the downloaded file
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -795,8 +815,11 @@ function downloadTableAsPNG(tableId, filename, btnEl){
             if(!blob){ flashBtn(btnEl, "Table too large for PNG", true); return; }
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = filename; a.click();
-            URL.revokeObjectURL(url);
+            a.href = url; a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);   // revoke later so Safari/Firefox finish the download
         });
     }).catch(() => {
         wrap.style.maxHeight = prevMaxHeight;
@@ -823,13 +846,13 @@ document.querySelectorAll(".icon-btn[data-act]").forEach(btn => {
         const t = btn.dataset.t, act = btn.dataset.act;
         const tableId = "table" + t;
         if (act === "copy") return copyTableToClipboard(tableId, btn);
-        const names = { "1":"Cash_COD_by_Reference", "2":"Zilo_Cash_BlazeQR_by_Order", "3":"Cash_Collection_Mismatch" };
+        const names = { "1":"Cash_COD_by_Reference", "2":"Zilo_Cash_StaticQR_by_Order", "3":"Cash_Collection_Mismatch" };
         if (act === "png") return downloadTableAsPNG(tableId, `Table${t}_${names[t]}_${todayStamp()}.png`, btn);
         if (act === "xlsx") {
             if (t === "3") return downloadTable3AsExcel(`Table3_Cash_Collection_Mismatch_${todayStamp()}.xlsx`, btn);
             return t === "1"
                 ? downloadRowsAsExcel(table1Rows, "Reference ID", "COD Amount", "Table 1", `Table1_Cash_COD_by_Reference_${todayStamp()}.xlsx`, btn)
-                : downloadRowsAsExcel(table2Rows, "Order ID", "Cash + Static QR ", "Table 2", `Table2_Zilo_Cash_BlazeQR_by_Order_${todayStamp()}.xlsx`, btn);
+                : downloadRowsAsExcel(table2Rows, "Order ID", "Cash + Static QR", "Table 2", `Table2_Zilo_Cash_StaticQR_by_Order_${todayStamp()}.xlsx`, btn);
         }
     });
 });
