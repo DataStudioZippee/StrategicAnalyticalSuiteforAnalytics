@@ -288,6 +288,22 @@ const RECO_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSvJ
 // Accepted header names for the QR column in the Zilo Reco Sheet (first match wins).
 const RECO_QR_COLUMNS = ["Static QR", "Blaze QR"];
 
+// Constant value shown in the "Brand Name" column of Table 3.
+const BRAND_NAME = "Zilo";
+
+// Table 3 column order (on screen, Copy, PNG and Excel all use this).
+const TABLE3_HEADERS = [
+    "Darkstore",
+    "Reference ID",
+    "Brand Name",
+    "Delivery Date",
+    "COD Amount (Table 1)",
+    "Cash + Static QR (Table 2)",
+    "Difference",
+    "Rider Name",
+    "Remarks"
+];
+
 const STORES = ["Malad", "Ghatkopar", "Vashi"];
 const storeData = {};     // store -> { fileName, size, items:[{key, amt}], total, allRows } | { fileName, error }
 let recoItems = null;     // [{key, amt}] from the Zilo Reco Sheet
@@ -322,7 +338,7 @@ function parseCSV(text) {
     if(cell!=="" || row.length){row.push(cell); if(row.some(x=>x!=="")) out.push(row);}
     return out;
 }
-function cleanHeader(h){ return String(h ?? "").replace(/\uFEFF/g,"").replace(/\u00A0/g," ").trim().replace(/\s+/g," ").toLowerCase(); }
+function cleanHeader(h){ return String(h ?? "").replace(/﻿/g,"").replace(/ /g," ").trim().replace(/\s+/g," ").toLowerCase(); }
 function normalize(v){ return String(v ?? "").trim().toLowerCase(); }
 function toNum(v){ const n = Number(String(v ?? "").replace(/[₹,\s]/g,"")); return Number.isFinite(n) ? n : 0; }
 function r2(n){ return Math.round(n*100)/100; }
@@ -696,37 +712,33 @@ function renderTable(tableId, keyLabel, amtLabel, rows, total){
 
 const REMARK_COLORS = { "Order ID Not Found":"#c0392b", "Amount Mismatch":"#b9600a", "Extra Amount":"#0a7a3d" };
 
+// Columns: Darkstore | Reference ID | Brand Name | Delivery Date | COD Amount | Cash + Static QR | Difference | Rider Name | Remarks
 function renderTable3(rows){
     const tCod = r2(rows.reduce((s,r) => s + r.cod, 0));
     const tRec = r2(rows.reduce((s,r) => s + r.received, 0));
     const tDiff = r2(rows.reduce((s,r) => s + r.diff, 0));
-    let html = `<thead><tr>
-        <th>Darkstore Name</th>
-        <th>Delivered Date</th>
-        <th>Rider Name</th>
-        <th>Reference ID (Table 1)</th>
-        <th class="num">COD Amount (Table 1)</th>
-        <th class="num">Cash + Static QR (Table 2)</th>
-        <th class="num">Difference</th>
-        <th>Remarks</th>
-    </tr></thead><tbody>`;
+    const numCols = new Set(["COD Amount (Table 1)", "Cash + Static QR (Table 2)", "Difference"]);
+    let html = `<thead><tr>` +
+        TABLE3_HEADERS.map(h => `<th${numCols.has(h) ? ' class="num"' : ""}>${escapeHTML(h)}</th>`).join("") +
+        `</tr></thead><tbody>`;
     if (!rows.length) {
-        html += `<tr><td colspan="8" style="text-align:center;color:#0a7a3d;font-weight:700">All orders match. No differences found.</td></tr>`;
+        html += `<tr><td colspan="${TABLE3_HEADERS.length}" style="text-align:center;color:#0a7a3d;font-weight:700">All orders match. No differences found.</td></tr>`;
     }
     rows.forEach(r => {
         const color = r.diff < 0 ? "#c0392b" : "#0a7a3d";
         html += `<tr>
             <td>${escapeHTML(r.store)}</td>
-            <td>${escapeHTML(r.date)}</td>
-            <td>${escapeHTML(r.rider)}</td>
             <td>${escapeHTML(r.key)}</td>
+            <td>${escapeHTML(BRAND_NAME)}</td>
+            <td>${escapeHTML(r.date)}</td>
             <td class="num">${fmt(r.cod)}</td>
             <td class="num">${fmt(r.received)}</td>
             <td class="num" style="color:${color};font-weight:700">${fmt(r.diff)}</td>
+            <td>${escapeHTML(r.rider)}</td>
             <td style="color:${REMARK_COLORS[r.remark]};font-weight:700">${escapeHTML(r.remark)}</td>
         </tr>`;
     });
-    html += `<tr class="grand"><td>Grand Total</td><td></td><td></td><td></td><td class="num">${fmt(tCod)}</td><td class="num">${fmt(tRec)}</td><td class="num">${fmt(tDiff)}</td><td></td></tr></tbody>`;
+    html += `<tr class="grand"><td>Grand Total</td><td></td><td></td><td></td><td class="num">${fmt(tCod)}</td><td class="num">${fmt(tRec)}</td><td class="num">${fmt(tDiff)}</td><td></td><td></td></tr></tbody>`;
     document.getElementById("table3").innerHTML = html;
 }
 
@@ -735,13 +747,13 @@ function downloadTable3AsExcel(filename, btnEl){
     if(!table3Rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
     const rows = table3Rows;
     const aoa = [
-        ["Darkstore Name", "Delivered Date", "Rider Name", "Reference ID (Table 1)", "COD Amount (Table 1)", "Cash + Static QR (Table 2)", "Difference", "Remarks"],
-        ...rows.map(r => [r.store, r.date, r.rider, r.key, r.cod, r.received, r.diff, r.remark])
+        TABLE3_HEADERS,
+        ...rows.map(r => [r.store, r.key, BRAND_NAME, r.date, r.cod, r.received, r.diff, r.rider, r.remark])
     ];   // no Grand Total row in the downloaded file
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{wch:16},{wch:14},{wch:28},{wch:42},{wch:20},{wch:24},{wch:16},{wch:20}];
+    ws["!cols"] = [{wch:14},{wch:42},{wch:12},{wch:14},{wch:20},{wch:24},{wch:14},{wch:30},{wch:20}];
     for (let i = 2; i <= aoa.length; i++) {
-        ["E","F","G"].forEach(col => { const c = ws[col+i]; if (c) c.z = "#,##0.00"; });
+        ["E","F","G"].forEach(col => { const c = ws[col+i]; if (c) c.z = "#,##0.00"; });   // COD, Cash + Static QR, Difference
     }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Table 3");
