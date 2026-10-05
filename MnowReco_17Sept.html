@@ -147,8 +147,6 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
 .spinner{width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* --- Reco sheet auto-fetch status (added) --- */
-
 @media(max-width:700px){
     .upload-grid,.steps,.kpis{grid-template-columns:1fr 1fr}
 }
@@ -164,7 +162,7 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
 
 <header class="header-main">
     <div style="font-size:26px">⚡</div>
-    <h1>Zippee <> Mnow Reconciliation Report</h1>
+    <h1>Zippee &lt;&gt; Mnow Reconciliation Report</h1>
 </header>
 
 <main class="container">
@@ -208,7 +206,7 @@ th{position:sticky;top:0;background:#00305E;color:#fff;z-index:2}
         <div class="step"><b>4. Payment Mode</b>Cash only</div>
     </div>
 
-    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 (Myntra Reco Sheet) is fetched automatically from a published Google Sheet once Input 1 and Input 2 are both loaded — no manual step needed. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b>. Once Input 3 finishes loading, the report is generated automatically.</div>
+    <div class="note">Input 2 is not filtered. It is only used to match <b>Order Number → Settlement Mode</b>. Orders with <b>Cash_Collected_Razorpay</b> are removed; unmatched orders get <b>Cash</b>. Input 3 (Myntra Reco Sheet) is fetched automatically from a published Google Sheet once Input 1 and Input 2 are both loaded — no manual step needed. It is not filtered and is used to create <b>Order ID → Cash + Static QR</b> (columns read: Dark Store, Delivery Date, Order ID, Brand Name, Pay on Delivery, Cash, Static QR, Rider Name, UPI Reference No). Once Input 3 finishes loading, the report is generated automatically.</div>
 
     <div class="button-group">
         <button class="tool-button secondary" id="downloadBtn" disabled>⬇️ Download Filtered CSV</button>
@@ -354,6 +352,29 @@ const RECO_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJq
 const RAZORPAY_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSs-_YuX7kfuY_zLdHgXZbQPPNziKlP3ubYZh6eZto5iBnU4DlIH7G08eCfDEsnOXEfdRgwPvLYgQxL/pub?gid=0&single=true&output=csv";
 let recoFetchInProgress = false;
 
+// ---------- Myntra Reco Sheet column mapping (new layout) ----------
+// Current sheet headers:
+//   Dark Store | Delivery Date | Order ID | Brand Name | Pay on Delivery |
+//   Cash | Static QR | Rider Name | UPI Reference No
+// Each field lists accepted header names. Matching ignores case, spaces and
+// punctuation, so "Static QR", "static_qr" or "StaticQR" all match.
+// To support a future rename, just add the new name to the relevant list.
+const RECO_COLUMNS = {
+    darkStore:     { required: false, names: ["Dark Store", "Store Name", "Store"] },
+    deliveryDate:  { required: false, names: ["Delivery Date", "Date", "Order Date"] },
+    orderId:       { required: true,  names: ["Order ID", "Order Id", "Order Number", "Order No"] },
+    brandName:     { required: false, names: ["Brand Name", "Brand"] },
+    payOnDelivery: { required: false, names: ["Pay on Delivery", "POD", "Payment Mode"] },
+    cash:          { required: true,  names: ["Cash", "Cash Amount"] },
+    staticQr:      { required: true,  names: ["Static QR", "QR", "Static QR Amount"] },
+    riderName:     { required: false, names: ["Rider Name", "Rider"] },
+    upiRef:        { required: false, names: ["UPI Reference No", "UPI Reference Number", "UPI Ref No", "UPI Reference"] }
+};
+
+function headerKey(h){
+    return String(h ?? "").replace(/ /g, " ").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 const downloadBtn = document.getElementById("downloadBtn");
 
 fileInput.addEventListener("change", async e => {
@@ -419,50 +440,63 @@ function resetForReprocess(){
     document.getElementById("codToDate").value = "";
 }
 
-// ---------- shared: turn cleaned row objects into the recoRows shape ----------
-function buildRecoRowsFromObjects(cleanedRows){
-    if (!cleanedRows.length) {
-        throw new Error("No data rows found.");
+// ---------- Myntra Reco Sheet: map raw CSV rows to the recoRows shape ----------
+// Finds the header row (first row within the top 10 that contains an Order ID
+// column, so a title/blank row above the headers doesn't break it), then maps
+// each column via RECO_COLUMNS.
+function buildRecoRowsFromParsed(parsedRows){
+    const scanLimit = Math.min(parsedRows.length, 10);
+    const orderIdKeys = RECO_COLUMNS.orderId.names.map(headerKey);
+    let headerRowIdx = -1;
+    for (let i = 0; i < scanLimit; i++) {
+        if (parsedRows[i].some(c => orderIdKeys.includes(headerKey(c)))) { headerRowIdx = i; break; }
+    }
+    if (headerRowIdx === -1) {
+        throw new Error("Could not find the header row (no 'Order ID' column in the first 10 rows). First row: " +
+            (parsedRows[0] || []).join(", "));
     }
 
-    const availableHeaders = Object.keys(cleanedRows[0]);
+    const rawHeaders = parsedRows[headerRowIdx];
+    const headerKeys = rawHeaders.map(headerKey);
 
-    function findHeader(target) {
-        const targetClean = target
-            .toLowerCase()
-            .trim()
-            .replace(/\s+/g, " ");
-
-        return availableHeaders.find(h =>
-            h.toLowerCase()
-                .trim()
-                .replace(/\s+/g, " ") === targetClean
-        );
-    }
-
-    const orderIdHeader = findHeader("Order ID");
-    const cashHeader = findHeader("Cash");
-    const qrHeader = findHeader("Static QR");
-
+    // field -> column index
+    const colIdx = {};
     const missing = [];
-    if (!orderIdHeader) missing.push("Order ID");
-    if (!cashHeader) missing.push("Cash");
-    if (!qrHeader) missing.push("Static QR");
+    Object.entries(RECO_COLUMNS).forEach(([field, def]) => {
+        let idx = -1;
+        for (const name of def.names) {
+            idx = headerKeys.indexOf(headerKey(name));
+            if (idx !== -1) break;
+        }
+        colIdx[field] = idx;
+        if (idx === -1 && def.required) missing.push(def.names[0]);
+    });
 
     if (missing.length) {
         throw new Error(
-            "Input 3 missing: " +
-            missing.join(", ") +
-            ". Found columns: " +
-            availableHeaders.join(", ")
+            "Input 3 missing: " + missing.join(", ") +
+            ". Found columns: " + rawHeaders.map(h => String(h).trim()).filter(Boolean).join(", ")
         );
     }
 
-    return cleanedRows.map(row => ({
-        "Order ID": row[orderIdHeader],
-        "Cash": row[cashHeader],
-        "Static QR": row[qrHeader]
-    }));
+    const get = (r, field) => colIdx[field] === -1 ? "" : String(r[colIdx[field]] ?? "").trim();
+
+    const out = parsedRows.slice(headerRowIdx + 1)
+        .map(r => ({
+            "Dark Store":       get(r, "darkStore"),
+            "Delivery Date":    get(r, "deliveryDate"),
+            "Order ID":         get(r, "orderId"),
+            "Brand Name":       get(r, "brandName"),
+            "Pay on Delivery":  get(r, "payOnDelivery"),
+            "Cash":             get(r, "cash"),
+            "Static QR":        get(r, "staticQr"),
+            "Rider Name":       get(r, "riderName"),
+            "UPI Reference No": get(r, "upiRef")
+        }))
+        .filter(r => r["Order ID"]);
+
+    if (!out.length) throw new Error("No data rows with an Order ID found.");
+    return out;
 }
 
 function buildRazorpayRowsFromObjects(cleanedRows){
@@ -512,7 +546,7 @@ function cleanHeaderKeys(rawRows){
         const obj = {};
         Object.keys(row).forEach(key => {
             const cleanKey = String(key)
-                .replace(/\u00A0/g, " ")
+                .replace(/ /g, " ")
                 .trim()
                 .replace(/\s+/g, " ");
             obj[cleanKey] = row[key];
@@ -554,15 +588,7 @@ async function fetchRecoData(){
             throw new Error("The Google Sheet CSV appears to be empty.");
         }
 
-        const rawHeaders = parsedRows[0];
-        const rawObjects = parsedRows.slice(1).map(r => {
-            const obj = {};
-            rawHeaders.forEach((h, i) => obj[h] = r[i] ?? "");
-            return obj;
-        });
-
-        const cleanedRows = cleanHeaderKeys(rawObjects);
-        recoRows = buildRecoRowsFromObjects(cleanedRows);
+        recoRows = buildRecoRowsFromParsed(parsedRows);
 
         recoFileName.textContent = `${recoRows.length.toLocaleString("en-IN")} rows loaded`;
         document.getElementById("status").textContent =
@@ -670,7 +696,6 @@ function fmtDate(d){
 }
 
 // Runs automatically once Input 1, Input 2 and Input 3 (reco) are all ready.
-// (Previously triggered by the "Process Data" button, which has been removed.)
 function processData(){
     document.getElementById("loader").style.display="flex";
     setTimeout(() => {
@@ -701,10 +726,6 @@ function processData(){
             currentMonthStart=monthStart;
             currentD1=d1;
 
-            // Existing Input 1 filtering logic remains unchanged, but caches the
-            // parsed date/cash-number on each row (_od / _cashNum) so later steps
-            // (COD View filters, summaries) don't re-parse the same strings
-            // repeatedly on large datasets.
             let baseFiltered=rows.filter(r=>{
                 const od=parseDateOnly(r["Order Date"]);
                 const status=normalize(r["Order Status"]);
@@ -743,14 +764,12 @@ function processData(){
                 settlementMode:r[sIndex["Settlement Mode"]] ?? ""
             }));
 
-            // Map Order Number -> Settlement Mode. Input 2 itself is not filtered.
             const settlementMap=new Map();
             settlementRows.forEach(r=>{
                 const key=normalize(r.orderNumber);
                 if(key) settlementMap.set(key, String(r.settlementMode ?? "").trim());
             });
 
-            // Match Input 1 to Input 2, add Settlement Mode, and remove Razorpay rows.
             filtered=[];
             baseFiltered.forEach(r=>{
                 const key=normalize(r["Order Number"]);
@@ -758,7 +777,6 @@ function processData(){
                 const matchedMode=hasMatch ? settlementMap.get(key) : "Cash";
                 const modeForOutput=matchedMode || (hasMatch ? "" : "Cash");
 
-                // Exclude Cash_Collected_Razorpay after matching.
                 if(normalize(modeForOutput)==="cash_collected_razorpay") return;
 
                 const out={...r};
@@ -766,19 +784,12 @@ function processData(){
                 filtered.push(out);
             });
 
-            // Put the new column at the end of Input 1.
             const outputHeaders=headers.includes("Settlement Mode")
                 ? headers
                 : [...headers,"Settlement Mode"];
             headers=outputHeaders;
 
             // -------------------- ORDER NUMBER SUMMARY (built once) --------------------
-            // Order Number (normalized) -> { originalOrderNumber, storeName, orderDate, amount, orders }
-            // Built in a single O(n) pass and reused by renderOrderSummary,
-            // renderRecoPivot (store-name lookup) and renderMismatchTable, instead
-            // of each of those re-scanning `filtered` (or worse, doing a linear
-            // .find() per unique order) — that repeated O(n) / O(n^2) scanning was
-            // the main cause of slow processing on large order files.
             const orderNumberSummary = new Map();
             filtered.forEach(r => {
                 const orderNumberRaw = String(r["Order Number"] ?? "").trim();
@@ -806,9 +817,11 @@ function processData(){
             });
 
             // -------------------- INPUT 3 --------------------
-            // Input 3 columns: Order ID, Cash, Static QR (whether from file or fetched sheet).
             // Build Order ID -> (Cash + Static QR), summing duplicate Order IDs.
+            // Also keep Order ID -> Dark Store from the reco sheet, used as the
+            // store name when the order isn't in Input 1.
             const recoSummary = new Map();
+            const recoStoreMap = new Map();
 
             recoRows.forEach(r => {
                 const orderId = String(r["Order ID"] ?? "").trim();
@@ -823,6 +836,9 @@ function processData(){
                 const total = cashValue + qrValue;
 
                 recoSummary.set(orderId, (recoSummary.get(orderId) || 0) + total);
+
+                const store = String(r["Dark Store"] ?? "").trim();
+                if (store && !recoStoreMap.has(orderId)) recoStoreMap.set(orderId, store);
             });
 
             document.getElementById("d1Date").textContent=fmtDate(monthStart)+" → "+fmtDate(d1);
@@ -835,7 +851,7 @@ function processData(){
 
             renderPreview();
             renderOrderSummary(orderNumberSummary);
-            renderRecoPivot(recoSummary, orderNumberSummary);
+            renderRecoPivot(recoSummary, orderNumberSummary, recoStoreMap);
             renderMismatchTable(recoSummary, orderNumberSummary);
             downloadBtn.disabled=filtered.length===0;
             codViewBtn.disabled=filtered.length===0;
@@ -846,6 +862,7 @@ function processData(){
         }catch(err){
             document.getElementById("status").textContent="Error: "+err.message;
             downloadBtn.disabled=true;
+            codViewBtn.disabled=true;
         }finally{
             document.getElementById("loader").style.display="none";
         }
@@ -874,16 +891,17 @@ function renderOrderSummary(orderNumberSummary){
 
     document.getElementById("orderSummary").classList.remove("hidden");
 }
-function renderRecoPivot(summary, orderNumberSummary){
+
+function renderRecoPivot(summary, orderNumberSummary, recoStoreMap){
 
     const table = document.getElementById("recoSummaryTable");
 
-    // Input 3 has no Store Name column, so look it up from the shared
-    // Order Number summary (built once from Input 1) by Order ID -> Order Number.
+    // Store name: Input 1 Store Name first, then the reco sheet's Dark Store.
     const entries = Array.from(summary.entries())
         .map(([orderId, amount]) => {
             const info = orderNumberSummary.get(normalize(orderId));
-            return { orderId, amount, storeName: info ? info.storeName : "" };
+            const storeName = (info && info.storeName) || recoStoreMap.get(orderId) || "";
+            return { orderId, amount, storeName };
         })
         .sort((a, b) => b.amount - a.amount);
 
@@ -902,7 +920,6 @@ function renderRecoPivot(summary, orderNumberSummary){
     `;
 
     shown.forEach(({ storeName, orderId, amount }) => {
-
         html += `
             <tr>
                 <td>${escapeHTML(storeName)}</td>
@@ -913,7 +930,6 @@ function renderRecoPivot(summary, orderNumberSummary){
                 })}</td>
             </tr>
         `;
-
     });
 
     html += "</tbody>";
@@ -931,14 +947,12 @@ function renderMismatchTable(recoSummary, orderNumberSummary){
     const table = document.getElementById("mismatchSummaryTable");
     const mismatchRows = [];
 
-    // Normalized Order ID -> summed Cash + Static QR (Input 3), built once.
     const recoSummaryByKey = new Map();
     recoSummary.forEach((amount, orderId) => {
         const key = normalize(orderId);
         recoSummaryByKey.set(key, (recoSummaryByKey.get(key) || 0) + amount);
     });
 
-    // Normalized Order ID (from the Razorpay lookup sheet) -> summed amount, built once.
     const razorpayMap = new Map();
     razorpayRows.forEach(r => {
         const orderId = String(r["Order ID"] ?? "").trim();
@@ -952,29 +966,20 @@ function renderMismatchTable(recoSummary, orderNumberSummary){
         razorpayMap.set(key, (razorpayMap.get(key) || 0) + value);
     });
 
-    // Walk the (already built) Order Number summary once — no per-order linear
-    // scans of `filtered` or `recoSummary` here, which is what made this O(n^2)
-    // before and slow to a crawl on large order files.
     orderNumberSummary.forEach((info, key) => {
         const hasInput3Match = recoSummaryByKey.has(key);
         const input3Amount = hasInput3Match ? recoSummaryByKey.get(key) : 0;
 
-        // Round to 2 decimals to avoid floating-point precision issues.
         const left = Math.round(info.amount * 100) / 100;
         const right = Math.round(input3Amount * 100) / 100;
 
-        // Check whether this order was actually paid out via Razorpay.
         const hasRazorpayMatch = razorpayMap.has(key);
         const razorpayAmount = hasRazorpayMatch
             ? Math.round(razorpayMap.get(key) * 100) / 100
             : 0;
 
-        // Show only mismatches.
-        // Difference = Input 3 (Cash + Static QR) - Input 1 (Cash Collected)
         if (left !== right) {
             const difference = Math.round((right - left) * 100) / 100;
-            // Final Difference folds the Razorpay amount into what was actually
-            // received, so a Razorpay payout can close out an apparent mismatch.
             const finalDifference = hasRazorpayMatch
                 ? Math.round(((right + razorpayAmount) - left) * 100) / 100
                 : difference;
@@ -993,6 +998,8 @@ function renderMismatchTable(recoSummary, orderNumberSummary){
             });
         }
     });
+
+    const fmt = n => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     let tableHTML = `
         <thead>
@@ -1018,28 +1025,13 @@ function renderMismatchTable(recoSummary, orderNumberSummary){
                 <td>${escapeHTML(row.orderDate)}</td>
                 <td>${escapeHTML(row.storeName)}</td>
                 <td>${escapeHTML(row.orderNumber)}</td>
-                <td>${row.input1Cash.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                })}</td>
-                <td>${row.input3Cash.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                })}</td>
-                <td>${row.difference.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                })}</td>
+                <td>${fmt(row.input1Cash)}</td>
+                <td>${fmt(row.input3Cash)}</td>
+                <td>${fmt(row.difference)}</td>
                 <td>${escapeHTML(row.input3Status)}</td>
                 <td>${row.razorpayMatch ? "Yes" : "No"}</td>
-                <td>${row.razorpayAmount.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                })}</td>
-                <td>${row.finalDifference.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                })}</td>
+                <td>${fmt(row.razorpayAmount)}</td>
+                <td>${fmt(row.finalDifference)}</td>
             </tr>
         `;
     });
@@ -1060,6 +1052,7 @@ function renderPreview(){
     html+="</tbody>";
     table.innerHTML=html;
 }
+
 // ---------- COD View: store-wise COD dashboard with Monthly / Weekly / Custom filters ----------
 const codViewBtn = document.getElementById("codViewBtn");
 const codViewSection = document.getElementById("codView");
@@ -1085,9 +1078,8 @@ function toInputDateStr(d){
     return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 }
 
-// Monday-start week containing date d.
 function getWeekStart(d){
-    const day = d.getDay(); // 0 = Sun .. 6 = Sat
+    const day = d.getDay();
     const diff = (day === 0 ? -6 : 1 - day);
     const monday = new Date(d);
     monday.setDate(d.getDate() + diff);
@@ -1095,8 +1087,6 @@ function getWeekStart(d){
     return monday;
 }
 
-// Builds Monday-Sunday week buckets spanning [startDate, endDate], each
-// clipped to that range (so the first/last week don't spill outside it).
 function buildWeekBuckets(startDate, endDate){
     const weeks = [];
     let cursor = getWeekStart(startDate);
@@ -1112,10 +1102,6 @@ function buildWeekBuckets(startDate, endDate){
     return weeks;
 }
 
-// Store-wise { amount, orders } totals from `filtered`, within [startDate, endDate] inclusive.
-// Uses the _od / _cashNum cached on each row during processData (see baseFiltered
-// above) instead of re-parsing the date/cash strings on every filter change —
-// this table gets rebuilt each time the COD View period/week/date filter changes.
 function computeStoreTotals(startDate, endDate){
     const totals = new Map();
     filtered.forEach(r => {
@@ -1153,7 +1139,7 @@ function renderCODView(){
             ).join("");
             codWeekSelect.dataset.built = "1";
             codWeekSelect._weeks = weeks;
-            codWeekSelect.selectedIndex = weeks.length - 1; // most recent week by default
+            codWeekSelect.selectedIndex = weeks.length - 1;
         }
 
         const weeks = codWeekSelect._weeks || [];
@@ -1175,7 +1161,7 @@ function renderCODView(){
             [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
         }
 
-    } else { // monthly (default) — the full processed range, 1st of month -> D-1
+    } else {
         rangeStart = currentMonthStart;
         rangeEnd = currentD1;
     }
@@ -1215,7 +1201,6 @@ function escapeHTML(v){
     return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 }
 
-// Shows/hides a small note element (used for "showing top N of X" truncation notices).
 function setNote(id, text){
     const el = document.getElementById(id);
     if(!el) return;
@@ -1263,8 +1248,6 @@ async function copyTableToClipboard(tableId, btnEl){
         }
         throw new Error("Clipboard API unavailable");
     }catch(err){
-        // Fallback: select the table DOM node and use execCommand, which
-        // preserves formatting well when pasted into Excel/Sheets.
         try{
             const range = document.createRange();
             range.selectNode(table);
@@ -1290,8 +1273,6 @@ function downloadTableAsPNG(tableId, filename, btnEl){
     const wrap = table ? table.closest(".table-wrap") : null;
     if(!wrap || !table.rows.length){ flashBtn(btnEl, "Nothing to export", true); return; }
 
-    // Temporarily expand the scroll box so the *entire* table is captured,
-    // not just the part currently visible/scrolled into view.
     const prevMaxHeight = wrap.style.maxHeight;
     const prevOverflow = wrap.style.overflow;
     wrap.style.maxHeight = "none";
@@ -1338,7 +1319,7 @@ downloadBtn.addEventListener("click",()=>{
     if(!filtered.length) return;
     const lines=[headers.map(csvEscape).join(",")];
     filtered.forEach(r=>lines.push(headers.map(h=>csvEscape(r[h])).join(",")));
-    const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+    const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;
