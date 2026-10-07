@@ -391,6 +391,7 @@ const krishnaStores = [
 
 // Display names for known store slugs. Anything not listed here falls
 // back to a prettified version of the raw darkstore name.
+// Two raw values that map to the same display name are merged into one row.
 const storeNameMap = {
   "zippee_andheri_sdd": "Mumbai | Andheri",
   "zippee_horamavu_sdd": "Bangalore | Horamavu",
@@ -402,10 +403,12 @@ const storeNameMap = {
   "zipppee_noida_sdd": "Delhi | Noida",
   "zippee_koramangala_sdd": "Bangalore | Koramangala",
   "zippee_koregaonpark_sdd": "Pune | Koregaon Park",
+  "koregaon park": "Pune | Koregaon Park",
   "zippee_manikonda_sdd": "Hyderabad | Manikonda",
   "zippee_matunga_valkyriesdd": "Mumbai | Matunga",
   "zippee_periyamet_sdd": "Chennai | Periyamet",
   "zippee_kolkata_sdd": "Kolkata | Topsia",
+  "zippee_topsia_valkyriesdd": "Kolkata | Topsia",
   "zippee_krishna_herbal_indorewh": "Indore | Krishna Herbal",
   "zippee_krishna_herbal_jodhpurwh": "Jodhpur | Krishna Herbal"
 };
@@ -435,11 +438,13 @@ function storeDisplayName(raw){
 // e.g. Report Date 28/09 → exclude everything after 27/09 4:00 PM.
 const cutoffHour = 16;
 
-// Brand whitelist (matched case-insensitively against "Brand Name").
-// "Sandipani Healthcare" and "Krishna's Hebral & Ayurveda" are the same
-// brand under two different names — both are allowed through.
+// Brand filter: a brand is allowed if its name CONTAINS any of these words
+// (case-insensitive). This covers every name the brand appears under in Blaze:
+//   "Sandipani Healthcare"
+//   "Krishna's Hebral & Ayurveda"
+//   "Krishna's Hebral & Ayurveda (Sandipani Healthcare)"
 // Set to null to allow all brands. Not applied to Krishna Herbal stores.
-const allowedBrands = ["sandipani healthcare", "krishna's hebral & ayurveda"];
+const allowedBrandKeywords = ["sandipani", "krishna's hebral"];
 
 // Brands always excluded (not applied to Krishna Herbal stores).
 const excludedBrands = ["testing_fabbox", "supertails"];
@@ -486,21 +491,28 @@ function isKrishna(nrow){
   return krishnaStores.includes(nrow.store);
 }
 
-// Blaze: single field like ="17/08/2026 5:16 PM" -> dd/mm/yyyy hh:mm AM/PM
+function brandAllowed(brand){
+  if(!allowedBrandKeywords) return true;
+  return allowedBrandKeywords.some(k => brand.includes(k));
+}
+
+// Blaze: single field like ="17/08/2026 5:16 PM" -> dd/mm/yyyy hh:mm[:ss] AM/PM
+// Also tolerates seconds and 24-hour times without AM/PM.
 function parseBlazeDate(raw){
-  raw = (raw || "").trim().replace(/^="|"$/g, "");
+  raw = (raw || "").trim().replace(/^="|"$/g, "").trim();
   if(!raw) return null;
-  let parts = raw.split(/[\s/:]/);
-  if(parts.length < 6) return null;
-  let day = parseInt(parts[0]);
-  let month = parseInt(parts[1]) - 1;
-  let year = parseInt(parts[2]);
-  let hour = parseInt(parts[3]);
-  let minute = parseInt(parts[4]);
-  let ampm = parts[5];
+  let m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if(!m) return null;
+  let day = parseInt(m[1]);
+  let month = parseInt(m[2]) - 1;
+  let year = parseInt(m[3]);
+  let hour = parseInt(m[4]);
+  let minute = parseInt(m[5]);
+  let second = m[6] ? parseInt(m[6]) : 0;
+  let ampm = (m[7] || "").toUpperCase();
   if(ampm === "PM" && hour !== 12) hour += 12;
   if(ampm === "AM" && hour === 12) hour = 0;
-  let d = new Date(year, month, day, hour, minute);
+  let d = new Date(year, month, day, hour, minute, second);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -522,7 +534,7 @@ function normalizeBlazeRow(row){
   };
 }
 
-/* ---------- Report date & cutoff (Option B) ---------- */
+/* ---------- Report date & cutoff ---------- */
 
 // yyyy-mm-dd in LOCAL time (toISOString would use UTC and can shift the
 // day in IST around midnight).
@@ -595,12 +607,13 @@ function updateKrishnaStatus(){
     return;
   }
 
+  let idSet = new Set(ids);
   let found = new Set();
   blazeNormalized.forEach(r=>{
     if(!isKrishna(r)) return;
     let a = normId(r.awb), o = normId(r.orderNumber);
-    if(ids.includes(a)) found.add(a);
-    if(ids.includes(o)) found.add(o);
+    if(idSet.has(a)) found.add(a);
+    if(idSet.has(o)) found.add(o);
   });
   let missing = ids.filter(id => !found.has(id));
 
@@ -636,7 +649,7 @@ function passesFilters(nrow, ctx){
   // (no cutoff, brand, attempts, RTO or status filter).
   if(isKrishna(nrow)) return krishnaMatches(nrow, ctx.krishnaIdSet);
 
-  if(allowedBrands && !allowedBrands.includes(nrow.brand)) return false;
+  if(!brandAllowed(nrow.brand)) return false;
   if(excludedBrands.includes(nrow.brand)) return false;
 
   if(nrow.attempts > 5) return false;
@@ -656,22 +669,22 @@ function getFilteredDeduped(){
     krishnaIdSet: new Set(getKrishnaIdList())
   };
 
-  let latestMap = {};
+  let bestByKey = {};
   blazeNormalized.forEach(nrow=>{
     if(!passesFilters(nrow, ctx)) return;
     let key = nrow.awb || ("ORDER:" + nrow.orderNumber);
-    if(!latestMap[key] || nrow.attempts > latestMap[key].attempts){
-      latestMap[key] = nrow;
+    if(!bestByKey[key] || nrow.attempts > bestByKey[key].attempts){
+      bestByKey[key] = nrow;
     }
   });
 
-  return Object.values(latestMap);
+  return Object.values(bestByKey);
 }
 
 // Rows for Reports 2 & 3 and the CSV: only rows whose status is ticked
 // in the Status Filter — Krishna Herbal orders included. Statuses that
 // aren't ticked (e.g. DELIVERED, RTO, CANCELLED) never get a column or
-// appear in these two reports; tick them in the filter to see them.
+// appear in these two reports.
 function getStatusRows(filtered, selectedStatuses){
   let ordered = priorityStatuses.filter(s => selectedStatuses.includes(s))
     .concat(selectedStatuses.filter(s => !priorityStatuses.includes(s)));
@@ -688,6 +701,7 @@ document.getElementById("blazeFileInput").addEventListener("change", function(e)
   Papa.parse(e.target.files[0], {
     header: true,
     skipEmptyLines: true,
+    transformHeader: h => h.replace(/^\uFEFF/, "").trim(),
     complete: function(res){
       blazeNormalized = res.data.map(normalizeBlazeRow);
       document.getElementById("blazeStatus").textContent =
@@ -901,12 +915,16 @@ function renderPivot(containerId, title, rows, levels, columns){
     return Object.values(node.children).sort((a,b)=>
       a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : a.label.localeCompare(b.label));
   }
+  function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
+  // Only children with at least one order are drawn, so rowspans count
+  // only those.
+  function visibleKids(node){
+    return sortedKids(node).filter(k => sum(k.counts) > 0);
+  }
   function leafCount(node, depth){
     if(depth === levels.length-1) return 1;
-    return sortedKids(node).reduce((s,k)=>s+leafCount(k, depth+1), 0);
+    return visibleKids(node).reduce((s,k)=>s+leafCount(k, depth+1), 0);
   }
-  function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
-  function cell(v){ return v === 0 ? "" : v; }   // zero counts render blank
   function clickableCell(v, rowsForCell){
     if(v === 0) return "<td></td>";
     let id = registerDrill(rowsForCell);
@@ -916,10 +934,10 @@ function renderPivot(containerId, title, rows, levels, columns){
   let html = `
   <div class="downloadArea" id="${containerId}">
   <table>
-    <caption class="table-header-bar">${title}</caption>
+    <caption class="table-header-bar">${escapeHtml(title)}</caption>
     <tr>
-      ${levels.map(l=>`<th>${l.header}</th>`).join("")}
-      ${columns.map(c=>`<th>${c.header}</th>`).join("")}
+      ${levels.map(l=>`<th>${escapeHtml(l.header)}</th>`).join("")}
+      ${columns.map(c=>`<th>${escapeHtml(c.header)}</th>`).join("")}
       <th>Total</th>
     </tr>`;
 
@@ -928,12 +946,10 @@ function renderPivot(containerId, title, rows, levels, columns){
 
   function emitRows(node, depth, cells){
     // cells: array of pending <td> strings for outer levels, emitted on the first leaf row
-    let kids = sortedKids(node);
-    kids.forEach(kid=>{
+    visibleKids(node).forEach(kid=>{
       let total = sum(kid.counts);
-      if(total === 0) return;
       let labelId = registerDrill(kid.rowsList);
-      let td = `<td rowspan="${leafCount(kid, depth)}" style="font-weight:600;" onclick="showDrill('${labelId}')">${kid.label}</td>`;
+      let td = `<td rowspan="${leafCount(kid, depth)}" style="font-weight:600;" onclick="showDrill('${labelId}')">${escapeHtml(kid.label)}</td>`;
       if(depth === levels.length-1){
         html += `<tr>${cells.join("")}${td}`;
         kid.counts.forEach((v,i)=>{ html += clickableCell(v, kid.colRowsList[i]); });
@@ -946,12 +962,11 @@ function renderPivot(containerId, title, rows, levels, columns){
     });
   }
 
-  sortedKids(root).forEach(top=>{
+  visibleKids(root).forEach(top=>{
     let total = sum(top.counts);
-    if(total === 0) return;
     let topId = registerDrill(top.rowsList);
     let storeCell = `<td rowspan="${leafCount(top,0)}" onclick="showDrill('${topId}')">
-      <span style="font-weight:600;font-size:12px;">${top.label}</span></td>`;
+      <span style="font-weight:600;font-size:12px;">${escapeHtml(top.label)}</span></td>`;
     if(levels.length === 1){
       html += `<tr>${storeCell}`;
       top.counts.forEach((v,i)=>{ html += clickableCell(v, top.colRowsList[i]); });
@@ -1027,7 +1042,7 @@ function renderTable(selectedStatuses){
   let attemptsPresent = [...new Set(readyRows.map(r=>r.attempts))].sort((a,b)=>a-b);
   let attemptCols = attemptsPresent.map(a=>({header:`${a} Attempts`, match: r=>r.attempts===a}));
 
-  // Reports 2 & 3: ticked statuses (+ any status on matched Krishna orders).
+  // Reports 2 & 3: only statuses ticked in the Status Filter.
   let { rows: statusRows, statuses } = getStatusRows(filtered, selectedStatuses);
   let statusCols = statuses.map(s=>({header:s, match: r=>r.status===s}));
 
@@ -1038,7 +1053,7 @@ function renderTable(selectedStatuses){
   html += renderPivot("report2", "Krishna Herbal Order Status Report",
                       statusRows, [sl, dateLevel()], statusCols);
   html += `<div style="height:30px"></div>`;
-  html += renderPivot("report3", "Krishna Herbal Order Status Report",
+  html += renderPivot("report3", "Krishna Herbal Order Status Report (by Attempts)",
                       statusRows, [sl, dateLevel(), attemptLevel()], statusCols);
 
   document.getElementById("tableContainer").innerHTML = html;
@@ -1048,7 +1063,10 @@ function renderTable(selectedStatuses){
 
 function downloadImage(id){
   let area = document.getElementById(id);
-  if(!area) return;
+  if(!area){
+    alert("Load the Blaze file first — there is no report to download yet.");
+    return;
+  }
   html2canvas(area, {
     scale: 3,
     useCORS: true,
@@ -1076,7 +1094,7 @@ function rowsToCsvBlob(rowsArr){
     "Trip": nrow.trip,
     "Attempts": nrow.attempts,
     "Status": nrow.status,
-    "Creation Date": nrow.creationDate ? nrow.creationDate.toLocaleString() : "",
+    "Creation Date": nrow.creationDate ? nrow.creationDate.toLocaleString("en-IN") : "",
     "Customer Name": nrow.customerName,
     "Customer Mobile": nrow.customerMobile,
     "Delivery Address": nrow.deliveryAddress,
@@ -1095,6 +1113,10 @@ function triggerDownload(blob, filename){
 }
 
 function downloadCSV(){
+  if(blazeNormalized.length === 0){
+    alert("Load the Blaze file first — there is no data to export yet.");
+    return;
+  }
   let { rows } = getStatusRows(getFilteredDeduped(), getSelectedStatuses());
   triggerDownload(rowsToCsvBlob(rows), "filtered_data.csv");
 }
