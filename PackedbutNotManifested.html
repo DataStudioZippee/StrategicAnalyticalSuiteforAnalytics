@@ -2,1009 +2,466 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Zippee | Packed But Not Manifested</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SASA – Hyue &lt;&gt; Packed But Not Manifested</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-/**/
+@property --depth{syntax:'<length>';inherits:false;initial-value:6px;}
+:root{
+  --zippee-primary:#00305E;--zippee-secondary:#0078D4;--text-dark:#1d2a38;--card-bg:rgba(255,255,255,.15);
+  --edge-top:#2b8cff;--edge-bottom:#063f7d;--edge-depth:6px;--edge-depth-hover:11px;--glare:rgba(255,255,255,.5);--stage:900px;
+  --soft:rgba(255,255,255,.55);--warn:#c2410c;--ok:#0a7d4f;
+}
+body.dark{
+  --zippee-primary:#dce9ff;--text-dark:#f5f5f5;--card-bg:rgba(0,0,0,.35);
+  --edge-top:#1e6fd9;--edge-bottom:#03203f;--glare:rgba(160,205,255,.32);--soft:rgba(0,0,0,.45);--warn:#ff9a5c;--ok:#5fd39b;
+  background:#0b1320 !important;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:url('Zippee_bg.png') no-repeat center/cover fixed;min-height:100vh;overflow-x:hidden;color:var(--text-dark)}
+body::before{content:"";position:fixed;inset:0;background:rgba(255,255,255,.25);z-index:-1}
 
-.table-wrapper{
-    width:100%;
-    overflow-x:auto;
-    margin-top:15px;
-}
+/* HEADER */
+.header-main{background:rgba(0,48,94,.85);color:#fff;position:fixed;top:0;width:100%;padding:10px 8px;display:flex;justify-content:center;align-items:center;gap:10px;z-index:20;
+  box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 -1px 0 rgba(0,0,0,.4) inset,0 10px 24px rgba(0,0,0,.35)}
+.header-logo{height:36px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.45))}
+h1{margin:0;font-size:22px;text-shadow:0 1px 0 rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.3)}
 
-.clean-table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:13px;
-}
+/* CONTAINER */
+.container{margin:100px auto 60px;width:94%;max-width:1150px;padding:26px 22px;border-radius:18px;background:var(--card-bg);backdrop-filter:blur(10px);color:var(--text-dark);perspective:1600px;
+  box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 -1px 0 rgba(0,0,0,.14) inset,0 18px 50px rgba(0,0,0,.28)}
+.container h2{text-align:center;margin:4px 0 6px;text-shadow:0 1px 0 rgba(255,255,255,.65),0 2px 0 rgba(0,0,0,.10),0 4px 10px rgba(0,0,0,.18)}
+body.dark .container h2{text-shadow:0 1px 0 rgba(0,0,0,.6),0 2px 12px rgba(120,180,255,.28)}
+.sub{text-align:center;margin:0 0 18px;font-weight:600;opacity:.85}
+.back{display:inline-block;margin-bottom:8px;color:var(--zippee-primary);font-weight:700;text-decoration:none}
 
-.clean-table th{
-    background:#ff9800;
-    color:#000;
-    padding:8px;
-    white-space:nowrap;
-}
+/* 3D TILES */
+.button-group{display:flex;justify-content:center;flex-wrap:wrap;gap:16px;margin:18px 0 6px}
+.tool-button{--lift:0px;--depth:var(--edge-depth);position:relative;overflow:hidden;border:none;background:linear-gradient(160deg,var(--edge-top),#0a63c9 55%,#0757ad);color:#fff;
+  padding:13px 18px;border-radius:12px;text-decoration:none;font:700 15px "Segoe UI",system-ui,sans-serif;min-width:220px;display:flex;gap:8px;justify-content:center;align-items:center;cursor:pointer;
+  transform:perspective(var(--stage)) translateZ(var(--lift));
+  box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 -2px 0 rgba(0,0,0,.28) inset,0 var(--depth) 0 var(--edge-bottom),0 calc(var(--depth) + 6px) 20px rgba(0,0,0,.32);
+  transition:transform .45s cubic-bezier(.2,.8,.3,1),box-shadow .3s ease,--depth .3s ease}
+@media (hover:hover) and (pointer:fine){.tool-button:hover{--lift:16px;--depth:var(--edge-depth-hover)}}
+.tool-button:active{--lift:2px;--depth:2px;transition:transform .08s ease,box-shadow .08s ease}
+.tool-button:focus-visible,.chip:focus-visible,select:focus-visible{outline:3px solid #ffd54a;outline-offset:3px}
+.tool-button[disabled]{opacity:.6;cursor:wait}
 
-.clean-table td{
-    padding:6px;
-    text-align:center;
-    white-space:nowrap;
-}
+/* DARK TOGGLE */
+.toggle-dark{position:fixed;top:10px;right:15px;background:#fff;color:#1d2a38;border:0;border-radius:50px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:50;
+  box-shadow:0 3px 0 rgba(0,0,0,.25),0 8px 16px rgba(0,0,0,.3);transition:transform .18s ease,box-shadow .18s ease}
+.toggle-dark:hover{transform:translateY(-2px)}
+.toggle-dark:active{transform:translateY(2px)}
 
-.summary-input{
-    width:65px;
-    padding:4px;
-    text-align:center;
-    border:1px solid #ccc;
-    border-radius:5px;
-}
+/* DROP ZONE */
+.drop{border:2px dashed rgba(0,48,94,.45);background:var(--soft);border-radius:16px;padding:30px 20px;text-align:center;
+  box-shadow:0 1px 0 rgba(255,255,255,.75) inset,0 4px 0 rgba(0,0,0,.10),0 14px 26px rgba(0,0,0,.2);transition:border-color .2s,background .2s}
+body.dark .drop{border-color:rgba(160,205,255,.4)}
+.drop.drag{border-color:var(--zippee-secondary);background:rgba(0,120,212,.18)}
+.drop p{margin:0 0 14px;font-weight:600}
+.drop .fname{margin:14px 0 0;font-size:14px;font-weight:600}
+.drop .fname.ok{color:var(--ok)}
+.drop .fname.err{color:var(--warn)}
+.drop .button-group{margin:0}
+.drop input{display:none}
 
-/* ================= GLOBAL ================= */
-body{
-    margin:0;
-    font-family:"Segoe UI", Arial;
-    background:url('sasa.png') center/cover fixed no-repeat;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-}
+/* INFO */
+.stats{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:22px 0 12px}
+.stat{background:var(--soft);border-radius:12px;padding:8px 16px;text-align:center;min-width:130px;box-shadow:0 1px 0 rgba(255,255,255,.75) inset,0 3px 0 rgba(0,0,0,.10),0 10px 20px rgba(0,0,0,.16)}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:13px;opacity:.8}
+.logic{max-width:760px;margin:0 auto 16px;background:var(--soft);border-left:5px solid var(--ok);border-radius:0 12px 12px 0;padding:9px 14px;font-size:14px}
+.logic.pend{border-left-color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 16px}
+.chips .lbl{font-weight:700;align-self:center}
+.chip{border:0;border-radius:999px;padding:6px 14px;font:600 13px "Segoe UI",system-ui,sans-serif;cursor:pointer;background:var(--soft);color:var(--text-dark);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.chip[aria-pressed="true"]{background:linear-gradient(160deg,var(--edge-top),#0757ad);color:#fff;box-shadow:0 3px 0 var(--edge-bottom)}
 
-body::before{
-    content:"";
-    position:fixed;
-    inset:0;
-    background:rgba(255,255,255,0.25);
-    backdrop-filter:blur(6px);
-    z-index:-1;
-}
+/* REPORT (matches the PNG) */
+.rep-wrap{overflow-x:auto;text-align:center;padding:6px 2px 10px}
+.rep{display:inline-block;min-width:min(100%,640px);background:#fff;border:1.5px solid #a3abb9;color:#000;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.25)}
+.rep-title{background:#4FC3E9;font-weight:800;font-size:30px;padding:16px 34px;border-bottom:1.5px solid #a3abb9;line-height:1.25}
+.rep table{width:100%;border-collapse:separate;border-spacing:3px}
+.rep th,.rep td{border:1.5px solid #a3abb9;padding:11px 30px;font-size:18px;white-space:nowrap}
+.rep th,.rep tr.gt td{font-weight:700}
+.rep-sub{background:#4FC3E9;border-bottom:1.5px solid #a3abb9;padding:9px;font-size:17px;font-weight:600;color:#0b2540}
+.rep-sec{background:#DA6CE0;font-weight:800;font-size:24px;padding:14px;border-top:1.5px solid #a3abb9;border-bottom:1.5px solid #a3abb9;margin-top:4px}
+.rep tr.gt td{background:#F2F3F6}
+.rep td.l{text-align:left;padding-left:14px}
+.rep-foot{border-top:1.5px solid #a3abb9;padding:11px;font-size:17px}
+.empty{text-align:center;padding:26px;background:var(--soft);border-radius:14px;font-weight:600}
 
-/* ================= HEADER ================= */
-.zippee-header{
-    width:100%;
-    background:linear-gradient(90deg,#003f8c,#0059b3);
-    color:white;
-    padding:16px 32px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:10px;
-}
+details{margin-top:24px;background:var(--soft);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font-weight:700}
+.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px 18px;margin-top:12px}
+.map label{display:flex;flex-direction:column;font-size:13px;gap:3px}
+.map select{font:inherit;font-size:14px;padding:5px;border-radius:6px;border:1px solid #9aa6b5;max-width:100%}
+.msg{text-align:center;color:var(--warn);font-weight:600;min-height:1.2em;margin-top:8px}
 
-.zippee-header h1{
-    margin:0;
-    font-size:22px;
-}
-
-/* ================= MAIN CONTAINER ================= */
-.main-container{
-    width:100%;
-    max-width:2000px;
-    padding:20px;
-}
-
-/* ================= SECTION CARD ================= */
-.section-card{
-    background: rgba(255,255,255,0.92);
-    border-radius:14px;
-    padding:18px 20px 22px;
-    margin:26px auto;
-    box-shadow:0 12px 30px rgba(0,0,0,0.12);
-    max-width: 1800px;
-    width: 98%;
-}
-
-.section-title{
-    font-size:18px;
-    font-weight:700;
-    margin-bottom:14px;
-    color:#0b1f3b;
-}
-
-/* ================= CONTROLS ================= */
-.controls{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    justify-content:center;
-    margin-bottom:20px;
-}
-
-.controls button{
-    background:linear-gradient(135deg,#0A66C2,#0078FF);
-    border:none;
-    border-radius:10px;
-    padding:10px 16px;
-    color:white;
-    cursor:pointer;
-    font-weight:700;
-}
-.controls button.secondary{
-    background:linear-gradient(135deg,#6b7280,#4b5563);
-}
-.controls button.active{
-    outline:3px solid #ffb703;
-}
-
-/* ================= SEARCH ================= */
-.search-section{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:20px;
-}
-
-/* ================= TABLE ================= */
-.clean-table{
-    width:100%;
-    border-collapse:separate;
-    border-spacing:0;
-    font-size:14px;
-}
-
-.clean-table thead th{
-    background:#0b4ea2;
-    color:white;
-    padding:10px 12px;
-    font-weight:600;
-}
-
-.clean-table tbody td{
-    padding:9px 12px;
-    border-bottom:1px solid #e3e6ec;
-}
-
-.clean-table tbody tr:hover{
-    background:#f6f9ff;
-}
-
-.clean-table th:first-child,
-.clean-table td:first-child{
-    text-align:left;
-}
-
-.clean-table th:not(:first-child),
-.clean-table td:not(:first-child){
-    text-align:center;
-}
-
-.clean-table .total-row td{
-    background:#b7c9e8;
-    font-weight:700;
-    border-top:2px solid #0b4ea2;
-}
-
-/* ================= FOOTER ================= */
-footer{
-    margin:30px 0 10px;
-    font-size:13px;
-    opacity:0.8;
-    text-align:center;
-}
-.disclaimer{
-    text-align:center;
-    font-size:13px;
-    margin:10px 0 15px;
-    color:#b91c1c;
-    font-weight:600;
-}
-
-/* ============ EXTRA (page-specific, additive only) ============ */
-.upload-zone{
-    border:2px dashed #0b4ea2;
-    border-radius:14px;
-    padding:28px;
-    text-align:center;
-    cursor:pointer;
-    background:#f4f8ff;
-    transition:background .15s;
-}
-.upload-zone:hover, .upload-zone.drag{
-    background:#e8f0fe;
-}
-.upload-zone input{ display:none; }
-.file-list{
-    margin-top:14px;
-    font-size:13px;
-    color:#33425a;
-}
-.file-chip{
-    display:inline-block;
-    background:#eef2fb;
-    border:1px solid #cfd9ec;
-    border-radius:20px;
-    padding:5px 12px;
-    margin:4px 4px 0 0;
-    font-size:12px;
-}
-.file-chip .rm{
-    cursor:pointer;
-    color:#b91c1c;
-    font-weight:700;
-    margin-left:8px;
-}
-.config-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:16px;
-    margin:18px 0;
-}
-.config-block{
-    background:#f9fafc;
-    border:1px solid #e3e6ec;
-    border-radius:10px;
-    padding:12px 14px;
-}
-.config-block h4{
-    margin:0 0 8px;
-    font-size:13px;
-    color:#0b1f3b;
-    text-transform:uppercase;
-    letter-spacing:.3px;
-}
-.chk-row{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-size:13px;
-    margin:4px 0;
-}
-.stat-strip{
-    display:flex;
-    gap:16px;
-    flex-wrap:wrap;
-    justify-content:center;
-    margin-bottom:22px;
-}
-.stat-box{
-    background:#0b1f3b;
-    color:#fff;
-    border-radius:12px;
-    padding:14px 22px;
-    min-width:150px;
-    text-align:center;
-}
-.stat-box.muted{
-    background:#5a6472;
-}
-.stat-box .num{
-    font-size:26px;
-    font-weight:800;
-    line-height:1.1;
-}
-.stat-box .lbl{
-    font-size:12px;
-    opacity:0.75;
-    margin-top:4px;
-    text-transform:uppercase;
-    letter-spacing:0.4px;
-}
-.search-section input[type="text"]{
-    padding:10px 14px;
-    border:1px solid #cfd6e2;
-    border-radius:10px;
-    min-width:260px;
-    font-size:14px;
-}
-.badge{
-    display:inline-block;
-    padding:3px 10px;
-    border-radius:20px;
-    font-size:12px;
-    font-weight:700;
-}
-.badge.assigned{ background:#fde6c8; color:#8a4a00; }
-.badge.confirmed{ background:#d6ebd9; color:#1c6b2a; }
-.badge.other{ background:#e5e7eb; color:#374151; }
-.row-count{
-    text-align:center;
-    font-size:13px;
-    color:#5a6472;
-    margin-top:10px;
-}
-.logic-box{
-    background:#f4f7fc;
-    border-left:4px solid #0b4ea2;
-    border-radius:8px;
-    padding:12px 16px;
-    font-size:13px;
-    color:#33425a;
-    margin-bottom:18px;
-    line-height:1.6;
-}
-.logic-box code{
-    background:#e7edf8;
-    padding:1px 6px;
-    border-radius:4px;
-}
-.logic-box ul{
-    margin:6px 0 0;
-    padding-left:20px;
-}
-.logic-box li{
-    margin:3px 0;
-}
-.empty-state{
-    text-align:center;
-    color:#7a8494;
-    padding:30px;
-    font-size:14px;
-}
-.status-pill{
-    font-size:12px;
-    color:#0b4ea2;
-    font-weight:700;
-}
-.pending-modal-overlay{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(20,20,20,0.55);
-    z-index:1000;
-    align-items:center;
-    justify-content:center;
-}
-.pending-modal-overlay.show{
-    display:flex;
-}
-.pending-modal{
-    background:#fff;
-    border-radius:14px;
-    max-width:460px;
-    width:90%;
-    padding:26px 28px 22px;
-    text-align:center;
-    box-shadow:0 20px 50px rgba(0,0,0,0.35);
-    border-top:6px solid #D64545;
-}
-.pending-modal .icon{
-    font-size:36px;
-    margin-bottom:10px;
-}
-.pending-modal h3{
-    margin:0 0 10px;
-    color:#7A1414;
-    font-size:17px;
-}
-.pending-modal p{
-    margin:0 0 20px;
-    color:#4a4a4a;
-    font-size:14px;
-    line-height:1.5;
-}
-.pending-modal button{
-    background:linear-gradient(135deg,#D64545,#B32C2C);
-    border:none;
-    color:#fff;
-    font-weight:700;
-    padding:10px 22px;
-    border-radius:10px;
-    cursor:pointer;
-    font-size:14px;
-}
-
-/* ============ REPORT CARD (matches the reference screenshot) ============ */
-.report-title-row{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:10px;
-    margin-bottom:14px;
-}
-.report-title-row input{
-    text-align:center;
-    font-size:13px;
-    padding:6px 10px;
-    border:1px solid #cfd6e2;
-    border-radius:8px;
-    width:340px;
-}
-#reportCard{
-    width:100%;
-    max-width:720px;
-    margin:0 auto;
-    border:1px solid #9aa5b1;
-    background:#ffffff;
-    font-family:"Segoe UI", Arial, sans-serif;
-}
-.report-banner{
-    background:#4FC3E8;
-    color:#000;
-    font-weight:800;
-    font-size:24px;
-    text-align:center;
-    padding:14px 10px;
-    border-bottom:1px solid #9aa5b1;
-}
-.report-table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:15px;
-}
-.report-table th{
-    text-align:center;
-    font-weight:700;
-    padding:8px 12px;
-    border:1px solid #9aa5b1;
-    background:#fff;
-}
-.report-table td{
-    padding:7px 12px;
-    border:1px solid #9aa5b1;
-    text-align:center;
-}
-.report-table td:first-child{
-    text-align:center;
-    font-weight:400;
-}
-.report-table tr.grand-row td{
-    font-weight:700;
-}
-.report-watermark{
-    text-align:center;
-    padding:10px;
-    font-size:14px;
-    color:#000;
-    border-top:1px solid #9aa5b1;
-    background:#fff;
-}
-.report-caution{
-    text-align:center;
-    padding:9px 14px;
-    font-size:13px;
-    font-weight:700;
-    color:#7a3b00;
-    background:#FFF3CD;
-    border-top:1px solid #9aa5b1;
-}
-.caution-row{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:10px;
-    margin-top:10px;
-}
-.caution-row input{
-    text-align:center;
-    font-size:13px;
-    padding:6px 10px;
-    border:1px solid #cfd6e2;
-    border-radius:8px;
-    width:440px;
-}
+footer{text-align:center;font-size:13px;opacity:.8;margin:0 0 24px;color:var(--text-dark)}
+@media(max-width:600px){h1{font-size:17px}.tool-button{min-width:180px}.rep-title{font-size:22px}.rep th,.rep td{padding:9px 16px;font-size:16px}}
+@media (prefers-reduced-motion:reduce){.tool-button,.toggle-dark{transition:none}}
 </style>
 </head>
 <body>
 
-<div class="zippee-header">
-    <h1>Zippee &middot; Packed But Not Manifested</h1>
-    <div id="rangeLabel" style="font-size:13px;opacity:0.9;"></div>
+<button class="toggle-dark" onclick="document.body.classList.toggle('dark')" aria-label="Toggle dark mode">🌙 / ☀️</button>
+
+<div class="header-main">
+  <img src="ZippeeSocial-Image.webp" class="header-logo" alt="">
+  <h1>SASA – Hyue &lt;&gt; Packed But Not Manifested</h1>
 </div>
 
-<div class="pending-modal-overlay" id="pendingAlert">
-    <div class="pending-modal">
-        <div class="icon">&#9888;&#65039;</div>
-        <h3>Pending Orders Found</h3>
-        <p>Pending order are available in the data, The User need to create a separate report</p>
-        <button onclick="closePendingModal()">OK, Got it</button>
-    </div>
+<div class="container">
+  <a class="back" href="index.html">← Back to SASA</a>
+  <h2>Hyue &lt;&gt; Packed But Not Manifested</h2>
+  <p class="sub">Upload the Easycom Sale Detail export (zip, xlsx or csv). Everything runs in your browser.</p>
+
+  <div class="drop" id="drop">
+    <p>Drag and drop the file here</p>
+    <div class="button-group"><button class="tool-button" id="pick">📂 Choose file</button></div>
+    <div class="fname" id="fname"></div>
+    <input type="file" id="file" accept=".zip,.xlsx,.xls,.csv">
+  </div>
+
+  <div id="out"></div>
 </div>
 
-<div class="main-container">
-
-    <div class="section-card">
-        <div class="section-title">1. Upload Data</div>
-        <div class="upload-zone" id="dropZone">
-            <div id="dzLabel">Drag &amp; drop one or more <b>.csv</b> or <b>.zip</b> export files here, or click to browse</div>
-            <input type="file" id="fileInput" multiple accept=".csv,.zip">
-        </div>
-        <div class="file-list" id="fileList"></div>
-        <div class="controls" style="margin-top:16px;">
-            <button onclick="loadFiles()">Process Files</button>
-            <button class="secondary" onclick="clearAll()">Clear All</button>
-        </div>
-        <div class="status-pill" id="statusPill"></div>
-    </div>
-
-    <div class="section-card" id="configCard" style="display:none;">
-        <div class="section-title">2. Report Filters</div>
-        <div class="logic-box">
-            <b>Logic, in order:</b>
-            <ul>
-                <li><b>Channel</b> &mdash; only counts orders from the sales channels you tick.</li>
-                <li><b>Unique</b> &mdash; your data can have the same order listed more than once. The tool keeps only the first time it sees an order and throws away the rest. "Same order" means the same value in the key column you pick below.</li>
-                <li><b>Manifest ID is blank</b> &mdash; empty or just the placeholder <code>`</code>.</li>
-                <li><b>AWB No is present</b> &mdash; the order already has a shipping label.</li>
-                <li><b>Order Status</b> &mdash; only counts the statuses you tick.</li>
-            </ul>
-            Together: the order is packed but hasn't been added to a manifest yet. The result is then pivoted by day &times; Order Status.
-        </div>
-        <div class="config-grid">
-            <div class="config-block">
-                <h4>Channel (MP Name)</h4>
-                <div id="channelChecks"></div>
-            </div>
-            <div class="config-block">
-                <h4>Order Status</h4>
-                <div id="statusChecks"></div>
-            </div>
-            <div class="config-block">
-                <h4>Other Filters</h4>
-                <div class="chk-row"><input type="checkbox" id="manifestBlankToggle" checked><label for="manifestBlankToggle">Manifest ID is blank (`)</label></div>
-                <div class="chk-row"><input type="checkbox" id="awbPresentToggle" checked><label for="awbPresentToggle">AWB No is present (packed)</label></div>
-                <div class="chk-row"><input type="checkbox" id="uniqueToggle" checked><label for="uniqueToggle">Keep only Unique (first occurrence)</label></div>
-                <div class="chk-row">
-                    <label for="keyColumnSelect" style="min-width:75px;">Key column:</label>
-                    <select id="keyColumnSelect"></select>
-                </div>
-            </div>
-        </div>
-        <div class="controls">
-            <button onclick="generateReport()">Generate Report</button>
-        </div>
-    </div>
-
-    <div class="section-card" id="pivotCard" style="display:none;">
-        <div class="section-title">3. Pivot Summary</div>
-        <div class="stat-strip" id="statStrip"></div>
-
-        <div class="report-title-row">
-            <label for="reportTitleInput" style="font-size:13px;color:#33425a;">Report title:</label>
-            <input type="text" id="reportTitleInput" value="Hyue &lt;&gt; Packed But Not Manifested" oninput="document.getElementById('reportBannerText').textContent = this.value">
-        </div>
-
-        <div id="reportCard">
-            <div class="report-banner" id="reportBannerText">Hyue &lt;&gt; Packed But Not Manifested</div>
-            <table class="report-table" id="pivotTable">
-                <thead><tr id="pivotHead"></tr></thead>
-                <tbody id="pivotBody"></tbody>
-            </table>
-
-            <div class="report-watermark">Powered By SASA Automation</div>
-        </div>
-
-        <div class="controls" style="margin-top:18px;">
-            <button onclick="downloadPivotPNG()">Download Report as PNG</button>
-        </div>
-    </div>
-
-    <div class="section-card" id="detailCard" style="display:none;">
-        <div class="section-title">Matching Orders</div>
-
-        <div class="controls" id="dayButtons"></div>
-
-        <div class="search-section">
-            <input type="text" id="searchBox" placeholder="Search Reference Code, Product, City, State..." oninput="renderDetail()">
-            <span>Min rows:</span>
-            <input type="number" class="summary-input" id="minRows" value="0" min="0" oninput="renderDetail()">
-        </div>
-
-        <div class="table-wrapper">
-            <table class="clean-table" id="detailTable">
-                <thead>
-                    <tr>
-                        <th>Ref Code</th>
-                        <th>Suborder No</th>
-                        <th>AWB No</th>
-                        <th>Manifest ID</th>
-                        <th>Order Status</th>
-                        <th>Day</th>
-                        <th>Import Date</th>
-                        <th>Product Name</th>
-                        <th>City</th>
-                        <th>State</th>
-                    </tr>
-                </thead>
-                <tbody id="detailBody"></tbody>
-            </table>
-        </div>
-        <div class="row-count" id="rowCount"></div>
-        <div class="controls">
-            <button onclick="exportCSV()">Export CSV</button>
-        </div>
-    </div>
-
-    <div class="disclaimer">This report recomputes entirely in your browser from the files you upload — nothing is sent anywhere.</div>
-    <footer>Zippee Order Status Tracker &middot; Internal use only</footer>
-</div>
+<footer>© 2026 SASA Automation — All Rights Reserved | Harshit Saini, Data Analyst – Zippee</footer>
 
 <script>
-let RAW_ROWS = [];       // all parsed rows from all uploaded files, as objects
-let HEADERS = [];        // detected headers
-let RECORDS = [];        // final filtered+pivoted records
-let selectedFiles = [];
-let dayFilter = 'all';
-let statusFilter = 'all';
+const REPORT='p2';
+const TITLE='Hyue <> Packed But Not Manifested';
+const FILE_TAG='Hyue_Packed_But_Not_Manifested';
+const FIELDS=[
+  {key:'mp',label:'MP name (kept: Shopify)',names:['mpname','marketplacename','marketplace','mp','channelname','channel'],fb:2},
+  {key:'ref',label:'Reference code',names:['referencecode','refcode','referenceno','reference'],fb:4},
+  {key:'status',label:'Order status',names:['orderstatus'],fb:10},
+  {key:'ship',label:'Shipping status',names:['shippingstatus']},
+  {key:'date',label:'Import date',names:['importdate','importdatetime','importedate']},
+  {key:'msg',label:'Message',names:['message','messages']},
+  {key:'manifest',label:'Manifest ID',names:['manifestid','manifestno','manifestnumber','manifestcode','manifest']},
+  {key:'awb',label:'AWB no',names:['awbno','awbnumber','awbcode','awb','trackingnumber','trackingno','trackingid']},
+  {key:'courier',label:'Courier',names:['courier','couriername','courierpartner','carrier','carriername']}
+];
+const P1_COLS=['assigned','confirmed','pending'];
+const COURIER_DEFAULT=['bluedart','delhivery','dtdc'];
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-/* dedupe bookkeeping, shown in the stat strip */
-let DUP_REMOVED = 0;     // rows dropped because the key was already seen
-let BLANK_KEY_REMOVED = 0; // rows dropped because the key column was empty
-let UNIQUE_ON = false;
+const norm=s=>String(s??'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const S=v=>v==null?'':String(v).trim();
+const BLANKS=new Set(['','-','--','na','n/a','nan','null','none','nil','0','(blank)','#n/a']);
+const isBlank=v=>{const t=S(v).toLowerCase();return BLANKS.has(t)||/^[\s`'"‘’´\-_.]*$/.test(t);};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ymd=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
-/* ---------- FILE HANDLING ---------- */
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-
-dropZone.addEventListener('click', ()=> fileInput.click());
-dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
-dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag'));
-dropZone.addEventListener('drop', e=>{
-    e.preventDefault();
-    dropZone.classList.remove('drag');
-    addFiles(e.dataTransfer.files);
-});
-fileInput.addEventListener('change', e=> addFiles(e.target.files));
-
-function addFiles(fileListObj){
-    for(const f of fileListObj) selectedFiles.push(f);
-    renderFileList();
+function dayKey(v){
+  if(typeof v==='number'&&v>20000&&v<90000){const d=new Date(Math.round((Math.floor(v)-25569)*86400000));return ymd(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());}
+  const s=S(v);if(!s)return '';
+  let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);if(m)return ymd(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);
+  if(m){let y=+m[3];if(y<100)y+=2000;let d=+m[1],mo=+m[2];if(mo>12&&d<=12)[d,mo]=[mo,d];return ymd(y,mo,d);}
+  m=s.match(/^(\d{1,2})[\s-]([A-Za-z]{3})[A-Za-z]*[\s,-]+(\d{2,4})/);
+  if(m){const mo=MON.findIndex(x=>x.toLowerCase()===m[2].toLowerCase())+1;if(mo){let y=+m[3];if(y<100)y+=2000;return ymd(y,mo,+m[1]);}}
+  const t=Date.parse(s);if(!isNaN(t)){const d=new Date(t);return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+  return s;
 }
-function removeFile(idx){
-    selectedFiles.splice(idx,1);
-    renderFileList();
-}
-function renderFileList(){
-    const el = document.getElementById('fileList');
-    el.innerHTML = selectedFiles.map((f,i)=>
-        `<span class="file-chip">${f.name} <span class="rm" onclick="removeFile(${i})">&times;</span></span>`
-    ).join('');
-}
-function clearAll(){
-    selectedFiles = [];
-    RAW_ROWS = [];
-    RECORDS = [];
-    DUP_REMOVED = 0;
-    BLANK_KEY_REMOVED = 0;
-    renderFileList();
-    document.getElementById('configCard').style.display='none';
-    document.getElementById('pivotCard').style.display='none';
-    document.getElementById('detailCard').style.display='none';
-    document.getElementById('statusPill').textContent='';
-    document.getElementById('rangeLabel').textContent='';
-    document.getElementById('pendingAlert').classList.remove('show');
+function dayLabel(k){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k);return m?`${m[3]}-${MON[+m[2]-1]}-${m[1]}`:(k||'(blank)');}
+
+function detect(headers){
+  const H=headers.map(norm),m={},used=new Set();
+  for(const f of FIELDS){
+    let i=-1;
+    for(const n of f.names){const j=H.findIndex((h,k)=>h===n&&!used.has(k));if(j>=0){i=j;break;}}
+    if(i<0)for(const n of f.names){if(n.length<3)continue;const j=H.findIndex((h,k)=>!used.has(k)&&h.includes(n));if(j>=0){i=j;break;}}
+    if(i<0&&f.fb!=null&&f.fb<headers.length&&!used.has(f.fb))i=f.fb;
+    m[f.key]=i;if(i>=0)used.add(i);
+  }
+  return m;
 }
 
-async function loadFiles(){
-    if(!selectedFiles.length){
-        document.getElementById('statusPill').textContent = 'Add at least one .csv or .zip file first.';
-        return;
-    }
-    document.getElementById('statusPill').textContent = 'Parsing files...';
-    RAW_ROWS = [];
-    for(const file of selectedFiles){
-        if(file.name.toLowerCase().endsWith('.zip')){
-            const zip = await JSZip.loadAsync(file);
-            for(const name of Object.keys(zip.files)){
-                if(name.toLowerCase().endsWith('.csv')){
-                    const text = await zip.files[name].async('string');
-                    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-                    RAW_ROWS.push(...parsed.data);
-                }
-            }
-        } else {
-            const text = await file.text();
-            const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-            RAW_ROWS.push(...parsed.data);
-        }
-    }
-    if(!RAW_ROWS.length){
-        document.getElementById('statusPill').textContent = 'No rows found in the uploaded files.';
-        return;
-    }
-    HEADERS = Object.keys(RAW_ROWS[0]);
-    document.getElementById('statusPill').textContent = `Loaded ${RAW_ROWS.length} rows from ${selectedFiles.length} file(s).`;
-    checkPendingOrders();
-    buildConfigUI();
-    document.getElementById('configCard').style.display='block';
-    document.getElementById('configCard').scrollIntoView({behavior:'smooth'});
+async function readFile(file){
+  let buf=await file.arrayBuffer(),name=file.name;
+  if(/\.zip$/i.test(name)||(new Uint8Array(buf.slice(0,2))[0]===0x50&&!/\.(xlsx|xls)$/i.test(name))){
+    const zip=await JSZip.loadAsync(buf);
+    const entries=Object.values(zip.files).filter(f=>!f.dir&&!/__MACOSX|\/\./.test(f.name)&&/\.(xlsx|xls|csv)$/i.test(f.name));
+    if(!entries.length)throw new Error('The zip has no xlsx or csv file inside.');
+    const ent=entries[0];buf=await ent.async('arraybuffer');name=ent.name.split('/').pop();
+  }
+  const isCsv=/\.csv$/i.test(name);
+  const wb=XLSX.read(buf,{type:'array',raw:isCsv});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+  let h=0;
+  for(let i=0;i<Math.min(15,aoa.length);i++){const n=aoa[i].map(norm);if(n.includes('referencecode')||n.includes('orderstatus')){h=i;break;}}
+  const headers=(aoa[h]||[]).map(x=>S(x));
+  const rows=aoa.slice(h+1).filter(r=>r.some(c=>S(c)!==''));
+  if(!headers.length||!rows.length)throw new Error('No data rows found in '+name+'.');
+  return {name,headers,rows};
 }
 
-/* ---------- PENDING ORDER CHECK ---------- */
-function checkPendingOrders(){
-    const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
-    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
-    const modalEl = document.getElementById('pendingAlert');
-    if(!statusCol){
-        modalEl.classList.remove('show');
-        return;
-    }
-    // Apply the Shopify filter first, then check for Pending within that subset
-    const scoped = channelCol
-        ? RAW_ROWS.filter(r => (r[channelCol] || '').toString().trim().toLowerCase() === 'shopify')
-        : RAW_ROWS;
-    const hasPending = scoped.some(r => (r[statusCol] || '').toString().trim().toLowerCase() === 'pending');
-    if(hasPending){
-        modalEl.classList.add('show');
-    } else {
-        modalEl.classList.remove('show');
-    }
-}
-function closePendingModal(){
-    document.getElementById('pendingAlert').classList.remove('show');
+function compute(sl){
+  const {rows,map}=sl,g=(r,k)=>map[k]>=0?r[map[k]]:'';
+  const shop=rows.filter(r=>norm(g(r,'mp')).includes('shopify'));
+  const seen=new Set();
+  const recs=shop.map(r=>{
+    const ref=S(g(r,'ref')),unique=!seen.has(ref);seen.add(ref);
+    return {raw:r,ref,unique,status:S(g(r,'status')),ship:S(g(r,'ship')),day:dayKey(g(r,'date')),msg:isBlank(g(r,'msg'))?'':S(g(r,'msg')),manifest:isBlank(g(r,'manifest'))?'':S(g(r,'manifest')),awb:S(g(r,'awb')),courier:S(g(r,'courier'))};
+  });
+  const pendRecs=recs.filter(x=>x.status.toLowerCase()==='pending');
+  const pendSet=new Set(pendRecs.map(x=>x.ref));
+  const hasPending=pendRecs.length>0;
+  // Pending ref sheet = copy of all Shopify data; VLOOKUP returns the Order Status of the FIRST line of each reference code
+  const firstStatus=new Map();for(const x of recs)if(!firstStatus.has(x.ref))firstStatus.set(x.ref,x.status);
+  for(const x of recs){
+    x.ff=hasPending?(firstStatus.get(x.ref)??'#N/A'):'';
+    x.final=hasPending&&x.ff.toLowerCase()==='pending'?x.ff:x.status;
+  }
+  return {recs,hasPending,pendRecs,pendOrders:pendSet.size,uniqueOrders:seen.size,total:rows.length};
 }
 
-/* ---------- CONFIG UI ---------- */
-function buildConfigUI(){
-    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
-    const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
-
-    if(channelCol){
-        const vals = [...new Set(RAW_ROWS.map(r=>r[channelCol]).filter(v=>v))].sort();
-        document.getElementById('channelChecks').innerHTML = vals.map(v=>{
-            const checked = v === 'Shopify' ? 'checked' : '';
-            return `<div class="chk-row"><input type="checkbox" class="chan-chk" value="${v}" ${checked}><label>${v}</label></div>`;
-        }).join('');
-    } else {
-        document.getElementById('channelChecks').innerHTML = '<div style="font-size:12px;color:#888;">No "MP Name" column found</div>';
-    }
-
-    if(statusCol){
-        const vals = [...new Set(RAW_ROWS.map(r=>r[statusCol]).filter(v=>v))].sort();
-        document.getElementById('statusChecks').innerHTML = vals.map(v=>{
-            return `<div class="chk-row"><input type="checkbox" class="stat-chk" value="${v}" checked><label>${v}</label></div>`;
-        }).join('');
-    } else {
-        document.getElementById('statusChecks').innerHTML = '<div style="font-size:12px;color:#888;">No "Order Status" column found</div>';
-    }
-
-    // Key column for the Unique check — defaults to Reference Code, same as the
-    // other tracker. Switch to AWB No if one order can legitimately carry
-    // several shipping labels and you want to count each label.
-    const keySel = document.getElementById('keyColumnSelect');
-    keySel.innerHTML = HEADERS.map(h=>`<option value="${h}" ${h==='Reference Code'?'selected':''}>${h}</option>`).join('');
+function pivot(list,colFn,valFn,order){
+  const rm=new Map(),cs=new Set();
+  for(const x of list){const r=x.day,c=colFn(x);cs.add(c);if(!rm.has(r))rm.set(r,new Map());const m=rm.get(r);m.set(c,(m.get(c)||0)+(valFn(x)?1:0));}
+  let colKeys=[...cs];colKeys=order?order(colKeys):colKeys.sort((a,b)=>a.localeCompare(b));
+  const rowKeys=[...rm.keys()].sort((a,b)=>a===''?1:b===''?-1:a.localeCompare(b));
+  const data=rowKeys.map(r=>{const m=rm.get(r),vals=colKeys.map(c=>m.get(c)||0);return {r,vals,total:vals.reduce((a,b)=>a+b,0)};});
+  const colTot=colKeys.map((_,i)=>data.reduce((a,d)=>a+d.vals[i],0));
+  return {colKeys,data,colTot,grand:colTot.reduce((a,b)=>a+b,0)};
 }
 
-/* ---------- REPORT GENERATION ---------- */
-function generateReport(){
-    const channelCol = HEADERS.includes('MP Name') ? 'MP Name' : null;
-    const statusCol = HEADERS.includes('Order Status') ? 'Order Status' : null;
-    const manifestCol = HEADERS.includes('Manifest ID') ? 'Manifest ID' : null;
-    const awbCol = HEADERS.includes('AWB No') ? 'AWB No' : null;
-    const dateCol = HEADERS.includes('Import Date') ? 'Import Date' : (HEADERS.includes('Order Date') ? 'Order Date' : null);
-    const keyCol = document.getElementById('keyColumnSelect').value;
-
-    const selectedChannels = [...document.querySelectorAll('.chan-chk:checked')].map(c=>c.value);
-    const selectedStatuses = [...document.querySelectorAll('.stat-chk:checked')].map(c=>c.value);
-    const manifestBlankOn = document.getElementById('manifestBlankToggle').checked;
-    const awbPresentOn = document.getElementById('awbPresentToggle').checked;
-    const uniqueOn = document.getElementById('uniqueToggle').checked;
-
-    let rows = RAW_ROWS;
-
-    if(channelCol && selectedChannels.length){
-        rows = rows.filter(r => selectedChannels.includes(r[channelCol]));
-    }
-
-    /* ---------- UNIQUE (first occurrence wins) ----------
-       Same idea as IF(COUNTIF($F$2:F2,F2)=1,"Unique","Duplicate") in the sheet:
-       walk the rows in order, keep a note of every key already seen, and drop
-       anything whose key is already on the list.
-       Note: this runs AFTER the channel filter, matching the other tracker. Move
-       it above the channel filter if you need to match the Excel helper column,
-       which is computed over the whole sheet.                                  */
-    DUP_REMOVED = 0;
-    BLANK_KEY_REMOVED = 0;
-    UNIQUE_ON = uniqueOn;
-    if(uniqueOn && keyCol){
-        const seen = new Set();
-        rows = rows.filter(r=>{
-            const k = (r[keyCol] ?? '').toString().trim();
-            if(k === ''){ BLANK_KEY_REMOVED++; return false; }  // blank key -> dropped (matches Excel). Change to `return true;` to keep them.
-            if(seen.has(k)){ DUP_REMOVED++; return false; }
-            seen.add(k);
-            return true;
-        });
-    }
-
-    function isBlankManifest(v){
-        if(v === undefined || v === null) return true;
-        const s = v.toString().trim();
-        return s === '' || s === '`';
-    }
-    function isPresent(v){
-        return v !== undefined && v !== null && v.toString().trim() !== '';
-    }
-
-    if(manifestBlankOn && manifestCol){
-        rows = rows.filter(r => isBlankManifest(r[manifestCol]));
-    }
-    if(awbPresentOn && awbCol){
-        rows = rows.filter(r => isPresent(r[awbCol]));
-    }
-    if(statusCol && selectedStatuses.length){
-        rows = rows.filter(r => selectedStatuses.includes(r[statusCol]));
-    }
-
-    rows = rows.map(r=>{
-        let day = '';
-        if(dateCol && r[dateCol]){
-            const d = new Date(r[dateCol].replace(' ','T'));
-            if(!isNaN(d)){
-                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                day = String(d.getDate()).padStart(2,'0') + '-' + months[d.getMonth()];
-            }
-        }
-        return {
-            'Reference Code': r['Reference Code'] || '',
-            'Suborder No': r['Suborder No'] || '',
-            'AWB No': r[awbCol] || '',
-            'Manifest ID': r[manifestCol] || '',
-            'Order Status': r[statusCol] || '',
-            'Day': day,
-            'Import Date': r[dateCol] || '',
-            'Product Name': r['Product Name'] || '',
-            'Category': r['Category'] || '',
-            'Shipping City': r['Shipping City'] || '',
-            'Shipping State': r['Shipping State'] || '',
-            '_sortDate': dateCol && r[dateCol] ? new Date(r[dateCol].replace(' ','T')) : null
-        };
-    }).filter(r => r.Day);
-
-    RECORDS = rows;
-    dayFilter = 'all';
-    statusFilter = 'all';
-    buildPivot();
-    buildDayButtons();
-    renderDetail();
-    document.getElementById('pivotCard').style.display='block';
-    document.getElementById('detailCard').style.display='block';
-    document.getElementById('pivotCard').scrollIntoView({behavior:'smooth'});
+function pivots(sl){
+  const r=sl.res;
+  const p1=pivot(r.recs.filter(x=>x.unique&&!x.msg&&P1_COLS.includes(x.final.toLowerCase())),x=>x.final,x=>x.ref!=='',
+    ks=>ks.sort((a,b)=>P1_COLS.indexOf(a.toLowerCase())-P1_COLS.indexOf(b.toLowerCase())));
+  const noAwb=sl.map.awb<0;
+  const p2=sl.map.manifest<0?{colKeys:[],data:[],colTot:[],grand:0,missing:'Manifest ID'}:pivot(r.recs.filter(x=>x.unique&&!x.manifest),x=>x.status||'(blank)',x=>noAwb?x.ref!=='':x.awb!=='');
+  const p3=pivot(r.recs.filter(x=>x.unique&&sl.couriers.has(x.courier)),x=>x.ship||'(blank)',x=>x.awb!=='');
+  return {
+    p1:{...p1,title:'Shopify packing pendency',value:'Count of reference code',
+      filters:`Unique = Unique, Message = blank, ${r.hasPending?'Final Status':'Order Status'} = Assigned, Confirmed, Pending`},
+    p2:{...p2,title:'Packed but not manifested',value:noAwb?'Count of orders (no AWB column found)':'Count of AWB no',filters:'Unique = Unique, Manifest ID = (blank). Columns: all Order Status values',pf:[['Unique','Unique'],['Manifest ID','(blank)']]},
+    p3:{...p3,title:'Courier pendency',value:'Count of AWB no',filters:`Unique = Unique, Courier = ${[...sl.couriers].join(', ')||'none'}, Order Status = all, columns by Shipping Status`}
+  };
 }
 
-/* ---------- PIVOT ---------- */
-function buildPivot(){
-    if(!RECORDS.length){
-        document.getElementById('pivotHead').innerHTML = '';
-        document.getElementById('pivotBody').innerHTML = '<tr><td class="empty-state">No rows match the current filters.</td></tr>';
-        document.getElementById('statStrip').innerHTML = '';
-        return;
-    }
-    const days = [...new Set(RECORDS.map(r=>r.Day))].sort((a,b)=>{
-        const rowA = RECORDS.find(r=>r.Day===a)._sortDate;
-        const rowB = RECORDS.find(r=>r.Day===b)._sortDate;
-        return (rowA||0) - (rowB||0);
+
+/* ---------- report shape ---------- */
+function trimPivot(p){
+  const keep=p.colKeys.map((_,i)=>p.colTot[i]>0);
+  const colKeys=p.colKeys.filter((_,i)=>keep[i]);
+  const data=p.data.map(d=>({r:d.r,vals:d.vals.filter((_,i)=>keep[i]),total:d.total})).filter(d=>d.total>0);
+  return {colKeys,data,colTot:p.colTot.filter((_,i)=>keep[i]),grand:p.grand};
+}
+function shortDay(k){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k);return m?`${m[3]}-${MON[+m[2]-1]}`:(k||'(blank)');}
+function reportGrid(p){
+  const t=trimPivot(p),blank=v=>v?String(v):'';
+  return {head:['Date',...t.colKeys,'Grand Total'],
+    body:t.data.map(d=>[shortDay(d.r),...d.vals.map(blank),String(d.total)]),
+    foot:['Grand Total',...t.colTot.map(blank),String(t.grand)]};
+}
+
+const FAMILIES=[{key:'bluedart',def:'BLUEDART'},{key:'delhivery',def:'Delhivery'},{key:'dtdc',def:'DTDC'}];
+function genStamp(){const d=new Date();let h=d.getHours();const ap=h>=12?'PM':'AM';h=h%12||12;
+  return `Generated on ${String(d.getDate()).padStart(2,'0')}-${MON[d.getMonth()]}-${d.getFullYear()}, ${h}:${String(d.getMinutes()).padStart(2,'0')} ${ap}`;}
+function courierModel(){
+  const r=sl.res,noAwb=sl.map.awb<0;
+  const fams=FAMILIES.map(f=>{
+    const list=r.recs.filter(x=>x.unique&&norm(x.courier).includes(f.key));
+    const cnt=new Map();list.forEach(x=>cnt.set(x.courier,(cnt.get(x.courier)||0)+1));
+    const name=[...cnt.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||f.def;
+    return {name,p:pivot(list,x=>x.ship||'(blank)',x=>noAwb?x.ref!=='':x.awb!=='')};
+  });
+  const cols=[...new Set(fams.flatMap(f=>f.p.colKeys.filter((_,i)=>f.p.colTot[i]>0)))].sort((a,b)=>a.localeCompare(b));
+  const sections=fams.map(f=>{
+    const idx=cols.map(c=>f.p.colKeys.indexOf(c)),pick=vals=>idx.map(i=>i<0?0:vals[i]);
+    const data=f.p.data.map(d=>({r:d.r,vals:pick(d.vals)})).map(d=>({...d,total:d.vals.reduce((a,b)=>a+b,0)})).filter(d=>d.total>0);
+    const tot=cols.map((_,i)=>data.reduce((a,d)=>a+d.vals[i],0)),grand=tot.reduce((a,b)=>a+b,0);
+    return {name:f.name,head:['Row Labels',...cols,'Grand Total'],
+      body:data.map(d=>[shortDay(d.r),...d.vals.map(v=>v?String(v):''),String(d.total)]),
+      foot:['Grand Total',...tot.map(String),String(grand)],grand};
+  });
+  return {title:TITLE,sub:genStamp(),left:true,sections,grand:sections.reduce((a,b)=>a+b.grand,0)};
+}
+function reportModel(){
+  if(REPORT==='p3')return courierModel();
+  const p=pivots(sl)[REPORT],g=reportGrid(p);
+  return {title:TITLE,sub:null,left:false,sections:[{name:null,...g}],grand:p.grand};
+}
+function reportHTML(M){
+  if(!M.sections.some(s=>s.body.length||s.name))return `<div class="empty">No rows match this report's filters.</div>`;
+  const tbl=s=>`<table><thead><tr>${s.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
+    ${s.body.map(row=>`<tr>${row.map((v,i)=>`<td${M.left&&i===0?' class="l"':''}>${esc(v)}</td>`).join('')}</tr>`).join('')}
+    <tr class="gt">${s.foot.map((v,i)=>`<td${M.left&&i===0?' class="l"':''}>${esc(v)}</td>`).join('')}</tr></tbody></table>`;
+  return `<div class="rep-wrap"><div class="rep"><div class="rep-title">${esc(M.title)}</div>${M.sub?`<div class="rep-sub">${esc(M.sub)}</div>`:''}
+    ${M.sections.map(s=>(s.name?`<div class="rep-sec">${esc(s.name)}</div>`:'')+tbl(s)).join('')}
+    <div class="rep-foot">Powered By SASA Automation</div></div></div>`;
+}
+
+/* ---------- page ---------- */
+let sl=null;
+const $=id=>document.getElementById(id);
+const fileIn=$('file'),drop=$('drop');
+$('pick').onclick=()=>fileIn.click();
+fileIn.onchange=()=>{if(fileIn.files[0])load(fileIn.files[0]);fileIn.value='';};
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
+drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)load(f);});
+
+async function load(file){
+  const fn=$('fname');fn.className='fname';fn.textContent='Reading '+file.name+'…';
+  try{
+    const {name,headers,rows}=await readFile(file);
+    sl={name,headers,rows,map:detect(headers)};
+    sl.res=compute(sl);resetSel(sl);
+    fn.className='fname ok';fn.textContent='✔ '+name+' loaded';
+    $('pick').textContent='🔁 Load another file';
+    render();
+  }catch(err){
+    fn.className='fname err';fn.textContent=err.message||'Could not read this file.';
+  }
+}
+function courierList(res){return [...new Set(res.recs.filter(x=>x.unique).map(x=>x.courier))].sort((a,b)=>a.localeCompare(b));}
+function resetSel(s){s.couriers=new Set(courierList(s.res).filter(c=>COURIER_DEFAULT.some(k=>norm(c).includes(k))));}
+
+function render(){
+  const out=$('out');if(!sl)return;
+  const r=sl.res,p=pivots(sl)[REPORT],M=reportModel(),fmt=n=>n.toLocaleString('en-IN');
+  const has=M.sections.some(x=>x.body.length);
+  const missing=FIELDS.filter(f=>sl.map[f.key]<0).map(f=>f.label);
+  let note='';
+  if(REPORT==='p1')note=r.hasPending
+    ?`<div class="logic pend"><b>${r.pendOrders} pending order${r.pendOrders===1?'':'s'} found.</b> Data copied to Pending ref sheet; FF and Final Status applied with the VLOOKUP, so each order takes the status of its first line.</div>`
+    :`<div class="logic"><b>No pending orders.</b> Report uses Order Status directly.</div>`;
+  if(REPORT==='p2'&&sl.map.manifest<0)note=`<div class="logic pend"><b>No Manifest ID column found.</b> Pick it under Column mapping below.</div>`;
+  if(REPORT==='p3'&&sl.map.courier<0)note=`<div class="logic pend"><b>No Courier column found.</b> Pick it under Column mapping below.</div>`;
+  const table=reportHTML(M);
+  out.innerHTML=`
+    <div class="stats">
+      <div class="stat"><b>${fmt(r.total)}</b><span>Rows in file</span></div>
+      <div class="stat"><b>${fmt(r.recs.length)}</b><span>Shopify rows</span></div>
+      <div class="stat"><b>${fmt(r.uniqueOrders)}</b><span>Unique orders</span></div>
+      <div class="stat"><b>${fmt(M.grand)}</b><span>Report total</span></div>
+    </div>
+    ${note}${table}
+    <div class="button-group">
+      <button class="tool-button" id="png" ${has?'':'disabled'}>🖼️ ${REPORT==='p3'?'Download all courier PNGs':'Download PNG'}</button>
+      ${REPORT==='p3'?M.sections.map((x,i)=>`<button class="tool-button" data-png="${i}" ${x.body.length?'':'disabled'}>🖼️ ${esc(x.name)} PNG</button>`).join(''):''}
+      <button class="tool-button" id="xls">📊 Download Excel</button>
+    </div>
+    <div class="msg" id="msg" role="status"></div>
+    <details ${missing.length?'open':''}><summary>Column mapping${missing.length?` (not found: ${esc(missing.join(', '))})`:''}</summary>
+      <div class="map">${FIELDS.map(f=>`<label>${f.label}<select data-f="${f.key}"><option value="-1">(not in file)</option>${sl.headers.map((h,i)=>`<option value="${i}" ${sl.map[f.key]===i?'selected':''}>${XLSX.utils.encode_col(i)}: ${esc(h||'(no header)')}</option>`).join('')}</select></label>`).join('')}</div>
+    </details>`;
+  out.querySelectorAll('select[data-f]').forEach(s=>s.onchange=()=>{sl.map[s.dataset.f]=+s.value;sl.res=compute(sl);resetSel(sl);render();});
+  $('png').onclick=()=>downloadPNG(M);
+  out.querySelectorAll('[data-png]').forEach(b=>b.onclick=()=>downloadPNG(M,M.sections[+b.dataset.png]));
+  $('xls').onclick=()=>downloadXLSX(p,M);
+}
+
+/* ---------- PNG (drawn on canvas, same look as the on-screen report) ---------- */
+function pngBlob(M){
+  const SC=2,FONT='"Segoe UI", Arial, sans-serif',GAP=3,ROW=58,TITLE_H=80,SUB_H=46,SEC_H=62,FOOT_H=54,LINE='#a3abb9';
+  const secs=M.sections.filter(s=>s.body.length||s.name);
+  const m=document.createElement('canvas').getContext('2d');
+  const head=secs[0].head,n=head.length;
+  let colW=head.map((_,i)=>{let w=0;secs.forEach(s=>[s.head,...s.body,s.foot].forEach((row,ri,all)=>{m.font=(ri===0||ri===all.length-1?'700 ':'400 ')+'18px '+FONT;w=Math.max(w,m.measureText(row[i]).width);}));return Math.max(i===0?170:130,Math.ceil(w)+(M.left&&i===0?40:56));});
+  m.font='800 30px '+FONT;const tW=Math.ceil(m.measureText(M.title).width)+90;
+  let W=colW.reduce((a,b)=>a+b,0)+GAP*(n+1);
+  if(W<tW){const k=(tW-GAP*(n+1))/(W-GAP*(n+1));colW=colW.map(w=>w*k);W=tW;}
+  const tblH=s=>GAP+(s.body.length+2)*(ROW+GAP);
+  const H=TITLE_H+(M.sub?SUB_H:0)+secs.reduce((a,s)=>a+(s.name?SEC_H:0)+tblH(s),0)+FOOT_H;
+  const cv=document.createElement('canvas');cv.width=Math.ceil(W*SC);cv.height=Math.ceil(H*SC);
+  const c=cv.getContext('2d');c.scale(SC,SC);
+  c.fillStyle='#fff';c.fillRect(0,0,W,H);
+  c.strokeStyle=LINE;c.lineWidth=1.5;c.textBaseline='middle';
+  const hline=y=>{c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();};
+  const band=(y,h,fill,font,text,color)=>{c.fillStyle=fill;c.fillRect(0,y,W,h);hline(y+h);c.fillStyle=color;c.font=font;c.textAlign='center';c.fillText(text,W/2,y+h/2+1);};
+  let y=0;
+  band(0,TITLE_H,'#4FC3E9','800 30px '+FONT,M.title,'#000');y=TITLE_H;
+  if(M.sub){band(y,SUB_H,'#4FC3E9','600 17px '+FONT,M.sub,'#0b2540');y+=SUB_H;}
+  for(const s of secs){
+    if(s.name){band(y,SEC_H,'#DA6CE0','800 24px '+FONT,s.name,'#000');y+=SEC_H;}
+    const rows=[s.head,...s.body,s.foot];
+    rows.forEach((row,ri)=>{
+      const ry=y+GAP+ri*(ROW+GAP),bold=ri===0||ri===rows.length-1,isGT=ri===rows.length-1;let x=GAP;
+      row.forEach((v,ci)=>{
+        if(isGT){c.fillStyle='#F2F3F6';c.fillRect(x,ry,colW[ci],ROW);}
+        c.strokeRect(x+.75,ry+.75,colW[ci]-1.5,ROW-1.5);
+        c.fillStyle='#000';c.font=(bold?'700 ':'400 ')+'18px '+FONT;
+        if(M.left&&ci===0&&ri>0){c.textAlign='left';c.fillText(v,x+16,ry+ROW/2+1);}else{c.textAlign='center';c.fillText(v,x+colW[ci]/2,ry+ROW/2+1);}
+        x+=colW[ci]+GAP;
+      });
     });
-    const statuses = [...new Set(RECORDS.map(r=>r['Order Status']))].sort();
+    y+=tblH(s);hline(y);
+  }
+  c.fillStyle='#000';c.textAlign='center';c.font='400 17px '+FONT;c.fillText('Powered By SASA Automation',W/2,y+FOOT_H/2+1);
+  c.strokeRect(.75,.75,W-1.5,H-1.5);
+  return new Promise(res=>cv.toBlob(res,'image/png'));
+}
+async function drawPNG(M,filename){await saveBlob(await pngBlob(M),filename);}
+const safeName=t=>String(t).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+async function downloadPNG(M,only){
+  if(REPORT!=='p3'){await drawPNG(M,`${FILE_TAG}_${today()}.png`);return;}
+  const secs=M.sections.filter(s=>s.body.length&&(only==null||s===only));
+  if(secs.length===1){await drawPNG({...M,sections:[secs[0]]},`${FILE_TAG}_${safeName(secs[0].name)}_${today()}.png`);return;}
+  // several images -> one zip, so the browser downloads once with no "multiple downloads" prompt
+  const zip=new JSZip();
+  for(const s of secs)zip.file(`${FILE_TAG}_${safeName(s.name)}_${today()}.png`,await pngBlob({...M,sections:[s]}));
+  await saveBlob(await zip.generateAsync({type:'blob'}),`${FILE_TAG}_All_Couriers_${today()}.zip`);
+}
 
-    const head = document.getElementById('pivotHead');
-    head.innerHTML = '<th>Date</th>' + statuses.map(s=>`<th>${s}</th>`).join('') + '<th>Grand Total</th>';
-
-    const grid = {};
-    days.forEach(d=>{ grid[d] = {}; statuses.forEach(s=> grid[d][s]=0); });
-    RECORDS.forEach(r=>{ grid[r.Day][r['Order Status']]++; });
-
-    const body = document.getElementById('pivotBody');
-    let colTotals = {}; statuses.forEach(s=> colTotals[s]=0);
-    let bodyHtml = '';
-    days.forEach(d=>{
-        let rowTotal = 0;
-        let cells = statuses.map(s=>{ const v=grid[d][s]; colTotals[s]+=v; rowTotal+=v; return `<td>${v || ''}</td>`; }).join('');
-        bodyHtml += `<tr><td>${d}</td>${cells}<td>${rowTotal || ''}</td></tr>`;
-    });
-    const grand = Object.values(colTotals).reduce((a,b)=>a+b,0);
-    bodyHtml += `<tr class="grand-row"><td>Grand Total</td>${statuses.map(s=>`<td>${colTotals[s] || ''}</td>`).join('')}<td>${grand || ''}</td></tr>`;
-    body.innerHTML = bodyHtml;
-
-    let statBoxes = `<div class="stat-box"><div class="num">${grand}</div><div class="lbl">Total Matching Orders</div></div>`;
-    statuses.forEach(s=>{
-        statBoxes += `<div class="stat-box"><div class="num">${colTotals[s]}</div><div class="lbl">${s}</div></div>`;
-    });
-    statBoxes += `<div class="stat-box"><div class="num">${days.length}</div><div class="lbl">Days Covered</div></div>`;
-    if(UNIQUE_ON){
-        statBoxes += `<div class="stat-box muted"><div class="num">${DUP_REMOVED}</div><div class="lbl">Duplicates Removed</div></div>`;
-        if(BLANK_KEY_REMOVED){
-            statBoxes += `<div class="stat-box muted"><div class="num">${BLANK_KEY_REMOVED}</div><div class="lbl">Blank Key Dropped</div></div>`;
-        }
+/* ---------- Excel ---------- */
+function downloadXLSX(p,M){
+  const wb=XLSX.utils.book_new(),H=sl.headers,m=sl.map,r=sl.res,col=XLSX.utils.encode_col;
+  const cols=H.map((h,i)=>({t:'o',i,h}));
+  const pos=i=>cols.findIndex(c=>c.t==='o'&&c.i===i);
+  if(m.ref>=0)cols.splice(pos(m.ref)+1,0,{t:'u',h:'Unique'});else cols.push({t:'u',h:'Unique'});
+  if(r.hasPending){
+    if(m.status>=0)cols.splice(pos(m.status),0,{t:'ff',h:'FF'});else cols.push({t:'ff',h:'FF'});
+    if(m.ship>=0)cols.splice(pos(m.ship),0,{t:'fs',h:'Final Status'});else cols.push({t:'fs',h:'Final Status'});
+  }
+  const aoa=[cols.map(c=>c.h)];
+  for(const x of r.recs)aoa.push(cols.map(c=>c.t==='o'?(x.raw[c.i]??''):c.t==='u'?(x.unique?'Unique':'Duplicate'):c.t==='ff'?x.ff:x.final));
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const L={ref:pos(m.ref),st:pos(m.status),u:cols.findIndex(c=>c.t==='u'),ff:cols.findIndex(c=>c.t==='ff'),fs:cols.findIndex(c=>c.t==='fs')};
+  const dateCols=cols.map((c,j)=>c.t==='o'&&norm(c.h).includes('date')?j:-1).filter(j=>j>=0);
+  const canLookup=m.ref>=0&&m.status>m.ref;
+  r.recs.forEach((x,k)=>{
+    const n=k+2,R=L.ref>=0?col(L.ref):null;
+    if(R)ws[col(L.u)+n].f=`IF(COUNTIF($${R}$2:${R}${n},${R}${n})=1,"Unique","Duplicate")`;
+    if(r.hasPending){
+      const fa=col(L.ff)+n;
+      if(x.ff==='#N/A')ws[fa]={t:'e',v:42,w:'#N/A'};
+      if(R&&canLookup)ws[fa].f=`VLOOKUP(${R}${n},'Pending ref sheet'!${col(m.ref)}:${col(m.status)},${m.status-m.ref+1},0)`;
+      if(L.st>=0){const F=col(L.ff)+n,M=col(L.st)+n;ws[col(L.fs)+n].f=`IFERROR(IF(${F}="Pending",${F},${M}),${M})`;}
     }
-    document.getElementById('statStrip').innerHTML = statBoxes;
-    document.getElementById('rangeLabel').textContent = `Days: ${days.join(', ')}`;
+    for(const j of dateCols){const c=ws[col(j)+n];if(c&&c.t==='n'&&c.v>20000&&c.v<90000)c.z='dd-mm-yyyy hh:mm';}
+  });
+  ws['!autofilter']={ref:ws['!ref']};
+  XLSX.utils.book_append_sheet(wb,ws,'Data');
+  if(r.hasPending)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([H,...r.recs.map(x=>H.map((_,i)=>x.raw[i]??''))]),'Pending ref sheet');
+  const num=row=>row.map((v,i)=>i&&v!==''?+v:v);
+  const ra=[[TITLE],...(M.sub?[[M.sub]]:[]),[]];
+  for(const s of M.sections){if(s.name)ra.push([s.name]);ra.push(s.head,...s.body.map(num),num(s.foot),[]);}
+  const rs=XLSX.utils.aoa_to_sheet(ra);
+  rs['!cols']=M.sections[0].head.map(h=>({wch:Math.max(12,h.length+3)}));
+  XLSX.utils.book_append_sheet(wb,rs,'Report');
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  saveBlob(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${FILE_TAG}_${today()}.xlsx`);
 }
 
-function downloadPivotPNG(){
-    const card = document.getElementById('reportCard');
-    html2canvas(card, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
-        const link = document.createElement('a');
-        const titleSlug = (document.getElementById('reportTitleInput').value || 'report')
-            .replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').toLowerCase();
-        link.download = `${titleSlug || 'pivot_report'}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    });
-}
-
-function buildDayButtons(){
-    const days = [...new Set(RECORDS.map(r=>r.Day))].sort((a,b)=>{
-        const rowA = RECORDS.find(r=>r.Day===a)._sortDate;
-        const rowB = RECORDS.find(r=>r.Day===b)._sortDate;
-        return (rowA||0) - (rowB||0);
-    });
-    const statuses = [...new Set(RECORDS.map(r=>r['Order Status']))].sort();
-    let html = `<button onclick="setDayFilter('all')">All Days</button>`;
-    days.forEach(d=> html += `<button onclick="setDayFilter('${d}')">${d}</button>`);
-    html += `<button onclick="setStatusFilter('all')">All Status</button>`;
-    statuses.forEach(s=> html += `<button onclick="setStatusFilter('${s}')">${s} Only</button>`);
-    document.getElementById('dayButtons').innerHTML = html;
-}
-
-function setDayFilter(d){ dayFilter = d; renderDetail(); }
-function setStatusFilter(s){ statusFilter = s; renderDetail(); }
-
-/* ---------- DETAIL TABLE ---------- */
-function renderDetail(){
-    if(!RECORDS.length){
-        document.getElementById('detailBody').innerHTML = '';
-        document.getElementById('rowCount').textContent = '';
-        return;
-    }
-    const q = document.getElementById('searchBox').value.trim().toLowerCase();
-    const minRows = parseInt(document.getElementById('minRows').value || '0');
-
-    let rows = RECORDS.filter(r=>{
-        if(dayFilter !== 'all' && r.Day !== dayFilter) return false;
-        if(statusFilter !== 'all' && r['Order Status'] !== statusFilter) return false;
-        if(q){
-            const hay = (r['Reference Code']+' '+r['Product Name']+' '+r['Shipping City']+' '+r['Shipping State']).toLowerCase();
-            if(!hay.includes(q)) return false;
-        }
-        return true;
-    });
-
-    const body = document.getElementById('detailBody');
-    if(rows.length < minRows){
-        body.innerHTML = '<tr><td colspan="10" class="empty-state">Below min rows threshold</td></tr>';
-        document.getElementById('rowCount').textContent = `0 of ${RECORDS.length} rows shown`;
-        return;
-    }
-
-    body.innerHTML = rows.map(r=>{
-        const badgeClass = r['Order Status']==='Confirmed' ? 'confirmed' : (r['Order Status']==='Cancelled' ? 'other' : 'assigned');
-        return `<tr>
-            <td>${r['Reference Code']}</td>
-            <td>${r['Suborder No']}</td>
-            <td>${r['AWB No']}</td>
-            <td>${r['Manifest ID']}</td>
-            <td><span class="badge ${badgeClass}">${r['Order Status']}</span></td>
-            <td>${r['Day']}</td>
-            <td>${r['Import Date']}</td>
-            <td style="text-align:left;">${r['Product Name']}</td>
-            <td>${r['Shipping City']}</td>
-            <td>${r['Shipping State']}</td>
-        </tr>`;
-    }).join('');
-
-    document.getElementById('rowCount').textContent = `${rows.length} of ${RECORDS.length} rows shown`;
-}
-
-function exportCSV(){
-    const q = document.getElementById('searchBox').value.trim().toLowerCase();
-    let rows = RECORDS.filter(r=>{
-        if(dayFilter !== 'all' && r.Day !== dayFilter) return false;
-        if(statusFilter !== 'all' && r['Order Status'] !== statusFilter) return false;
-        if(q){
-            const hay = (r['Reference Code']+' '+r['Product Name']+' '+r['Shipping City']+' '+r['Shipping State']).toLowerCase();
-            if(!hay.includes(q)) return false;
-        }
-        return true;
-    });
-    const cols = ['Reference Code','Suborder No','AWB No','Manifest ID','Order Status','Day','Import Date','Product Name','Category','Shipping City','Shipping State'];
-    let csv = cols.join(',') + '\n';
-    rows.forEach(r=>{
-        csv += cols.map(c=>`"${(r[c]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n';
-    });
-    const blob = new Blob([csv], {type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'packed_not_manifested.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+/* ---------- save helper ---------- */
+function today(){const d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+async function saveBlob(blob,filename){
+  const msg=$('msg');msg.textContent='';
+  let dl=null;
+  try{if(window.claude&&window.claude.use)dl=await window.claude.use('downloads');}catch(e){dl=null;}
+  if(dl){try{await dl.save({filename,data:blob});}catch(e){if(e&&e.code!=='declined')msg.textContent='Saving isn’t available in this view.';}return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
 }
 </script>
-
 </body>
 </html>
