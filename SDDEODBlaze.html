@@ -1,0 +1,2928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Zippee – SDD EOD Dashboard</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+:root{
+    --primary-900:#003f8c;
+    --glass-bg:rgba(255,255,255,0.16);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.25);
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI", Arial, sans-serif;
+}
+
+body{
+    background:url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1920&auto=format&fit=crop') center/cover fixed no-repeat;
+    min-height:100vh;
+    padding:30px;
+}
+
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,.22);
+    backdrop-filter:blur(7px);
+    z-index:-1;
+}
+
+.container{
+    max-width:1500px;
+    margin:auto;
+}
+
+.header{
+    background:linear-gradient(90deg,rgba(0,63,140,.88),rgba(0,89,179,.88));
+    color:white;
+    padding:20px 35px;
+    border-radius:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:var(--card-shadow);
+    margin-bottom:28px;
+}
+
+.header h1{
+    font-size:30px;
+    font-weight:800;
+}
+
+.logo{
+    height:50px;
+}
+
+.main-card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(10px) saturate(120%);
+    border-radius:22px;
+    padding:30px;
+    box-shadow:var(--card-shadow);
+}
+
+.upload-section{
+    margin-bottom:30px;
+}
+
+.upload-title{
+    font-size:22px;
+    font-weight:700;
+    color:var(--primary-900);
+    margin-bottom:16px;
+}
+
+input[type=file]{
+    width:100%;
+    padding:16px;
+    border-radius:14px;
+    border:2px dashed #5b7cff;
+    background:rgba(255,255,255,0.55);
+    font-size:15px;
+    cursor:pointer;
+}
+
+.table-box{
+    overflow:auto;
+    margin-top:20px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+}
+
+th{
+    background:#003f8c;
+    color:white;
+    padding:14px;
+    text-align:center;
+    font-size:14px;
+}
+
+td{
+    padding:13px;
+    font-size:14px;
+    text-align:center;
+    border:1px solid #808080;
+}
+
+tr:hover td{
+    background:#f8fbff;
+}
+
+.formula{
+    margin-top:24px;
+    background:rgba(255,255,255,0.72);
+    padding:20px;
+    border-radius:16px;
+    line-height:1.9;
+    box-shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+
+.formula b{
+    color:#003f8c;
+}
+
+.eod-table{
+    margin-top:40px;
+    width:auto;
+    table-layout:auto;
+}
+
+.eod-table th,
+.eod-table td{
+    min-width:90px;
+    padding:12px;
+    border:1px solid #808080;
+}
+
+.eod-table th:first-child,
+.eod-table td:first-child{
+    min-width:160px;
+}
+
+.yellow{
+    background:#ffffff;
+    color:#000000;
+    font-weight:700;
+}
+
+/* Kapiva "Total" column (class was used but had no style before) */
+.gray{
+    background:#f0f0f0;
+    color:#000000;
+}
+
+.footer{
+    text-align:center;
+    margin-top:28px;
+    color:#ffffff;
+    font-weight:700;
+    font-size:13px;
+}
+
+/* ---- added UI ---- */
+
+.controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:18px;
+    align-items:flex-end;
+    margin-bottom:18px;
+}
+
+.control-label{
+    display:block;
+    font-weight:700;
+    color:#003f8c;
+    font-size:14px;
+    margin-bottom:6px;
+}
+
+input[type=date]{
+    padding:10px;
+    border-radius:10px;
+    border:none;
+    font-size:15px;
+}
+
+.btn{
+    background:#003f8c;
+    color:white;
+    border:none;
+    padding:11px 20px;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.btn:hover{
+    background:#0059b3;
+}
+
+.btn:focus-visible{
+    outline:3px solid #5b7cff;
+    outline-offset:2px;
+}
+
+.btn-sm{
+    padding:9px 16px;
+    font-size:13px;
+}
+
+.status{
+    margin-top:14px;
+    padding:13px 16px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+    line-height:1.6;
+    background:rgba(255,255,255,0.8);
+    color:#333;
+}
+
+.status.err{
+    background:#ffe2e2;
+    color:#9b1c1c;
+}
+
+.status.ok{
+    background:#e3f7e8;
+    color:#14632b;
+}
+
+.status.warn{
+    background:#fff4d6;
+    color:#8a5a00;
+}
+
+.window-note{
+    margin-top:10px;
+    font-size:13px;
+    font-weight:600;
+    color:#003f8c;
+    background:rgba(255,255,255,.7);
+    padding:10px 14px;
+    border-radius:10px;
+    display:inline-block;
+    line-height:1.7;
+}
+
+/* Sheet-link box (DS EOD tab) */
+.sheet-link-box{
+    margin-top:14px;
+    background:rgba(255,255,255,0.85);
+    border-left:5px solid #003f8c;
+    border-radius:12px;
+    padding:14px 18px;
+    font-size:14px;
+    color:#333;
+    line-height:1.6;
+}
+
+.sheet-link-box b{
+    color:#003f8c;
+}
+
+.sheet-link-row{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-top:10px;
+}
+
+.sheet-link-url{
+    flex:1;
+    min-width:0;
+    background:#ffffff;
+    border:1px solid #ccd6e6;
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:13px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.sheet-link-url a{
+    color:#0b57d0;
+}
+
+/* Darkstore-wise & Unique Rider reports */
+#darkstoreWiseReport .eod-table,
+#uniqueRiderReport .eod-table{
+    margin-top:0;
+}
+
+#uniqueRiderReport .eod-table{
+    width:420px;
+}
+
+#uniqueRiderReport .eod-table th,
+#uniqueRiderReport .eod-table td{
+    min-width:unset;
+    padding:9px 12px;
+    font-size:13px;
+}
+
+#uniqueRiderReport .eod-table th:first-child,
+#uniqueRiderReport .eod-table td:first-child{
+    width:240px;
+    min-width:unset;
+}
+
+#uniqueRiderReport .eod-table th:last-child,
+#uniqueRiderReport .eod-table td:last-child{
+    width:120px;
+}
+
+/* AWB reminder popup */
+.modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+}
+
+.modal-overlay.show{
+    display:flex;
+}
+
+.modal-box{
+    background:#ffffff;
+    border-radius:18px;
+    max-width:480px;
+    width:100%;
+    padding:26px 28px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35);
+    border-top:6px solid #e0a800;
+}
+
+.modal-box h2{
+    font-size:20px;
+    color:#8a5a00;
+    margin-bottom:12px;
+}
+
+.modal-box p{
+    font-size:14px;
+    color:#333;
+    line-height:1.6;
+    margin-bottom:10px;
+}
+
+.modal-box ul{
+    margin:6px 0 14px 20px;
+    font-size:14px;
+    color:#333;
+    line-height:1.7;
+}
+
+.modal-actions{
+    display:flex;
+    gap:12px;
+    justify-content:flex-end;
+    margin-top:18px;
+    flex-wrap:wrap;
+}
+
+.btn-secondary{
+    background:#e6ebf3;
+    color:#003f8c;
+}
+
+.btn-secondary:hover{
+    background:#d3dcea;
+}
+
+@media(max-width:768px){
+    .header{
+        flex-direction:column;
+        gap:14px;
+        text-align:center;
+    }
+    .header h1{
+        font-size:24px;
+    }
+    .eod-table{
+        width:100%;
+    }
+    .sheet-link-row{
+        flex-direction:column;
+        align-items:stretch;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>Zippee – SDD EOD Dashboard</h1>
+        <img class="logo" src="SASA.png" alt="SASA">
+    </div>
+
+    <div class="main-card">
+
+        <div class="upload-section">
+
+            <div class="upload-title">
+                Upload Shipment CSV / Excel File
+            </div>
+
+            <div class="controls">
+
+                <div>
+                    <label class="control-label" for="reportDate">Select Report Date</label>
+                    <input type="date" id="reportDate">
+                </div>
+
+                <div>
+                    <label class="control-label">Brand &amp; Darkstore Sheets</label>
+                    <button class="btn btn-sm" id="reloadBrands">Reload Sheets</button>
+                </div>
+
+            </div>
+
+            <div class="window-note" id="windowNote">
+                Cutoff time is set per brand in the Brand Sheet &mdash; loading brand list&hellip;
+            </div>
+
+            <div style="margin-top:16px;">
+                <label class="control-label" for="awbFilter">
+                    Paste AWB Numbers (one per line) &mdash; Krishna Herbal's Indore &amp; Jodhpur warehouses only
+                </label>
+                <textarea id="awbFilter" placeholder="Paste AWB Numbers here&hellip; (leave empty for normal cutoff-window filtering)"
+                    style="width:100%;height:140px;padding:12px;border-radius:10px;border:1px solid #ccc;
+                           resize:vertical;font-size:14px;font-family:Consolas, monospace;"></textarea>
+                <div class="window-note" style="margin-top:8px;font-size:12px;">
+                    When this box has AWB numbers, orders from those two warehouses are matched by AWB only &mdash;
+                    the cutoff window is skipped for them. Every other darkstore, for every brand, keeps using its normal cutoff window regardless of this box.
+                </div>
+            </div>
+
+            <div style="margin-top:16px;">
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+                <div class="window-note" style="margin-top:8px;font-size:12px;">
+                    Upload the <b>Detailed Report</b> export (Warehouse Name, Zippee AWB, Creation Date + Creation Time,
+                    Total Attempt Count, Rider User ID). The older Bolt to Blaze export is still accepted &mdash;
+                    the format is detected automatically from the column names.
+                </div>
+            </div>
+
+            <div style="margin-top:16px;">
+                <label class="control-label" for="kapivaFileInput">
+                    Upload Kapiva Order Files (select all facility files together) &mdash; fills Kapiva's Total Orders
+                </label>
+                <input type="file" id="kapivaFileInput" accept=".xlsx,.xls,.csv" multiple>
+                <div class="window-note" style="margin-top:8px;font-size:12px;">
+                    Uses a 4:00 PM &rarr; 4:00 PM window on the Created column, removes excluded Billing Address Pincodes and rows where Sale Order Status or
+                    Sale Order Item Status is CANCELLED, then counts unique Display Order Codes per Facility.
+                    Selecting files again replaces the previous set.
+                </div>
+            </div>
+
+            <div class="status" id="brandStatus">Loading brand list from Google Sheet&hellip;</div>
+            <div class="status" id="darkstoreStatus">Loading darkstore rename sheet&hellip;</div>
+            <div class="status" id="dsEodStatus">Loading Darkstore-Wise report sheet (DS EOD)&hellip;</div>
+            <div class="status" id="pincodeStatus">Loading excluded pincodes sheet&hellip;</div>
+            <div class="status" id="kapivaStatus">No Kapiva order files loaded &mdash; Kapiva's Total Orders boxes can still be typed in by hand.</div>
+            <div class="status" id="dataStatus">No file loaded yet.</div>
+
+            <div class="sheet-link-box">
+                Darkstore-Wise report names live in the <b>SDD Brand EOD</b> sheet, <b>DS EOD</b> tab.
+                To add a darkstore, put the exact value from the shipment file's Darkstore column in column A
+                and the name you want on the report in column B. Rows with the same name are merged into one row.
+                Then press &ldquo;Reload Sheets&rdquo; here.
+                <div class="sheet-link-row">
+                    <div class="sheet-link-url">
+                        <a id="dsEodSheetLink" href="#" target="_blank" rel="noopener"></a>
+                    </div>
+                    <button class="btn btn-sm" id="copyDsEodLink" type="button">Copy link</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Logic</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryTable">
+                    <tr><td colspan="3">Upload a file to see the summary.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="formula">
+            <b>Metrics Logic:</b><br><br>
+            <b>Report Window</b> = Creation Date + Creation Time after (D-1) &lt;brand's cutoff hour&gt; and up to and including (D) &lt;brand's cutoff hour&gt;.
+            Each brand's cutoff hour comes from Column B of the Brand Sheet &mdash; see the window note above, or each report's header below, for the exact time used.<br>
+            <b>Brand Rename</b> = every Brand Name is replaced by its Rename (Column C of the Brand Sheet), and all Brand Names with the same Rename
+            are combined into one report titled with that Rename. A blank Rename keeps the Brand Name as-is. Each row still uses its own Cutoff from Column B.<br>
+            <b>Darkstore Columns</b> (brand-wise reports) = every darkstore in the file appears. Darkstores listed in the Darkstore Sheet are renamed to their Name,
+            and darkstores sharing a Name are combined into one column. Darkstores not in the sheet keep their usual label.<br>
+            <b>Darkstore-Wise Report</b> = only darkstores listed in the DS EOD tab appear, renamed to their Name; darkstores sharing a Name are merged into one row.
+            Rows follow the order of the DS EOD tab. Uses a fixed 4:00 PM &rarr; 4:00 PM window for every brand.<br>
+            <b>Test Orders</b> = any row whose Darkstore or Brand Name starts or ends with "test" (any case) is removed from every report.<br>
+            <b>Excluded Pincodes</b> = every pincode in the Pincode Sheet is removed from both uploads
+            &mdash; Delivery Pincode in the shipment file and Billing Address Pincode in the Kapiva order files &mdash; before any count.<br>
+            <b>Total Orders</b> = Count of all rows/orders in the window<br>
+            <b>Kapiva Total Orders</b> = from the Kapiva order files: Created after (D-1) 4:00 PM and up to and including (D) 4:00 PM,
+            excluding CANCELLED in Sale Order Status or Sale Order Item Status, counted as unique Display Order Codes per Facility.
+            If a store's Total Orders is lower than its Processed count, Total Orders is raised to Processed.<br>
+            <b>Not_D0_Dispatched Orders</b> = Current Status = READY<br>
+            <b>D0_Dispatched Orders</b> = Total Orders - (READY Orders with 0 attempt)<br>
+            <b>Cancelled Orders</b> = Current Status = CANCELLED<br>
+            <b>FASR%</b> = (Delivered Orders / Processed Orders) &times; 100
+        </div>
+
+        <div style="text-align:right; margin-bottom:15px; margin-top:20px;">
+            <button class="btn" onclick="downloadPNG()">Download All</button>
+        </div>
+
+        <div class="table-box" id="reportTable"></div>
+
+        <div style="text-align:center; margin-top:45px; margin-bottom:15px;">
+            <button class="btn" onclick="downloadDarkstoreWisePNG()">Download Darkstore-Wise Report PNG</button>
+        </div>
+        <div class="table-box" id="darkstoreWiseReport" style="display:flex;justify-content:center;"></div>
+
+        <div style="text-align:center; margin-top:35px; margin-bottom:15px;">
+            <button class="btn" onclick="downloadUniqueRiderPNG()">Download Unique Rider Report PNG</button>
+        </div>
+        <div class="table-box" id="uniqueRiderReport" style="display:flex;justify-content:center;"></div>
+
+    </div>
+
+    <div class="footer">
+        Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee
+    </div>
+
+</div>
+
+<!-- AWB reminder popup -->
+<div class="modal-overlay" id="awbModal" role="dialog" aria-modal="true" aria-labelledby="awbModalTitle">
+    <div class="modal-box">
+        <h2 id="awbModalTitle">&#9888; Krishna Herbal Indore / Jodhpur AWBs not added</h2>
+        <p>The uploaded file has orders from Krishna Herbal's warehouses, but the AWB box is empty:</p>
+        <ul id="awbModalList"></ul>
+        <p>These orders are currently being counted using the normal cutoff window instead of the AWB list.
+           Paste the Indore &amp; Jodhpur AWB numbers in the box to count them correctly.</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="awbModalContinue" type="button">Continue without AWBs</button>
+            <button class="btn" id="awbModalAdd" type="button">Add AWBs now</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+
+/* Brand Sheet (tab gid=0): Column A = Brand Name exactly as it
+   appears in the shipment file, Column B = Cutoff hour (0-23),
+   Column C = Rename. Every Brand Name with the same Rename is
+   combined into ONE report, titled with the Rename. */
+const BRAND_SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=0&single=true&output=csv";
+
+/* Darkstore rename sheet (tab "Darkstore"): Column A = raw Darkstore
+   value exactly as it appears in the file, Column B = Name to show.
+   Darkstores that share the same Name are combined into one column
+   in every brand-wise report. Darkstores NOT in this sheet still
+   appear, under their usual label (DARKSTORE_MAPPING layers below). */
+const DARKSTORE_SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=972734607&single=true&output=csv";
+
+/* Darkstore-Wise report sheet (tab "DS EOD"): Column A = raw Darkstore
+   value exactly as it appears in the file, Column B = Name to show.
+   ONLY darkstores listed here appear in the Darkstore-Wise report,
+   and darkstores sharing a Name are merged into one row. Rows are
+   shown in the order their Name first appears in the tab. */
+const DS_EOD_SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=2086308595&single=true&output=csv";
+
+/* Editable (non-published) link to the DS EOD tab, shown in the
+   sheet-link box so anyone can copy it and add darkstores.
+   If the link doesn't open the right sheet, paste the address bar
+   URL of the DS EOD tab here. */
+const DS_EOD_SHEET_EDIT_URL =
+"https://docs.google.com/spreadsheets/d/1Wd2p0PlCk58Y-hLmu9gS9oKo8oJyqivwzzt7BlKQIWE/edit?gid=2086308595#gid=2086308595";
+
+/* Excluded pincodes sheet (tab "Pincode"): Column A = City (for
+   reference only), Column B = Pincode. Every pincode here is removed
+   from BOTH uploads: "Delivery Pincode" in the shipment file and
+   "Billing Address Pincode" in the Kapiva order files. */
+const PINCODE_SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=890855388&single=true&output=csv";
+
+/* ------------------------------------------------------------
+   SHIPMENT FILE COLUMNS — two exports are accepted, detected
+   automatically from the header row:
+
+     NEW  "Detailed Report"  Warehouse Name, Zippee AWB, Creation Date
+                             + Creation Time (two columns, 24-hour),
+                             Total Attempt Count, Rider User ID
+     OLD  "Bolt to Blaze"    Darkstore, AWB Number, Creation Date (date
+                             and time in one cell), No. of Attempts,
+                             Rider ID
+
+   For each field, the first name in its list that exists in the
+   file is used. Headers are matched ignoring case, extra spaces and
+   a leading byte-order mark. If the export renames a column again,
+   add the new header name to the front of that field's list.
+   ------------------------------------------------------------ */
+const SHIPMENT_COLUMNS = {
+    darkstore:   ["Warehouse Name", "Darkstore"],
+    awb:         ["Zippee AWB", "AWB Number"],
+    brand:       ["Brand Name"],
+    status:      ["Current Status"],
+    createdDate: ["Creation Date"],
+    createdTime: ["Creation Time"],          // new export only
+    attempts:    ["Total Attempt Count", "No. of Attempts", "No. of Attemp", "No Of Attempts", "Attempt"],
+    riderId:     ["Rider User ID", "Rider ID"],
+    pincode:     ["Delivery Pincode"]
+};
+
+/* Without these the file is rejected with a clear message. Attempts and
+   Rider ID are optional (missing -> counted as 0 / blank, with a warning). */
+const SHIPMENT_REQUIRED = ["darkstore", "awb", "brand", "status", "createdDate", "pincode"];
+
+/* Fallback cutoff hour (24h clock) used only when:
+     - a brand row in the sheet has a missing/invalid Cutoff value, or
+     - a row belongs to a brand that isn't in the sheet at all
+   (that second case only affects the grand-total summary — brands
+   outside the sheet never get their own report table). */
+const DEFAULT_CUTOFF_HOUR = 16;
+
+/* ------------------------------------------------------------
+   BRAND RENAME — driven by Column C ("Rename") of the Brand Sheet.
+
+   Every Brand Name (Column A) is replaced by its Rename value, and
+   all Brand Names that share the same Rename are combined into ONE
+   report, titled with that Rename. A blank Rename keeps the Brand
+   Name as-is. Each row still uses its own Cutoff from Column B.
+
+   When a brand shows up in the raw data under a new name, add a
+   row for that name in the Brand Sheet with the same Rename, then
+   press "Reload Sheets".
+   ------------------------------------------------------------ */
+function canonicalBrand(name){
+    const s = String(name).trim();
+    return brandRenames.get(s.toLowerCase()) || s;
+}
+
+/* ------------------------------------------------------------
+   DELHI HUB MERGE — these six darkstores are combined into one
+   "Delhi_Hub" column. Used ONLY as a fallback: by the brand-wise
+   reports when the Darkstore sheet can't be loaded, and by the
+   Darkstore-Wise report when the DS EOD sheet can't be loaded.
+   ------------------------------------------------------------ */
+const DELHI_HUB_STORES = new Set([
+    "zippee_okhla_sdd",
+    "zippee_ghaziabad_sdd",
+    "zippee_wazirpur_sdd",
+    "zippee_dwarka_sdd",
+    "zippee_gurugram_sdd",
+    "zipppee_noida_sdd"
+]);
+
+function darkstoreGroupKey(raw){
+    const low = String(raw).trim().toLowerCase();
+    return DELHI_HUB_STORES.has(low) ? "Delhi_Hub" : String(raw).trim();
+}
+
+/* ------------------------------------------------------------
+   KAPIVA — built-in city-level rollup. Now used ONLY as a fallback
+   when the Darkstore rename sheet can't be loaded; normally Kapiva
+   follows the sheet like every other brand.
+   ------------------------------------------------------------ */
+const KAPIVA_DARKSTORE_GROUPING = {
+    "zippee_wazirpur_sdd":        "Delhi_Hub",
+    "zippee_koregaonpark_sdd":    "Pune",
+    "koregaon park":              "Pune",
+    "zippee_okhla_sdd":           "Delhi_Hub",
+    "zipppee_noida_sdd":          "Delhi_Hub",
+    "zippee_andheri_sdd":         "Mumbai",
+    "zippee_dwarka_sdd":          "Delhi_Hub",
+    "zippee_gurugram_sdd":        "Delhi_Hub",
+    "zippee_matunga_valkyriesdd": "Mumbai",
+    "zippee_ghaziabad_sdd":       "Delhi_Hub",
+    "zippee_manikonda_sdd":       "Hyderabad",
+    "zippee_koramangala_sdd":     "Banglore",
+    "zippee_horamavu_sdd":        "Banglore",
+    "zippee_periyamet_sdd":       "Chennai",
+    "zippee_kolkata_sdd":         "Topsia",
+    "zippee_topsia_valkyriesdd":  "Topsia"
+};
+
+function kapivaDarkstoreGroupKey(raw){
+    const low = String(raw).trim().toLowerCase();
+    return KAPIVA_DARKSTORE_GROUPING[low] || String(raw).trim();
+}
+
+/* ------------------------------------------------------------
+   KAPIVA ORDER FILES — Kapiva's own per-facility order exports.
+   They fill the "Total Orders" row of the Kapiva report:
+     1. Created after (D-1) 4 PM and up to and including (D) 4 PM
+     2. drop rows where Sale Order Status OR Sale Order Item Status
+        is CANCELLED
+     3. count unique Display Order Codes per Facility
+   ------------------------------------------------------------ */
+const KAPIVA_ORDERS_CUTOFF_HOUR = 16;
+
+const KAPIVA_REQUIRED_COLUMNS = [
+    "Created", "Facility", "Display Order Code",
+    "Sale Order Status", "Sale Order Item Status",
+    "Billing Address Pincode"
+];
+
+/* Pincode column in the Kapiva order files that is checked against
+   the Pincode sheet. */
+const KAPIVA_PINCODE_COLUMN = "Billing Address Pincode";
+
+/* Facility value in the order files -> Kapiva report column
+   (the Name from the Darkstore sheet). Matched case-insensitively. */
+const KAPIVA_FACILITY_COLUMNS = {
+    "del_ds_zippee":  "Delhi_Hub",
+    "blr1_ds_zippee": "Banglore",
+    "mum_ds_zippee":  "Mumbai",
+    "pun_ds_zippee":  "Pune",
+    "hyd_ds_zippee":  "Hyderabad",
+    "chn1_ds_zippee": "Chennai",
+    "kol1_ds_zippee": "Kolkata"
+};
+
+/* Other spellings a report column might carry for the same city
+   (e.g. "Topsia" when the Darkstore sheet can't load). */
+const KAPIVA_COLUMN_ALIASES = {
+    "kolkata":  ["topsia"],
+    "banglore": ["bangalore", "bengaluru"]
+};
+
+/* ------------------------------------------------------------
+   AWB LOOKUP OVERRIDE — for these two Krishna Herbal warehouse
+   darkstores, a pasted AWB list matches orders by AWB number only,
+   ignoring the cutoff window entirely. With the box empty, these
+   two darkstores behave like any other (normal cutoff filtering).
+   ------------------------------------------------------------ */
+const AWB_FILTER_STORES = new Set([
+    "zippee_krishna_herbal_indorewh",
+    "zippee_krishna_herbal_jodhpurwh"
+]);
+
+/* ------------------------------------------------------------
+   DARKSTORE-WISE REPORT (+ its Unique Rider companion) — a
+   separate section from the brand-wise reports above. It groups
+   by darkstore across every brand in the file (no Brand Sheet
+   involved at all), and always uses a FIXED cutoff,
+   independent of whatever cutoff each brand-wise report uses.
+   Which darkstores appear, and their names, come from the
+   DS EOD tab (DS_EOD_SHEET_URL).
+   ------------------------------------------------------------ */
+const DARKSTORE_WISE_CUTOFF_HOUR = 16;
+
+/* FALLBACK ONLY — used when the DS EOD tab can't be loaded. */
+const DARKSTORE_WISE_ALLOWLIST = new Set([
+    "zippee_okhla_sdd", "zippee_ghaziabad_sdd", "zippee_wazirpur_sdd",
+    "zippee_dwarka_sdd", "zippee_gurugram_sdd", "zipppee_noida_sdd",
+    "zippee_horamavu_sdd", "zippee_koramangala_sdd", "zippee_andheri_sdd",
+    "zippee_koregaonpark_sdd", "zippee_matunga_valkyriesdd",
+    "zippee_topsia_valkyriesdd", "zippee_manikonda_sdd",
+    "zippee_periyamet_sdd", "zippee_kalyannagar_sdd","koregaon park"
+]);
+
+/* Per-store label used by the Unique Rider report (one row per raw
+   darkstore), and by the Darkstore-Wise report when the DS EOD tab
+   can't be loaded. */
+function darkstoreWiseLabel(ds){
+    if(ds === "Delhi_Hub") return "DEL_HUB";
+
+    let name = String(ds)
+        .trim()
+        .replace(/^zip+ee_/i, "")          // zippee_ and zipppee_
+        .replace(/_sdd$/i, "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, c => c.toUpperCase());
+
+    if(name === "Matunga Valkyriesdd") name = "Matunga";
+    if(name === "Topsia Valkyriesdd")  name = "Kolkata";
+
+    return name;
+}
+
+/* ------------------------------------------------------------
+   DARKSTORE LABELS — TWO LAYERS (used for darkstores that are
+   NOT in the Darkstore rename sheet)
+
+   LAYER 1: original mapping, keyed on the CLEANED name (after
+   "zippee_" / "zipppee_" and "_sdd" are stripped). WINS on match.
+   ------------------------------------------------------------ */
+const DARKSTORE_MAPPING = {
+    "okhla":        "Del_Okhla",
+    "dwarka":       "Del_Dwarka",
+    "gurugram":     "Del_Gurugram",
+    "noida":        "Del_Noida",
+    "wazirpur":     "Del_Wazipur",
+    "ghaziabad":    "Del_Ghaziabad",
+    "periyamet":    "Ch_Periyamet",
+    "andheri":      "Mum_Andheri",
+    "koregaonpark": "Pune_Koregaonpark",
+    "matunga":      "Mum_Matunga",
+    "koramangala":  "Blr_Koramangala",
+    "horamavu":     "Blr_Horamavu"
+};
+
+/* ------------------------------------------------------------
+   LAYER 2: keyed on the RAW Darkstore value exactly as it
+   appears in the file (matched case-insensitively).
+   Used only where LAYER 1 has no match.
+   ------------------------------------------------------------ */
+const RAW_DARKSTORE_MAPPING = {
+    "zippee_okhla_sdd":                "Okhla",
+    "gurugram-clinikally":             "Gurugram",
+    "zippee_koregaonpark_sdd":         "Koregaon",
+    "koregaon park":                   "Koregaon",
+    "zippee_andheri_sdd":              "Andheri",
+    "zipppee_noida_sdd":               "noida",
+    "zippee_gurugram_sdd":             "gurugram",
+    "zippee_wazirpur_sdd":             "wazirpur",
+    "zippee_ghaziabad_sdd":            "ghaziabad",
+    "zippee_matunga_valkyriesdd":      "matunga",
+    "zippee_dwarka_sdd":               "dwarka",
+    "partnr_frazertown":               "frazertown",
+    "zippee_koramangala_sdd":          "koramangala",
+    "zippee_horamavu_sdd":             "horamavu",
+    "zippee_manikonda_sdd":            "manikonda",
+    "expresshub_testing":              "Testing",
+    "zippee_kalyannagar_sdd":          "kalyannagar",
+    "test_zippee_warehouse":           "zippee",
+    "zippee_periyamet_sdd":            "periyamet",
+    "ugaoo blr warehouse":             "Banglore",
+    "ugaoo ggn warehouse":             "Gurugram",
+    "partnr_yeshwantpur":              "yeshwantpur",
+    "partnr_badshapur":                "badshapur",
+    "partnr_bommasandra":              "bommasandra",
+    "zippee_kolkata_sdd":              "kolkata",
+    "healthkart-ludhiana":             "NA",
+    "zippee_krishna_herbal_jodhpurwh": "Jodhpur",
+    "geofence_test":                   "test",
+    "zippee_krishna_herbal_indorewh":  "Indore",
+    "testprod":                        "NA",
+    "gurugram test":                   "NA",
+    "ekt_kol":                         "kol",
+    "mf1":                             "NA",
+    "zippee_topsia_valkyriesdd":       "topsia",
+    "mf2":                             "Na",
+    "testzippee":                      "NA",
+
+    /* Not a raw file value — this is the synthetic key produced by
+       darkstoreGroupKey() for the six merged Delhi darkstores. */
+    "delhi_hub":                       "Delhi_Hub"
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+
+let allowedBrands = [];        // brand names, sheet order
+let brandCutoffs   = new Map(); // lowercase brand name -> cutoff hour (0-23)
+let brandRenames   = new Map(); // lowercase brand name -> Rename (Column C of the Brand Sheet)
+let allRows        = [];
+let fileLoaded      = false;
+let excludedPincodeCount = 0;  // shipment rows removed by the pincode exclusion (set each render)
+let testRowCount         = 0;  // shipment rows removed by the "test" filter (set each render)
+
+let sheetPincodes      = new Set(); // pincodes from the Pincode sheet
+let pincodeSheetLoaded = false;
+
+let darkstoreRenames     = new Map(); // lowercase raw darkstore -> Name from the Darkstore sheet
+let sheetGroupNames      = new Set(); // every distinct Name in the Darkstore sheet
+let darkstoreSheetLoaded = false;
+
+let dsEodRenames     = new Map(); // lowercase raw darkstore -> Name from the DS EOD tab
+let dsEodNameOrder   = new Map(); // Name -> position of its first row in the tab
+let dsEodRawOrder    = new Map(); // lowercase raw darkstore -> its row position in the tab
+let dsEodLoaded      = false;
+let dsEodStatusMsg   = "";        // base status message from the last load
+let dsEodStatusCls   = "";
+
+let kapivaOrderRows   = [];   // rows from the Kapiva order files
+let kapivaFilesInfo   = [];   // [{name, rows}] for files read successfully
+let kapivaFileErrors  = [];   // messages for files that couldn't be used
+
+let awbPopupPending   = false; // true right after a shipment file is loaded -> check once for missing AWBs
+
+let shipmentFormatLabel     = ""; // which export was uploaded (shown in the status line)
+let shipmentMissingOptional = []; // optional columns the uploaded file doesn't have
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+function esc(s){
+    return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+}
+
+function setStatus(id, msg, cls){
+    const el = document.getElementById(id);
+    el.className = "status" + (cls ? " " + cls : "");
+    el.innerHTML = msg;
+}
+
+/* Strip Excel's ="...." text-armour if present */
+function cleanCell(v){
+    if(v === null || v === undefined) return "";
+    let s = String(v).trim();
+    if(s.startsWith('="') && s.endsWith('"')) s = s.slice(2, -1);
+    else if(s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1);
+    return s.trim();
+}
+
+/* Pincode as plain digits: handles numbers, "411052.0", ="411052", spaces */
+function normPincode(v){
+    let s = cleanCell(v).replace(/\s+/g, "");
+    if(/^\d+\.0+$/.test(s)) s = s.replace(/\.0+$/, "");
+    return s;
+}
+
+function isExcludedPincode(pin){
+    return !!pin && sheetPincodes.has(pin);
+}
+
+/* true if a value starts or ends with "test" (any case, spaces trimmed) */
+function isTestValue(v){
+    const s = String(v).trim().toLowerCase();
+    return s.startsWith("test") || s.endsWith("test");
+}
+
+/* Small RFC4180-ish CSV parser — handles quoted fields that
+   contain commas or embedded newlines (Google Sheets exports
+   these when a cell has a trailing newline, e.g. a brand name
+   typed with Enter left in the cell). */
+function parseCSV(text){
+    const rows = [];
+    let field = "", row = [], inQuotes = false;
+
+    for(let i = 0; i < text.length; i++){
+        const c = text[i];
+
+        if(inQuotes){
+            if(c === '"'){
+                if(text[i+1] === '"'){ field += '"'; i++; }
+                else inQuotes = false;
+            } else {
+                field += c;
+            }
+        } else {
+            if(c === '"') inQuotes = true;
+            else if(c === ',') { row.push(field); field = ""; }
+            else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; }
+            else if(c === '\r'){ /* skip, \n follows */ }
+            else field += c;
+        }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows;
+}
+
+/* ------------------------------------------------------------
+   Creation Date parser — the export mixes formats:
+     (a) text        "20/09/2026 3:04 PM"   (day-first)
+     (b) real dates  a JS Date (from cellDates:true below)
+     (c) serials     an Excel day-number, e.g. 46271.63
+     (d) ISO text    "2026-09-07 10:15:00"
+     (e) date only   "22/09/2026"  (new export; the time comes from
+                     the separate Creation Time column, see
+                     combineDateTime below)
+   All of these are handled. Anything else -> null, counted in the
+   "unreadable Creation Date" status warning.
+   ------------------------------------------------------------ */
+function parseCreationDate(v){
+
+    if(v instanceof Date && !isNaN(v)) return v;
+
+    if(typeof v === "number" && isFinite(v) && v > 20000 && v < 90000){
+        const u = new Date(Math.round((v - 25569) * 86400000));
+        return new Date(
+            u.getUTCFullYear(), u.getUTCMonth(),   u.getUTCDate(),
+            u.getUTCHours(),    u.getUTCMinutes(), u.getUTCSeconds()
+        );
+    }
+
+    const s = cleanCell(v);
+    if(!s) return null;
+
+    if(/^\d+(\.\d+)?$/.test(s)){
+        const n = parseFloat(s);
+        if(n > 20000 && n < 90000) return parseCreationDate(n);
+    }
+
+    let m = s.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i
+    );
+    if(m){
+        const dd = +m[1], mm = +m[2], yyyy = +m[3];
+        let   hh = m[4] !== undefined ? +m[4] : 0;
+        const mi = m[5] !== undefined ? +m[5] : 0;
+        const ss = m[6] !== undefined ? +m[6] : 0;
+        const ap = m[7] ? m[7].toUpperCase() : null;
+
+        if(ap === "PM" && hh !== 12) hh += 12;
+        if(ap === "AM" && hh === 12) hh  = 0;
+
+        const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
+        return isNaN(d) ? null : d;
+    }
+
+    m = s.match(
+        /^(\d{4})-(\d{2})-(\d{2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i
+    );
+    if(m){
+        const yyyy = +m[1], mm = +m[2], dd = +m[3];
+        let   hh = m[4] !== undefined ? +m[4] : 0;
+        const mi = m[5] !== undefined ? +m[5] : 0;
+        const ss = m[6] !== undefined ? +m[6] : 0;
+        const ap = m[7] ? m[7].toUpperCase() : null;
+
+        if(ap === "PM" && hh !== 12) hh += 12;
+        if(ap === "AM" && hh === 12) hh  = 0;
+
+        const d = new Date(yyyy, mm - 1, dd, hh, mi, ss, 0);
+        return isNaN(d) ? null : d;
+    }
+
+    return null;
+}
+
+/* Whole-number attempt count, tolerant of numeric or string cells */
+function parseAttemptCount(v){
+    const n = parseInt(cleanCell(v), 10);
+    return isNaN(n) ? 0 : n;
+}
+
+/* Time of day -> [hours, minutes, seconds], or null if unreadable.
+   Accepts "07:22", "13:23", "7:22 PM", "07:22:15", an Excel time
+   fraction (e.g. 0.3069 from an .xlsx cell) or a Date. */
+function parseTimeOfDay(v){
+
+    if(v instanceof Date && !isNaN(v)) return [v.getHours(), v.getMinutes(), v.getSeconds()];
+
+    const s = cleanCell(v);
+
+    if(typeof v === "number" || /^\d*\.\d+$/.test(s)){
+        const n = typeof v === "number" ? v : parseFloat(s);
+        if(!isFinite(n)) return null;
+        const secs = Math.min(Math.round((n % 1) * 86400), 86399);
+        return [Math.floor(secs / 3600), Math.floor((secs % 3600) / 60), secs % 60];
+    }
+
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+    if(!m) return null;
+
+    let   hh = +m[1];
+    const mi = +m[2];
+    const ss = m[3] !== undefined ? +m[3] : 0;
+    const ap = m[4] ? m[4].toUpperCase() : null;
+
+    if(ap === "PM" && hh !== 12) hh += 12;
+    if(ap === "AM" && hh === 12) hh  = 0;
+    if(hh > 23 || mi > 59 || ss > 59) return null;
+
+    return [hh, mi, ss];
+}
+
+/* Creation date-time of one shipment row.
+   New export: date and time are in two columns ("22/09/2026" + "07:22").
+   Old export: both are in the one Creation Date cell and timeVal is "".
+   Returns null if either part can't be read, so the row is counted in
+   the "unreadable Creation Date" warning instead of a wrong window. */
+function combineDateTime(dateVal, timeVal){
+
+    const d = parseCreationDate(dateVal);
+    if(!d) return null;
+
+    if(timeVal === null || timeVal === undefined || cleanCell(timeVal) === "") return d;
+
+    const t = parseTimeOfDay(timeVal);
+    if(!t) return null;
+
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), t[0], t[1], t[2], 0);
+}
+
+/* Header name for matching: no byte-order mark, single spaces, lowercase */
+function normHeader(h){
+    return String(h).replace(/^\uFEFF/, "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/* field -> column index in the header row (-1 if the file has none of
+   that field's names). Uses the first matching name in SHIPMENT_COLUMNS. */
+function resolveShipmentColumns(header){
+
+    const idx = new Map();
+    header.forEach((h, i) => {
+        const k = normHeader(h);
+        if(k && !idx.has(k)) idx.set(k, i);
+    });
+
+    const cols = {};
+    Object.entries(SHIPMENT_COLUMNS).forEach(([field, names]) => {
+        const hit = names.map(n => idx.get(normHeader(n))).find(i => i !== undefined);
+        cols[field] = hit === undefined ? -1 : hit;
+    });
+
+    return cols;
+}
+
+/* Cutoff hour for a given brand name.
+   1. the brand's own row in the Brand Sheet
+   2. otherwise, if the name is itself a Rename value in the sheet
+      (e.g. a raw "Traya"), the cutoff of a Brand Sheet row with
+      that Rename
+   3. otherwise DEFAULT_CUTOFF_HOUR */
+function effectiveCutoff(brandRaw){
+    const key = String(brandRaw).trim().toLowerCase();
+    let c = brandCutoffs.get(key);
+
+    if(c === undefined){
+        const group = canonicalBrand(brandRaw).toLowerCase();
+        const sibling = allowedBrands.find(b => canonicalBrand(b).toLowerCase() === group);
+        if(sibling) c = brandCutoffs.get(sibling.toLowerCase());
+    }
+
+    return (typeof c === "number" && !isNaN(c)) ? c : DEFAULT_CUTOFF_HOUR;
+}
+
+/* Window for report date D at a given cutoff hour:
+   (D-1 cutoffHour) < t <= (D cutoffHour) */
+function windowFor(yyyy_mm_dd, cutoffHour){
+    if(!yyyy_mm_dd) return null;
+
+    const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
+    if(!y || !m || !d) return null;
+
+    const end   = new Date(y, m - 1, d,     cutoffHour, 0, 0, 0);
+    const start = new Date(y, m - 1, d - 1, cutoffHour, 0, 0, 0);
+
+    return { start, end };
+}
+
+/* Human label for an hour, e.g. 16 -> "4:00 PM" */
+function hourLabel(hour){
+    let h = ((hour % 24) + 24) % 24;
+    const ap = h >= 12 ? "PM" : "AM";
+    let h12 = h % 12; if(h12 === 0) h12 = 12;
+    return h12 + ":00 " + ap;
+}
+
+function fmtDMYFromISO(yyyy_mm_dd){
+    const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
+    return String(d).padStart(2,"0") + "/" + String(m).padStart(2,"0") + "/" + y;
+}
+
+function fmtDMYHM(d){
+    let h = d.getHours();
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12; if(h === 0) h = 12;
+    return String(d.getDate()).padStart(2,"0") + "/" +
+           String(d.getMonth()+1).padStart(2,"0") + "/" +
+           d.getFullYear() + " " + h + ":" +
+           String(d.getMinutes()).padStart(2,"0") + " " + ap;
+}
+
+function pctColour(pct){
+    if(pct  > 75) return "#90EE90";
+    if(pct >= 60) return "#FFFF00";
+    if(pct >= 50) return "#F4A460";
+    return "#FF7F7F";
+}
+
+/* ------------------------------------------------------------
+   KAPIVA — manual "Total Orders" override.
+
+   Every other brand computes D0% / FASR% against its own ACTUAL
+   processed count (s.total). For Kapiva, Total Orders comes from
+   the Kapiva order files (or is typed by hand) per darkstore, and
+   those percentages are computed against that number instead.
+   If a store's Total Orders is lower than its Processed count,
+   it is raised to Processed.
+
+   Values persist per (report date, darkstore) so they survive an
+   unrelated re-render (changing the date, editing the AWB box,
+   reloading brands) without being wiped from the input boxes.
+   ------------------------------------------------------------ */
+const kapivaTotalOrders = new Map(); // key: "<dateVal>|<darkstore>" -> raw input string
+
+function setKapivaPctCell(cellId, numerator, denominator){
+    const cell = document.getElementById(cellId);
+    if(!cell) return;
+    const pct = denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(0)) : 0;
+    cell.textContent = pct + "%";
+    cell.style.background = pctColour(pct);
+}
+
+/* Unique non-cancelled Display Order Codes per Facility, for report date D */
+function computeKapivaOrderCounts(dateVal){
+
+    const win = windowFor(dateVal, KAPIVA_ORDERS_CUTOFF_HOUR);
+    const byFacility = new Map(); // facility -> Set of Display Order Codes
+    let inWindowRows = 0, cancelledRows = 0, unparsed = 0, blankCode = 0, pincodeRows = 0;
+
+    /* every facility in the files gets an entry, so a facility with
+       no orders in the window shows 0 instead of being skipped */
+    kapivaOrderRows.forEach(r => {
+        if(r.facility && !byFacility.has(r.facility)) byFacility.set(r.facility, new Set());
+    });
+
+    kapivaOrderRows.forEach(r => {
+        if(!r.created){ unparsed++; return; }
+        if(!(r.created > win.start && r.created <= win.end)) return;
+
+        inWindowRows++;
+
+        if(isExcludedPincode(r.pincode)){ pincodeRows++; return; }
+        if(r.soStatus === "CANCELLED" || r.soiStatus === "CANCELLED"){ cancelledRows++; return; }
+        if(!r.displayCode){ blankCode++; return; }
+
+        byFacility.get(r.facility).add(r.displayCode);
+    });
+
+    return { win, byFacility, inWindowRows, cancelledRows, unparsed, blankCode, pincodeRows };
+}
+
+/* Which Kapiva report column a Facility belongs to.
+   columns = the report's darkstore keys, or null if no Kapiva table. */
+function kapivaColumnForFacility(facility, columns){
+
+    const target = KAPIVA_FACILITY_COLUMNS[String(facility).trim().toLowerCase()];
+    if(!target) return { target:null, column:null };
+
+    if(!columns) return { target, column:null };
+
+    const t = target.toLowerCase();
+    const candidates = [t, ...(KAPIVA_COLUMN_ALIASES[t] || [])];
+
+    const column = columns.find(ds =>
+        candidates.includes(String(ds).trim().toLowerCase()) ||
+        candidates.includes(String(brandDarkstoreLabel(ds)).trim().toLowerCase())
+    ) || null;
+
+    return { target, column };
+}
+
+/* column key -> Total Orders from the files (only columns that have a file) */
+function kapivaTotalsForColumns(dateVal, columns){
+    const totals = new Map();
+    if(!kapivaOrderRows.length || !dateVal) return totals;
+
+    const kc = computeKapivaOrderCounts(dateVal);
+    kc.byFacility.forEach((codes, facility) => {
+        const { column } = kapivaColumnForFacility(facility, columns);
+        if(column) totals.set(column, (totals.get(column) || 0) + codes.size);
+    });
+    return totals;
+}
+
+/* Status line for the Kapiva order files.
+   columns = Kapiva report darkstore keys, or null if no Kapiva table this pass. */
+function renderKapivaOrdersStatus(dateVal, columns){
+
+    if(!kapivaFilesInfo.length && !kapivaFileErrors.length){
+        setStatus("kapivaStatus",
+            "No Kapiva order files loaded &mdash; Kapiva's Total Orders boxes can still be typed in by hand.");
+        return;
+    }
+
+    const totalRows = kapivaFilesInfo.reduce((a, f) => a + f.rows, 0);
+
+    let msg = "<b>" + kapivaFilesInfo.length + " Kapiva order file(s)</b> loaded (" +
+              totalRows.toLocaleString() + " rows): " +
+              kapivaFilesInfo.map(f => esc(f.name)).join(", ");
+    let cls = "ok";
+
+    if(kapivaFileErrors.length){
+        msg += "<br>Skipped: <b>" + kapivaFileErrors.map(esc).join("; ") + "</b>";
+        cls = "warn";
+    }
+
+    if(!kapivaFilesInfo.length){
+        setStatus("kapivaStatus", msg, "err");
+        return;
+    }
+
+    if(!dateVal){
+        setStatus("kapivaStatus", msg + "<br>Select a report date to count Kapiva's Total Orders.", "warn");
+        return;
+    }
+
+    const kc = computeKapivaOrderCounts(dateVal);
+
+    const unknownFacility = [];
+    const noColumn        = [];
+    let grand = 0;
+
+    const parts = [...kc.byFacility.keys()].sort().map(facility => {
+        const n = kc.byFacility.get(facility).size;
+        grand += n;
+
+        const { target, column } = kapivaColumnForFacility(facility, columns);
+        if(!target) unknownFacility.push(facility);
+        else if(columns && !column) noColumn.push(target);
+
+        return esc(target || facility) + " <b>" + n + "</b>";
+    });
+
+    msg += "<br>Window " + esc(fmtDMYHM(kc.win.start)) + " &rarr; " + esc(fmtDMYHM(kc.win.end)) +
+           " | " + kc.inWindowRows + " rows in window, " + kc.pincodeRows + " removed by excluded pincodes, " +
+           kc.cancelledRows + " cancelled row(s) removed" +
+           "<br>Kapiva Total Orders (unique Display Order Code): " + parts.join(", ") +
+           " | <b>Total " + grand + "</b>";
+
+    if(unknownFacility.length){
+        msg += "<br>Facility not in the facility list (not filled into any column): <b>" +
+               esc(unknownFacility.join(", ")) + "</b>";
+        cls = "warn";
+    }
+    if(noColumn.length){
+        msg += "<br>No matching column in today's Kapiva report for: <b>" +
+               esc(noColumn.join(", ")) + "</b> (no Kapiva shipments there in the shipment file)";
+        cls = "warn";
+    }
+    if(kc.unparsed){
+        msg += "<br><b>" + kc.unparsed + "</b> row(s) had an unreadable Created date and were left out.";
+        cls = "warn";
+    }
+    if(kc.blankCode){
+        msg += "<br><b>" + kc.blankCode + "</b> row(s) had no Display Order Code and were left out.";
+        cls = "warn";
+    }
+
+    setStatus("kapivaStatus", msg, cls);
+}
+
+/* Read every selected Kapiva order file (replaces the previous set) */
+async function handleKapivaFiles(e){
+
+    const files = [...e.target.files];
+    if(!files.length) return;
+
+    setStatus("kapivaStatus", "Reading " + files.length + " Kapiva order file(s)&hellip;");
+
+    const rows = [], info = [], errors = [];
+
+    for(const file of files){
+        try{
+            const buf   = await file.arrayBuffer();
+            const isCSV = /\.csv$/i.test(file.name);
+
+            /* raw:true for CSV keeps every cell as plain text, so Created
+               and Display Order Code arrive exactly as written */
+            const wb = XLSX.read(new Uint8Array(buf), { type:"array", cellDates:true, raw:isCSV });
+            const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw:true, defval:"" });
+
+            if(!json.length){ errors.push(file.name + ": no rows"); continue; }
+
+            /* header lookup tolerant of stray spaces / case */
+            const keyOf = {};
+            Object.keys(json[0]).forEach(k => keyOf[String(k).trim().toLowerCase()] = k);
+            const col = name => keyOf[name.toLowerCase()];
+
+            const missing = KAPIVA_REQUIRED_COLUMNS.filter(c => !col(c));
+            if(missing.length){
+                errors.push(file.name + ": missing column(s) " + missing.join(", "));
+                continue;
+            }
+
+            json.forEach(row => rows.push({
+                created:     parseCreationDate(row[col("Created")]),
+                facility:    cleanCell(row[col("Facility")]),
+                displayCode: cleanCell(row[col("Display Order Code")]),
+                soStatus:    cleanCell(row[col("Sale Order Status")]).toUpperCase(),
+                soiStatus:   cleanCell(row[col("Sale Order Item Status")]).toUpperCase(),
+                pincode:     normPincode(row[col(KAPIVA_PINCODE_COLUMN)])
+            }));
+
+            info.push({ name:file.name, rows:json.length });
+
+        }catch(err){
+            errors.push(file.name + ": " + err.message);
+        }
+    }
+
+    /* NOTE: the input is NOT cleared here any more, so the chosen
+       file names stay visible. It is cleared on click instead
+       (see FILE UPLOAD section), which still allows re-selecting
+       the same files. */
+
+    kapivaOrderRows  = rows;
+    kapivaFilesInfo  = info;
+    kapivaFileErrors = errors;
+
+    renderKapivaOrdersStatus(document.getElementById("reportDate").value, null);
+    if(fileLoaded) render();
+}
+
+/* ------------------------------------------------------------
+   Darkstore label resolution (for darkstores NOT in the sheet):
+     1. strip zippee_ / zipppee_ prefix and _sdd suffix
+     2. LAYER 1 on the cleaned name   -> wins
+     3. LAYER 2 on the raw value
+     4. otherwise show the cleaned name as-is
+   ------------------------------------------------------------ */
+function cleanDarkstoreName(ds){
+
+    const raw = String(ds).trim();
+
+    let c = raw
+        .replace(/^zippee_/i, "")
+        .replace(/^zipppee_/i, "")
+        .replace(/_sdd$/i, "");
+
+    if(c.toLowerCase() === "matunga_valkyriesdd") c = "matunga";
+
+    if(DARKSTORE_MAPPING[c.toLowerCase()] !== undefined){
+        return DARKSTORE_MAPPING[c.toLowerCase()];
+    }
+
+    if(RAW_DARKSTORE_MAPPING[raw.toLowerCase()] !== undefined){
+        return RAW_DARKSTORE_MAPPING[raw.toLowerCase()];
+    }
+
+    return c;
+}
+
+function isMapped(ds){
+    const raw = String(ds).trim().toLowerCase();
+    let   c   = raw.replace(/^zippee_|^zipppee_/,"").replace(/_sdd$/,"");
+    if(c === "matunga_valkyriesdd") c = "matunga";
+    return DARKSTORE_MAPPING[c] !== undefined ||
+           RAW_DARKSTORE_MAPPING[raw] !== undefined;
+}
+
+/* ------------------------------------------------------------
+   BRAND-WISE DARKSTORE GROUPING (driven by the Darkstore sheet)
+
+   Sheet loaded:
+     - darkstore listed in the sheet  -> its Name (same Name = one column)
+     - darkstore not in the sheet     -> its own raw value (own column)
+   Sheet unavailable:
+     - falls back to the old built-in grouping (Delhi_Hub merge,
+       Kapiva's city rollup) so reports still build.
+   ------------------------------------------------------------ */
+function brandDarkstoreGroupKey(raw, group){
+    const s = String(raw).trim();
+
+    if(darkstoreSheetLoaded){
+        return darkstoreRenames.get(s.toLowerCase()) || s;
+    }
+
+    return String(group).trim().toLowerCase() === "kapiva"
+        ? kapivaDarkstoreGroupKey(s)
+        : darkstoreGroupKey(s);
+}
+
+/* Column label: a sheet Name is shown exactly as typed in the sheet;
+   anything else goes through the usual two-layer label mapping. */
+function brandDarkstoreLabel(key){
+    return sheetGroupNames.has(key) ? key : cleanDarkstoreName(key);
+}
+
+/* ------------------------------------------------------------
+   Window-note banner: groups reports (by their Rename) by cutoff
+   hour and shows the exact window each group uses for the
+   selected date. Works as soon as brands are loaded, even before
+   a file is uploaded, since it needs only the date + brand cutoffs.
+   ------------------------------------------------------------ */
+function updateWindowNote(){
+
+    const el      = document.getElementById("windowNote");
+    const dateVal = document.getElementById("reportDate").value;
+
+    if(!allowedBrands.length){
+        el.innerHTML = "Brand sheet unavailable &mdash; cutoff windows cannot be computed.";
+        return;
+    }
+    if(!dateVal){
+        el.innerHTML = "Select a report date to see each brand's cutoff window.";
+        return;
+    }
+
+    const groups = new Map(); // cutoffHour -> [report names (Rename)]
+    allowedBrands.forEach(b => {
+        const c    = effectiveCutoff(b);
+        const name = canonicalBrand(b);
+        if(!groups.has(c)) groups.set(c, []);
+        if(!groups.get(c).includes(name)) groups.get(c).push(name);
+    });
+
+    const lines = [...groups.keys()].sort((a,b) => a - b).map(c => {
+        const win = windowFor(dateVal, c);
+        return "<b>" + esc(hourLabel(c)) + "</b> cutoff (" + esc(groups.get(c).join(", ")) + "): " +
+               esc(fmtDMYHM(win.start)) + " &rarr; " + esc(fmtDMYHM(win.end));
+    });
+
+    el.innerHTML = "Report <b>" + esc(fmtDMYFromISO(dateVal)) + "</b><br>" + lines.join("<br>");
+}
+
+/* ============================================================
+   BRAND LIST FROM PUBLISHED GOOGLE SHEET (Brand Name, Cutoff, Rename)
+   ============================================================ */
+
+async function loadBrands(){
+
+    setStatus("brandStatus", "Loading brand list from Google Sheet&hellip;");
+
+    try{
+        const url = BRAND_SHEET_URL + "&cacheBust=" + Date.now();
+        const res = await fetch(url, { cache: "no-store" });
+
+        if(!res.ok) throw new Error("HTTP " + res.status);
+
+        const text = await res.text();
+
+        let records = parseCSV(text).filter(r => r.some(f => cleanCell(f) !== ""));
+
+        if(records.length && /^brand\s*name$/i.test(cleanCell(records[0][0]))) records.shift();
+
+        allowedBrands = [];
+        brandCutoffs  = new Map();
+        brandRenames  = new Map();
+        const seen = new Set();
+        const badCutoff = [];
+        const renameSpelling = new Map(); // lowercase Rename -> first spelling seen (so "Traya"/"traya" merge)
+        const groupMembers   = new Map(); // Rename -> [Brand Names that map to it]
+
+        records.forEach(r => {
+            const name = cleanCell(r[0]);
+            if(!name) return;
+
+            const key = name.toLowerCase();
+            if(seen.has(key)) return;
+            seen.add(key);
+            allowedBrands.push(name);
+
+            const cutoffRaw = cleanCell(r[1]);
+            const n = parseInt(cutoffRaw, 10);
+
+            if(!isNaN(n) && n >= 0 && n <= 23){
+                brandCutoffs.set(key, n);
+            } else {
+                brandCutoffs.set(key, DEFAULT_CUTOFF_HOUR);
+                badCutoff.push(name);
+            }
+
+            /* Column C (Rename): blank -> keep the Brand Name itself */
+            const renameRaw = cleanCell(r[2]) || name;
+            const rk = renameRaw.toLowerCase();
+            if(!renameSpelling.has(rk)) renameSpelling.set(rk, renameRaw);
+            const group = renameSpelling.get(rk);
+
+            brandRenames.set(key, group);
+            if(!groupMembers.has(group)) groupMembers.set(group, []);
+            groupMembers.get(group).push(name);
+        });
+
+        if(!allowedBrands.length){
+            setStatus("brandStatus",
+                "Brand sheet loaded but contains no brand names.", "warn");
+            updateWindowNote();
+            return;
+        }
+
+        let msg = "<b>" + allowedBrands.length + " brand name(s)</b> loaded, renamed into <b>" +
+                  groupMembers.size + "</b> report(s):<br>" +
+                  [...groupMembers].map(([g, list]) => {
+                      const cuts = [...new Set(list.map(b => brandCutoffs.get(b.toLowerCase())))]
+                          .map(hourLabel).join(" / ");
+                      const merged = (list.length > 1 || list[0] !== g)
+                          ? " &larr; " + list.map(esc).join(" + ")
+                          : "";
+                      return "<b>" + esc(g) + "</b>" + merged + " (" + esc(cuts) + ")";
+                  }).join("<br>");
+
+        let cls = "ok";
+
+        if(badCutoff.length){
+            msg += "<br>No valid Cutoff value for: <b>" + esc(badCutoff.join(", ")) +
+                   "</b> — defaulted to " + esc(hourLabel(DEFAULT_CUTOFF_HOUR)) + ".";
+            cls = "warn";
+        }
+
+        setStatus("brandStatus", msg, cls);
+        updateWindowNote();
+
+    }catch(err){
+        allowedBrands = [];
+        brandCutoffs  = new Map();
+        brandRenames  = new Map();
+        setStatus("brandStatus",
+            "<b>Could not load the brand sheet.</b> " + esc(err.message) +
+            "<br>No reports can be built without it. " +
+            "If you opened this file directly from disk (file://), " +
+            "serve it over http instead — the browser blocks the request otherwise.",
+            "err");
+        updateWindowNote();
+    }
+}
+
+/* ============================================================
+   DARKSTORE RENAME SHEET (Darkstore, Name)
+   ============================================================ */
+
+async function loadDarkstoreMap(){
+
+    setStatus("darkstoreStatus", "Loading darkstore rename sheet&hellip;");
+
+    try{
+        const url = DARKSTORE_SHEET_URL + "&cacheBust=" + Date.now();
+        const res = await fetch(url, { cache: "no-store" });
+
+        if(!res.ok) throw new Error("HTTP " + res.status);
+
+        let records = parseCSV(await res.text()).filter(r => r.some(f => cleanCell(f) !== ""));
+
+        if(records.length && /^darkstore$/i.test(cleanCell(records[0][0]))) records.shift();
+
+        const renames      = new Map(); // lowercase raw darkstore -> display Name
+        const nameSpelling = new Map(); // lowercase Name -> first spelling seen (so "Mumbai"/"mumbai" merge)
+        const memberCount  = new Map(); // display Name -> how many raw darkstores map to it
+        const missingName  = [];
+
+        records.forEach(r => {
+            const raw  = cleanCell(r[0]);
+            const name = cleanCell(r[1]);
+            if(!raw) return;
+            if(!name){ missingName.push(raw); return; }
+
+            const rawKey = raw.toLowerCase();
+            if(renames.has(rawKey)) return;          // duplicate row: first one wins
+
+            const nameKey = name.toLowerCase();
+            if(!nameSpelling.has(nameKey)) nameSpelling.set(nameKey, name);
+            const display = nameSpelling.get(nameKey);
+
+            renames.set(rawKey, display);
+            memberCount.set(display, (memberCount.get(display) || 0) + 1);
+        });
+
+        if(!renames.size) throw new Error("the sheet has no Darkstore / Name rows.");
+
+        darkstoreRenames     = renames;
+        sheetGroupNames      = new Set(memberCount.keys());
+        darkstoreSheetLoaded = true;
+
+        let msg = "<b>" + renames.size + " darkstore(s)</b> renamed into <b>" +
+                  memberCount.size + "</b> column(s): " +
+                  [...memberCount].map(([n, c]) =>
+                      esc(n) + (c > 1 ? " (" + c + " combined)" : "")
+                  ).join(", ") +
+                  "<br>Darkstores not in this sheet still appear in the brand-wise reports under their usual label.";
+
+        let cls = "ok";
+
+        if(missingName.length){
+            msg += "<br>No Name given for: <b>" + esc(missingName.join(", ")) +
+                   "</b> — shown under their usual label.";
+            cls = "warn";
+        }
+
+        setStatus("darkstoreStatus", msg, cls);
+
+    }catch(err){
+        darkstoreRenames     = new Map();
+        sheetGroupNames      = new Set();
+        darkstoreSheetLoaded = false;
+        setStatus("darkstoreStatus",
+            "<b>Could not load the darkstore rename sheet.</b> " + esc(err.message) +
+            "<br>Brand-wise reports are using the built-in grouping instead " +
+            "(six Delhi stores &rarr; Delhi_Hub, Kapiva's city rollup). " +
+            "Check the Darkstore tab is published to the web, then click Reload Sheets.",
+            "err");
+    }
+}
+
+/* ============================================================
+   DARKSTORE-WISE REPORT SHEET — tab "DS EOD" (Darkstore, Name)
+   ============================================================ */
+
+async function loadDsEodMap(){
+
+    setStatus("dsEodStatus", "Loading Darkstore-Wise report sheet (DS EOD)&hellip;");
+
+    try{
+        const url = DS_EOD_SHEET_URL + "&cacheBust=" + Date.now();
+        const res = await fetch(url, { cache: "no-store" });
+
+        if(!res.ok) throw new Error("HTTP " + res.status);
+
+        let records = parseCSV(await res.text()).filter(r => r.some(f => cleanCell(f) !== ""));
+
+        if(records.length && /^darkstore$/i.test(cleanCell(records[0][0]))) records.shift();
+
+        const renames      = new Map(); // lowercase raw darkstore -> display Name
+        const nameSpelling = new Map(); // lowercase Name -> first spelling seen
+        const nameOrder    = new Map(); // display Name -> first row position
+        const rawOrder     = new Map(); // lowercase raw -> row position
+        const members      = new Map(); // display Name -> [raw values]
+        const missingName  = [];
+        const duplicates   = [];
+        const conflicts    = [];
+
+        records.forEach((r, i) => {
+            const raw  = cleanCell(r[0]);
+            const name = cleanCell(r[1]);
+            if(!raw) return;
+            if(!name){ missingName.push(raw); return; }
+
+            const rawKey  = raw.toLowerCase();
+            const nameKey = name.toLowerCase();
+
+            if(!nameSpelling.has(nameKey)) nameSpelling.set(nameKey, name);
+            const display = nameSpelling.get(nameKey);
+
+            if(renames.has(rawKey)){                 // duplicate row: first one wins
+                if(renames.get(rawKey) === display) duplicates.push(raw);
+                else conflicts.push(raw + " (" + renames.get(rawKey) + " / " + name + ")");
+                return;
+            }
+
+            renames.set(rawKey, display);
+            rawOrder.set(rawKey, i);
+            if(!nameOrder.has(display)) nameOrder.set(display, i);
+            if(!members.has(display)) members.set(display, []);
+            members.get(display).push(raw);
+        });
+
+        if(!renames.size) throw new Error("the DS EOD tab has no Darkstore / Name rows.");
+
+        dsEodRenames   = renames;
+        dsEodNameOrder = nameOrder;
+        dsEodRawOrder  = rawOrder;
+        dsEodLoaded    = true;
+
+        let msg = "<b>Darkstore-Wise report:</b> " + renames.size + " darkstore(s) from the DS EOD tab, merged into <b>" +
+                  members.size + "</b> row(s): " +
+                  [...members].map(([n, list]) =>
+                      esc(n) + (list.length > 1 ? " (" + list.length + " combined)" : "")
+                  ).join(", ");
+        let cls = "ok";
+
+        if(duplicates.length){
+            msg += "<br>Listed more than once (extra rows ignored): <b>" + esc(duplicates.join(", ")) + "</b>";
+            cls = "warn";
+        }
+        if(conflicts.length){
+            msg += "<br>Listed with two different Names (first one used): <b>" + esc(conflicts.join(", ")) + "</b>";
+            cls = "warn";
+        }
+        if(missingName.length){
+            msg += "<br>No Name given, left out of the report: <b>" + esc(missingName.join(", ")) + "</b>";
+            cls = "warn";
+        }
+
+        dsEodStatusMsg = msg;
+        dsEodStatusCls = cls;
+        setStatus("dsEodStatus", msg, cls);
+
+    }catch(err){
+        dsEodRenames   = new Map();
+        dsEodNameOrder = new Map();
+        dsEodRawOrder  = new Map();
+        dsEodLoaded    = false;
+        dsEodStatusMsg =
+            "<b>Could not load the DS EOD tab.</b> " + esc(err.message) +
+            "<br>The Darkstore-Wise report is using the built-in darkstore list instead. " +
+            "Check the DS EOD tab is published to the web, then click Reload Sheets.";
+        dsEodStatusCls = "err";
+        setStatus("dsEodStatus", dsEodStatusMsg, dsEodStatusCls);
+    }
+}
+
+/* ============================================================
+   EXCLUDED PINCODES SHEET (City, Pincode)
+   ============================================================ */
+
+async function loadPincodes(){
+
+    setStatus("pincodeStatus", "Loading excluded pincodes sheet&hellip;");
+
+    try{
+        const url = PINCODE_SHEET_URL + "&cacheBust=" + Date.now();
+        const res = await fetch(url, { cache: "no-store" });
+
+        if(!res.ok) throw new Error("HTTP " + res.status);
+
+        let records = parseCSV(await res.text()).filter(r => r.some(f => cleanCell(f) !== ""));
+
+        if(records.length && /pincode/i.test(cleanCell(records[0][1]))) records.shift();
+
+        const pins    = new Set();
+        const byCity  = new Map(); // city -> count
+        const invalid = [];
+
+        records.forEach(r => {
+            const city = cleanCell(r[0]) || "(no city)";
+            const pin  = normPincode(r[1]);
+            if(!pin) return;
+            if(!/^\d{6}$/.test(pin)){ invalid.push(pin); return; }
+            if(pins.has(pin)) return;
+            pins.add(pin);
+            byCity.set(city, (byCity.get(city) || 0) + 1);
+        });
+
+        sheetPincodes      = pins;
+        pincodeSheetLoaded = true;
+
+        let msg = "<b>" + pins.size + " pincode(s)</b> excluded from the Pincode sheet" +
+                  (byCity.size ? ": " + [...byCity].map(([c, n]) => esc(c) + " " + n).join(", ") : "") +
+                  "." +
+                  "<br>Removed from Delivery Pincode (shipment file) and Billing Address Pincode (Kapiva order files).";
+        let cls = "ok";
+
+        if(invalid.length){
+            msg += "<br>Not a 6-digit pincode, ignored: <b>" + esc(invalid.join(", ")) + "</b>";
+            cls = "warn";
+        }
+
+        setStatus("pincodeStatus", msg, cls);
+
+    }catch(err){
+        sheetPincodes      = new Set();
+        pincodeSheetLoaded = false;
+        setStatus("pincodeStatus",
+            "<b>Could not load the excluded pincodes sheet.</b> " + esc(err.message) +
+            "<br><b>No pincodes are being excluded</b> until it loads. " +
+            "Check the Pincode tab is published to the web, then click Reload Sheets.",
+            "err");
+    }
+}
+
+async function loadSheets(){
+    await Promise.all([loadBrands(), loadDarkstoreMap(), loadDsEodMap(), loadPincodes()]);
+    renderKapivaOrdersStatus(document.getElementById("reportDate").value, null);
+    if(fileLoaded) render();
+}
+
+/* ============================================================
+   SHEET-LINK BOX (copyable link to the DS EOD tab)
+   ============================================================ */
+
+function initSheetLinkBox(){
+    const a   = document.getElementById("dsEodSheetLink");
+    const btn = document.getElementById("copyDsEodLink");
+
+    a.href        = DS_EOD_SHEET_EDIT_URL;
+    a.textContent = DS_EOD_SHEET_EDIT_URL;
+    a.title       = DS_EOD_SHEET_EDIT_URL;
+
+    const label = btn.textContent;
+    let timer = null;
+
+    function copied(text){
+        btn.textContent = text;
+        clearTimeout(timer);
+        timer = setTimeout(() => btn.textContent = label, 1600);
+    }
+
+    function fallbackCopy(){
+        const ta = document.createElement("textarea");
+        ta.value = DS_EOD_SHEET_EDIT_URL;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity  = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try{ ok = document.execCommand("copy"); }catch(e){ ok = false; }
+        ta.remove();
+        copied(ok ? "Copied" : "Press Ctrl+C");
+        if(!ok){
+            /* select the visible link text so the user can copy it by hand */
+            const range = document.createRange();
+            range.selectNodeContents(a);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+
+    btn.addEventListener("click", () => {
+        if(navigator.clipboard && window.isSecureContext){
+            navigator.clipboard.writeText(DS_EOD_SHEET_EDIT_URL)
+                .then(() => copied("Copied"))
+                .catch(fallbackCopy);
+        } else {
+            fallbackCopy();
+        }
+    });
+}
+
+/* ============================================================
+   FILE UPLOAD
+   ============================================================ */
+
+document.getElementById("fileInput").addEventListener("change", handleFile);
+document.getElementById("kapivaFileInput").addEventListener("change", handleKapivaFiles);
+
+/* Clear the input just BEFORE the picker opens (not after reading),
+   so the chosen file name stays visible after upload, while picking
+   the same file again still fires "change". */
+document.getElementById("fileInput").addEventListener("click", e => { e.target.value = ""; });
+document.getElementById("kapivaFileInput").addEventListener("click", e => { e.target.value = ""; });
+
+document.getElementById("reportDate").addEventListener("change", () => {
+    updateWindowNote();
+    renderKapivaOrdersStatus(document.getElementById("reportDate").value, null);
+    render();
+});
+
+/* Debounced, so pasting/typing a long AWB list doesn't re-run
+   the whole report on every keystroke */
+let awbRenderTimer = null;
+document.getElementById("awbFilter").addEventListener("input", () => {
+    if(!fileLoaded) return;
+    clearTimeout(awbRenderTimer);
+    awbRenderTimer = setTimeout(render, 300);
+});
+
+document.getElementById("reloadBrands").addEventListener("click", loadSheets);
+
+/* ============================================================
+   AWB REMINDER POPUP
+   Shown once per shipment-file upload when the file has orders
+   from the Krishna Herbal Indore / Jodhpur warehouses but the
+   AWB box is empty.
+   ============================================================ */
+
+const AWB_STORE_LABELS = {
+    "zippee_krishna_herbal_indorewh":  "Indore warehouse",
+    "zippee_krishna_herbal_jodhpurwh": "Jodhpur warehouse"
+};
+
+/* rows per AWB-filter warehouse, e.g. Map{"Indore warehouse" -> 42} */
+function countAwbStoreRows(rows){
+    const counts = new Map();
+    rows.forEach(r => {
+        const ds = String(r.darkstore).trim().toLowerCase();
+        if(AWB_FILTER_STORES.has(ds)){
+            const label = AWB_STORE_LABELS[ds] || r.darkstore;
+            counts.set(label, (counts.get(label) || 0) + 1);
+        }
+    });
+    return counts;
+}
+
+function showAwbModal(counts){
+    document.getElementById("awbModalList").innerHTML =
+        [...counts].map(([label, n]) =>
+            "<li><b>" + esc(label) + "</b> &mdash; " + n + " order(s) in the file</li>"
+        ).join("");
+    document.getElementById("awbModal").classList.add("show");
+    document.getElementById("awbModalAdd").focus();
+}
+
+function hideAwbModal(){
+    document.getElementById("awbModal").classList.remove("show");
+}
+
+document.getElementById("awbModalContinue").addEventListener("click", hideAwbModal);
+
+document.getElementById("awbModalAdd").addEventListener("click", () => {
+    hideAwbModal();
+    const box = document.getElementById("awbFilter");
+    box.scrollIntoView({ behavior:"smooth", block:"center" });
+    box.focus();
+});
+
+/* click outside the box or press Esc to close */
+document.getElementById("awbModal").addEventListener("click", e => {
+    if(e.target.id === "awbModal") hideAwbModal();
+});
+document.addEventListener("keydown", e => {
+    if(e.key === "Escape") hideAwbModal();
+});
+
+function handleFile(e){
+
+    const file = e.target.files[0];
+    if(!file) return;
+
+    setStatus("dataStatus",
+        "Reading <b>" + esc(file.name) + "</b> (" +
+        (file.size / 1048576).toFixed(1) + " MB)&hellip; " +
+        "large files may take a while.");
+
+    const reader = new FileReader();
+
+    reader.onerror = () => {
+        setStatus("dataStatus", "Could not read that file.", "err");
+    };
+
+    reader.onload = function(event){
+
+        try{
+            const data  = new Uint8Array(event.target.result);
+            const isCSV = /\.csv$/i.test(file.name);
+
+            /* CSV: raw:true keeps every cell as plain text, so a day-first
+               date like "05/10/2026" is never re-read US-style as 10 May.
+               Excel: no cellDates, so real date/time cells arrive as Excel
+               serial numbers, which combineDateTime() converts exactly. */
+            const workbook = XLSX.read(data, { type:"array", raw:isCSV });
+
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const aoa   = XLSX.utils.sheet_to_json(sheet, { header:1, raw:true, defval:"", blankrows:false });
+
+            if(aoa.length < 2) throw new Error("the file has no data rows.");
+
+            /* find each field's column by header name (new or old export) */
+            const cols = resolveShipmentColumns(aoa[0]);
+
+            const missing = SHIPMENT_REQUIRED.filter(f => cols[f] === -1);
+            if(missing.length){
+                throw new Error("missing column(s): " +
+                    missing.map(f => SHIPMENT_COLUMNS[f].map(n => '"' + n + '"').join(" or ")).join("; ") +
+                    ". Is this the shipment export?");
+            }
+
+            shipmentFormatLabel = cols.createdTime !== -1
+                ? "Detailed Report (new format)"
+                : "Bolt to Blaze (old format)";
+
+            shipmentMissingOptional = ["attempts", "riderId"]
+                .filter(f => cols[f] === -1)
+                .map(f => SHIPMENT_COLUMNS[f][0]);
+
+            const get = (row, f) => cols[f] === -1 ? "" : row[cols[f]];
+
+            /* every row is kept; the test and pincode exclusions are applied
+               at render time so a Reload Sheets takes effect immediately */
+            allRows = [];
+            for(let i = 1; i < aoa.length; i++){
+                const row = aoa[i];
+                allRows.push({
+                    pincode:   normPincode(get(row, "pincode")),
+                    brand:     cleanCell(get(row, "brand")),
+                    darkstore: cleanCell(get(row, "darkstore")),
+                    status:    cleanCell(get(row, "status")).toUpperCase(),
+                    attempts:  parseAttemptCount(get(row, "attempts")),
+                    created:   combineDateTime(get(row, "createdDate"), get(row, "createdTime")),
+                    awb:       cleanCell(get(row, "awb")).toUpperCase(),
+                    riderId:   cleanCell(get(row, "riderId"))
+                });
+            }
+
+            fileLoaded = true;
+            awbPopupPending = true;   // check for missing Indore/Jodhpur AWBs on this render
+            render();
+
+        }catch(err){
+            fileLoaded = false;
+            allRows = [];
+            setStatus("dataStatus",
+                "Failed to parse that file: " + esc(err.message), "err");
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+
+    /* NOTE: the input is NOT cleared here any more, so the chosen
+       file name stays visible. It is cleared on click instead. */
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+
+function render(){
+
+    updateWindowNote();
+
+    const reportTable = document.getElementById("reportTable");
+    const summary     = document.getElementById("summaryTable");
+
+    if(!fileLoaded) return;
+
+    const dateVal = document.getElementById("reportDate").value;
+
+    if(!dateVal){
+        setStatus("dataStatus", "Please choose a report date.", "warn");
+        reportTable.innerHTML = "";
+        document.getElementById("darkstoreWiseReport").innerHTML = "";
+        document.getElementById("uniqueRiderReport").innerHTML = "";
+        return;
+    }
+
+    /* Remove test orders: Darkstore or Brand Name starting/ending with "test" */
+    const nonTestRows = allRows.filter(r => !isTestValue(r.darkstore) && !isTestValue(r.brand));
+    testRowCount = allRows.length - nonTestRows.length;
+
+    /* Pincode exclusion (Pincode sheet only) — applied to
+       every report below. */
+    const baseRows = nonTestRows.filter(r => !isExcludedPincode(r.pincode));
+    excludedPincodeCount = nonTestRows.length - baseRows.length;
+
+    /* Krishna Herbal Indore / Jodhpur rows present but AWB box empty?
+       Popup only once per upload; the status line reminds every render. */
+    const awbBoxEmpty    = !document.getElementById("awbFilter").value.trim();
+    const awbStoreCounts = awbBoxEmpty ? countAwbStoreRows(baseRows) : new Map();
+
+    if(awbPopupPending){
+        awbPopupPending = false;
+        if(awbStoreCounts.size) showAwbModal(awbStoreCounts);
+    }
+
+    /* Darkstore-wise report has no dependency on the Brand Sheet (it
+       aggregates every brand together, by darkstore), so it renders
+       even if the brand list below failed to load. */
+    renderDarkstoreWiseReport(dateVal, baseRows);
+
+    if(!allowedBrands.length){
+        reportTable.innerHTML = "";
+        summary.innerHTML =
+            '<tr><td colspan="3">Brand list not loaded — cannot build reports.</td></tr>';
+        setStatus("dataStatus",
+            "File loaded, but the brand sheet is unavailable.", "err");
+        return;
+    }
+
+    /* per-cutoff window cache, reused across every row/brand in this pass */
+    const windowCache = new Map();
+    function getWindow(cutoffHour){
+        if(!windowCache.has(cutoffHour)) windowCache.set(cutoffHour, windowFor(dateVal, cutoffHour));
+        return windowCache.get(cutoffHour);
+    }
+
+    const unparsed = baseRows.filter(r => !r.created).length;
+
+    /* AWB lookup override, active only when the box has entries */
+    const awbText = document.getElementById("awbFilter").value.trim();
+    const awbSet  = awbText.length
+        ? new Set(awbText.split(/\r?\n/).map(x => x.trim().toUpperCase()).filter(Boolean))
+        : null;
+
+    /* Each row is filtered against its OWN brand's cutoff window
+       (anything not in the sheet falls back to DEFAULT_CUTOFF_HOUR).
+       Exception: for the two Krishna Herbal warehouse darkstores, when
+       an AWB list is pasted, matching is by AWB number only and the
+       cutoff window is skipped entirely for those rows. */
+    const rows = baseRows.filter(r => {
+
+        const dsLower = String(r.darkstore).trim().toLowerCase();
+
+        if(AWB_FILTER_STORES.has(dsLower) && awbSet){
+            return awbSet.has(r.awb);
+        }
+
+        if(!r.created) return false;
+        const win = getWindow(effectiveCutoff(r.brand));
+        return r.created > win.start && r.created <= win.end;
+    });
+
+    /* AWBs pasted in the box that were not found in the file at all */
+    let awbNotFound = [];
+    if(awbSet){
+        const fileAwbs = new Set(baseRows.map(r => r.awb));
+        awbNotFound = [...awbSet].filter(a => !fileAwbs.has(a));
+    }
+
+    const formattedDate = fmtDMYFromISO(dateVal);
+
+    /* ---- summary (grand total across all rows, each using its own brand's cutoff) ---- */
+    const total     = rows.length;
+    const ready     = rows.filter(r => r.status === "READY").length;
+    const readyZero = rows.filter(r => r.status === "READY" && r.attempts === 0).length;
+    const cancelled = rows.filter(r => r.status === "CANCELLED").length;
+    const delivered = rows.filter(r => r.status === "DELIVERED").length;
+
+    const pct = (n) => total > 0 ? ((n / total) * 100).toFixed(0) + "%" : "–";
+
+    summary.innerHTML = `
+        <tr><td><b>Report Date</b></td>
+            <td>${esc(formattedDate)}</td>
+            <td>Cutoff hour is set per brand — see the window note above</td></tr>
+        <tr><td><b>Total Orders</b></td><td>${total}</td>
+            <td>Count of all orders in the window</td></tr>
+        <tr><td><b>Not_D0_Dispatched</b></td><td>${ready} (${pct(ready)})</td>
+            <td>Current Status = READY</td></tr>
+        <tr><td><b>D0_Dispatched</b></td><td>${total - readyZero} (${pct(total - readyZero)})</td>
+            <td>Total - (READY with 0 attempt)</td></tr>
+        <tr><td><b>Cancelled</b></td><td>${cancelled} (${pct(cancelled)})</td>
+            <td>Current Status = CANCELLED</td></tr>
+        <tr><td><b>FASR%</b></td><td>${pct(delivered)} (${delivered} delivered)</td>
+            <td>Delivered / Total</td></tr>
+    `;
+
+    if(total === 0){
+        reportTable.innerHTML =
+            '<div style="background:rgba(255,255,255,.85);padding:22px;border-radius:14px;' +
+            'font-weight:700;color:#9b1c1c;text-align:center;">' +
+            'No orders fall inside the ' + esc(formattedDate) + ' window.</div>';
+        setStatus("dataStatus",
+            "Loaded <b>" + allRows.length + "</b> rows — <b>0</b> inside the " +
+            esc(formattedDate) + " window(s)." +
+            "<br>File format: <b>" + esc(shipmentFormatLabel) + "</b>" +
+            (unparsed ? "<br><b>" + unparsed +
+             "</b> row(s) had an unreadable Creation Date." : "") +
+            (testRowCount ? "<br><b>" + testRowCount +
+             "</b> test row(s) were removed (Darkstore or Brand Name starts/ends with \"test\")." : "") +
+            (excludedPincodeCount ? "<br><b>" + excludedPincodeCount +
+             "</b> row(s) were removed by the excluded pincodes." : ""), "warn");
+        return;
+    }
+
+    /* ---- aggregate by brand-group -> darkstore-group (rows already
+       per-brand-cutoff / AWB filtered) ----
+
+       Brand Sheet rows that share the same Rename (Column C) collapse
+       into one report group, titled with that Rename (e.g. "The Whole
+       Truth" + "TWT" -> "The Whole Truth"). A row with a blank Rename
+       is its own group under its Brand Name. */
+    const reportGroups = [];
+    const groupSeen = new Set();
+    allowedBrands.forEach(b => {
+        const canon = canonicalBrand(b);
+        const key = canon.toLowerCase();
+        if(!groupSeen.has(key)){ groupSeen.add(key); reportGroups.push(canon); }
+    });
+
+    const brandToGroup = new Map();
+    allowedBrands.forEach(b => brandToGroup.set(b.toLowerCase(), canonicalBrand(b)));
+
+    const brandStats = {};
+    reportGroups.forEach(g => brandStats[g] = {});
+
+    const unlistedBrands = new Map(); // brand in window but not in the Brand Sheet -> order count
+
+    rows.forEach(r => {
+
+        const group = brandToGroup.get(r.brand.toLowerCase());
+        if(!group){
+            if(r.brand) unlistedBrands.set(r.brand, (unlistedBrands.get(r.brand) || 0) + 1);
+            return;
+        }
+
+        const store = brandStats[group];
+        const dsKey = brandDarkstoreGroupKey(r.darkstore, group);
+
+        if(!store[dsKey]){
+            store[dsKey] = {
+                total:0, readyZeroAttempt:0, cancelled:0,
+                delivered:0, notDispatched:0
+            };
+        }
+
+        const s = store[dsKey];
+        s.total++;
+
+        if(r.status === "READY"){
+            s.notDispatched++;
+            if(r.attempts === 0) s.readyZeroAttempt++;
+        }
+        if(r.status === "CANCELLED") s.cancelled++;
+        if(r.status === "DELIVERED") s.delivered++;
+    });
+
+    /* ---- build one table per brand, in sheet order ---- */
+    let html = "";
+    let rendered = 0;
+    const emptyBrands = [];
+    const unmapped    = new Set();
+    const postRenderHooks = [];
+    let kapivaColumnsThisPass = null;   // Kapiva report's darkstore keys, if it renders
+
+    reportGroups.forEach(brand => {
+
+        /* columns sorted by the label actually shown */
+        const darkstores = Object.keys(brandStats[brand]).sort((a, b) =>
+            brandDarkstoreLabel(a).localeCompare(brandDarkstoreLabel(b))
+        );
+
+        if(darkstores.length === 0){
+            emptyBrands.push(brand);
+            return;
+        }
+
+        rendered++;
+        const tableId  = "report-" + rendered;
+        const isKapiva = brand.trim().toLowerCase() === "kapiva";
+        const extraCol = isKapiva ? 1 : 0;
+
+        html += `
+<div style="margin-bottom:40px;display:flex;flex-direction:column;align-items:center;">
+
+<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px;">
+<button class="btn btn-sm"
+        data-table="${tableId}" data-brand="${esc(brand)}">
+    Download ${esc(brand)} PNG
+</button>
+${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Generate</button>` : ""}
+</div>
+
+<table id="${tableId}" class="eod-table" style="width:auto;">
+
+<tr>
+    <th colspan="${darkstores.length + 1 + extraCol}" style="font-size:22px;padding:18px;
+        background:#ffffff;color:#000000;text-align:center;font-weight:800;
+        border-bottom:2px solid #dcdcdc;">
+        ZIPPEE &lt;&gt; ${esc(brand)} EOD REPORT | ${esc(formattedDate)}
+    </th>
+</tr>
+
+<tr><td class="yellow"><b>Metric</b></td>`;
+
+        darkstores.forEach(ds => {
+            if(!isKapiva && !sheetGroupNames.has(ds) && !isMapped(ds)){
+                unmapped.add(String(ds).trim());
+            }
+            html += `<td class="yellow"><b>${esc(brandDarkstoreLabel(ds))}</b></td>`;
+        });
+        if(isKapiva) html += `<td class="yellow"><b>Total</b></td>`;
+        html += `</tr>`;
+
+        if(isKapiva){
+
+            const dk = ds => ds.replace(/[^a-zA-Z0-9]/g,"");
+            const brandKey = brand.replace(/[^a-zA-Z0-9]/g,"");
+
+            /* "Total Orders" row — one input per darkstore, filled from
+               the Kapiva order files or typed by hand. */
+            html += `<tr><td class="yellow"><b>Total Orders</b></td>`;
+            darkstores.forEach(ds => {
+                const inputId = `totalOrders_${brandKey}_${dk(ds)}`;
+                html += `<td><input type="number" min="0" id="${inputId}" placeholder="Enter"
+                            style="width:90px;padding:6px;text-align:center;border:1px solid #999;
+                                   border-radius:6px;font-weight:700;"></td>`;
+            });
+            html += `<td class="gray" id="totalOrdersSum_${brandKey}"><b>0</b></td></tr>`;
+
+            const plainRowK = (label, fn) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                let sum = 0;
+                darkstores.forEach(ds => {
+                    const v = fn(brandStats[brand][ds]);
+                    sum += v;
+                    h += `<td>${v}</td>`;
+                });
+                return h + `<td class="gray"><b>${sum}</b></td></tr>`;
+            };
+
+            /* Percentage rows start blank (0%) — Generate fills them in
+               from whatever's in the Total Orders boxes above. */
+            const pctRowK = (label, cellPrefix) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                darkstores.forEach(ds => {
+                    h += `<td id="${cellPrefix}_${brandKey}_${dk(ds)}" style="font-weight:700;">0%</td>`;
+                });
+                return h + `<td class="gray" id="${cellPrefix}_${brandKey}_total" style="font-weight:700;">0%</td></tr>`;
+            };
+
+            html += plainRowK("Processed",      s => s.total);
+            html += plainRowK("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
+            html += pctRowK  ("D0_Dispatched %","d0Pct");
+            html += plainRowK("Delivered",      s => s.delivered);
+            html += pctRowK  ("FASR%",          "delPct");   // FASR% = Delivered / Total Orders
+            html += plainRowK("Cancelled",      s => s.cancelled);
+
+            /* Wire the inputs + Generate button once this table is in the DOM */
+            kapivaColumnsThisPass = darkstores;
+
+            postRenderHooks.push(() => {
+
+                /* Totals from the Kapiva order files win for every column
+                   that has a file; other columns keep any hand-typed value. */
+                const fileTotals = kapivaTotalsForColumns(dateVal, darkstores);
+
+                darkstores.forEach(ds => {
+                    const input = document.getElementById(`totalOrders_${brandKey}_${dk(ds)}`);
+                    if(!input) return;
+                    const stateKey = dateVal + "|" + ds;
+
+                    if(fileTotals.has(ds)){
+                        kapivaTotalOrders.set(stateKey, String(fileTotals.get(ds)));
+                        input.title = "Filled from the Kapiva order files";
+                        input.style.background = "#e3f7e8";
+                    }
+
+                    const saved = kapivaTotalOrders.get(stateKey);
+                    if(saved !== undefined) input.value = saved;
+                    input.addEventListener("input", () => {
+                        kapivaTotalOrders.set(stateKey, input.value);
+                    });
+                });
+
+                function doGenerate(){
+                    let sumOrders = 0, sumD0 = 0, sumDelivered = 0;
+
+                    darkstores.forEach(ds => {
+                        const s = brandStats[brand][ds];
+                        const input = document.getElementById(`totalOrders_${brandKey}_${dk(ds)}`);
+                        const entered = input && input.value !== "" ? Number(input.value) : 0;
+
+                        /* Total Orders can never be lower than Processed:
+                           if it is, raise it to Processed for this store */
+                        const totalOrders = Math.max(entered, s.total);
+
+                        if(input && totalOrders !== entered){
+                            input.value = totalOrders;
+                            kapivaTotalOrders.set(dateVal + "|" + ds, String(totalOrders));
+                            input.title = "Raised to Processed (" + s.total + "); original value was " + entered;
+                        }
+
+                        sumOrders    += totalOrders;
+                        sumD0        += (s.total - s.readyZeroAttempt);
+                        sumDelivered += s.delivered;
+
+                        setKapivaPctCell(`d0Pct_${brandKey}_${dk(ds)}`,  s.total - s.readyZeroAttempt, totalOrders);
+                        setKapivaPctCell(`delPct_${brandKey}_${dk(ds)}`, s.delivered,                  totalOrders);
+                    });
+
+                    const sumCell = document.getElementById(`totalOrdersSum_${brandKey}`);
+                    if(sumCell) sumCell.innerHTML = `<b>${sumOrders}</b>`;
+
+                    setKapivaPctCell(`d0Pct_${brandKey}_total`,  sumD0,        sumOrders);
+                    setKapivaPctCell(`delPct_${brandKey}_total`, sumDelivered, sumOrders);
+                }
+
+                const genBtn = document.querySelector(`button[data-generate-table="${tableId}"]`);
+                if(genBtn) genBtn.addEventListener("click", doGenerate);
+
+                /* Restore a previously-Generated view after any re-render */
+                doGenerate();
+            });
+
+        } else {
+
+            const plainRow = (label, fn) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                darkstores.forEach(ds => h += `<td>${fn(brandStats[brand][ds])}</td>`);
+                return h + `</tr>`;
+            };
+
+            const pctRow = (label, fn) => {
+                let h = `<tr><td class="yellow"><b>${label}</b></td>`;
+                darkstores.forEach(ds => {
+                    const s = brandStats[brand][ds];
+                    const p = s.total > 0 ? Number((fn(s) / s.total * 100).toFixed(0)) : 0;
+                    h += `<td style="background:${pctColour(p)};font-weight:700;">${p}%</td>`;
+                });
+                return h + `</tr>`;
+            };
+
+            html += plainRow("Processed",      s => s.total);
+            html += plainRow("D0_Dispatched",  s => s.total - s.readyZeroAttempt);
+            html += pctRow  ("D0_Dispatched %",s => s.total - s.readyZeroAttempt);
+            html += plainRow("Delivered",      s => s.delivered);
+            html += pctRow  ("FASR%",          s => s.delivered);   // FASR% = Delivered / Processed
+            html += plainRow("Cancelled",      s => s.cancelled);
+        }
+
+        html += `
+<tr>
+    <td colspan="${darkstores.length + 1 + extraCol}" style="background:#D3D3D3;color:#000000;
+        font-size:13px;font-weight:700;letter-spacing:0.5px;text-align:center;padding:12px;">
+        Powered by SASA Automation | Zippee
+    </td>
+</tr>
+
+</table>
+</div>`;
+    });
+
+    reportTable.innerHTML = html;
+
+    reportTable.querySelectorAll("button[data-table]").forEach(btn => {
+        btn.addEventListener("click", () =>
+            downloadBrandReport(btn.dataset.table, btn.dataset.brand));
+    });
+
+    postRenderHooks.forEach(fn => fn());
+
+    renderKapivaOrdersStatus(dateVal, kapivaColumnsThisPass);
+
+    /* ---- status line ---- */
+    let msg = "Loaded <b>" + allRows.length + "</b> rows | <b>" + total +
+              "</b> inside brand-specific windows for " + esc(formattedDate) + " | <b>" +
+              rendered + "</b> report(s) built." +
+              "<br>File format: <b>" + esc(shipmentFormatLabel) + "</b>";
+
+    let cls = "ok";
+
+    if(shipmentMissingOptional.length){
+        msg += "<br>Column(s) not found in the file, counted as blank/0: <b>" +
+               esc(shipmentMissingOptional.join(", ")) + "</b>";
+        cls = "warn";
+    }
+
+    if(!darkstoreSheetLoaded){
+        msg += "<br>Darkstore rename sheet not loaded &mdash; using the built-in darkstore grouping.";
+        cls = "warn";
+    }
+
+    if(awbStoreCounts.size){
+        msg += "<br><b>Krishna Herbal Indore / Jodhpur AWBs not added</b> &mdash; " +
+               [...awbStoreCounts].map(([l, n]) => esc(l) + " " + n).join(", ") +
+               " order(s) in the file are using the normal cutoff window. Paste their AWBs in the box above.";
+        cls = "warn";
+    }
+
+    if(awbSet){
+        msg += "<br>AWB box: <b>" + awbSet.size + "</b> AWB(s) pasted";
+        if(awbNotFound.length){
+            msg += ", <b>" + awbNotFound.length + "</b> not found in the file: " +
+                   esc(awbNotFound.slice(0, 20).join(", ")) +
+                   (awbNotFound.length > 20 ? " &hellip;" : "");
+            cls = "warn";
+        } else {
+            msg += ", all found in the file.";
+        }
+    }
+
+    if(emptyBrands.length){
+        msg += "<br>No orders in this window for: <b>" +
+               esc(emptyBrands.join(", ")) + "</b>";
+        cls = "warn";
+    }
+
+    if(unlistedBrands.size){
+        const list = [...unlistedBrands].sort((a, b) => b[1] - a[1])
+            .map(([b, n]) => esc(b) + " (" + n + ")");
+        msg += "<br>Brand names in this window that are NOT in the Brand Sheet " +
+               "(not in any brand report &mdash; add them to the sheet with the right Rename if they should be): " +
+               list.join(", ");
+        cls = "warn";
+    }
+
+    if(unmapped.size){
+        msg += "<br>Darkstore(s) not in the Darkstore sheet or built-in labels (shown as-is): <b>" +
+               esc([...unmapped].join(", ")) + "</b>";
+        cls = "warn";
+    }
+
+    if(unparsed){
+        msg += "<br><b>" + unparsed +
+               "</b> row(s) had an unreadable Creation Date and were excluded.";
+        cls = "warn";
+    }
+
+    if(testRowCount){
+        msg += "<br><b>" + testRowCount +
+               "</b> test row(s) were removed (Darkstore or Brand Name starts/ends with \"test\").";
+    }
+
+    if(excludedPincodeCount){
+        msg += "<br><b>" + excludedPincodeCount +
+               "</b> row(s) were removed by the excluded pincodes (Delivery Pincode; applies to brand-wise, Darkstore-Wise and Unique Rider).";
+        cls = "warn";
+    }
+
+    setStatus("dataStatus", msg, cls);
+}
+
+/* ============================================================
+   DARKSTORE-WISE REPORT + UNIQUE RIDER REPORT
+
+   Groups every row in the file by darkstore (no brand filter,
+   no Brand Sheet involved), using a fixed cutoff window,
+   independent of the per-brand cutoffs used above.
+
+   DS EOD tab loaded:
+     - only darkstores listed in the tab are included
+     - main table: one row per Name (same Name = merged), in tab order
+     - rider table: one row per listed darkstore, in tab order
+   DS EOD tab unavailable:
+     - falls back to DARKSTORE_WISE_ALLOWLIST + the Delhi_Hub merge
+   ============================================================ */
+
+function renderDarkstoreWiseReport(dateVal, baseRows){
+
+    const mainBox  = document.getElementById("darkstoreWiseReport");
+    const riderBox = document.getElementById("uniqueRiderReport");
+
+    const win = windowFor(dateVal, DARKSTORE_WISE_CUTOFF_HOUR);
+
+    const useSheet = dsEodLoaded;
+
+    const isIncluded = raw => useSheet
+        ? dsEodRenames.has(raw.toLowerCase())
+        : DARKSTORE_WISE_ALLOWLIST.has(raw.toLowerCase());
+
+    const mainKeyFor = raw => useSheet
+        ? dsEodRenames.get(raw.toLowerCase())
+        : darkstoreGroupKey(raw);
+
+    const mainLabelFor = key => useSheet ? key : darkstoreWiseLabel(key);
+
+    /* darkstores in the window that the report leaves out (for the status line) */
+    const leftOut = new Map(); // raw -> order count
+
+    const rows = baseRows.filter(r => {
+        if(!(r.created && r.created > win.start && r.created <= win.end)) return false;
+        const raw = String(r.darkstore).trim();
+        if(isIncluded(raw)) return true;
+        if(raw) leftOut.set(raw, (leftOut.get(raw) || 0) + 1);
+        return false;
+    });
+
+    updateDsEodStatusForReport(leftOut, useSheet);
+
+    if(!rows.length){
+        mainBox.innerHTML =
+            '<div style="background:rgba(255,255,255,.85);padding:18px;border-radius:14px;' +
+            'font-weight:700;color:#9b1c1c;text-align:center;">' +
+            'No orders in the ' + esc(hourLabel(DARKSTORE_WISE_CUTOFF_HOUR)) +
+            ' cutoff window for the darkstore-wise report.</div>';
+        riderBox.innerHTML = "";
+        return;
+    }
+
+    const formattedDate = fmtDMYFromISO(dateVal);
+
+    /* ---- main table: merged by Name, one row per Name ---- */
+    const mainStats = {};
+
+    /* ---- rider table: one row per raw darkstore (not merged) ---- */
+    const riderStats = {};
+
+    rows.forEach(r => {
+
+        const rawDs = String(r.darkstore).trim();
+
+        if(!riderStats[rawDs]) riderStats[rawDs] = new Set();
+        if(r.riderId) riderStats[rawDs].add(r.riderId);
+
+        const dsKey = mainKeyFor(rawDs);
+
+        if(!mainStats[dsKey]){
+            mainStats[dsKey] = {
+                total:0, readyZeroAttempt:0, cancelled:0,
+                delivered:0, notDispatched:0,
+                riderIds: new Set()
+            };
+        }
+
+        const s = mainStats[dsKey];
+        s.total++;
+        if(r.riderId) s.riderIds.add(r.riderId);
+
+        if(r.status === "READY"){
+            s.notDispatched++;
+            if(r.attempts === 0) s.readyZeroAttempt++;
+        }
+        if(r.status === "CANCELLED") s.cancelled++;
+        if(r.status === "DELIVERED") s.delivered++;
+    });
+
+    /* ---- render main table ---- */
+    const darkstores = Object.keys(mainStats).sort((a, b) => {
+        if(useSheet){
+            return (dsEodNameOrder.get(a) ?? 1e9) - (dsEodNameOrder.get(b) ?? 1e9);
+        }
+        if(a === "Delhi_Hub") return -1;
+        if(b === "Delhi_Hub") return 1;
+        return a.localeCompare(b);
+    });
+
+    let totalProcessed = 0, totalD0 = 0, totalDelivered = 0;
+    let totalNotDispatched = 0, totalNotDispatchedZero = 0, totalCancelled = 0;
+    const totalRiders = new Set();
+
+    let html = `
+<table class="eod-table">
+<tr>
+    <th colspan="10" style="background:#4ea6d8;color:#000;font-size:22px;font-weight:800;">
+        ZIPPEE &lt;&gt; DARKSTORE-WISE EOD REPORT | ${esc(formattedDate)}
+    </th>
+</tr>
+<tr>
+    <th>Darkstore</th><th>Processed</th><th>D0_Dispatched %</th><th>D0_Dispatched</th>
+    <th>FASR%</th><th>Delivered</th>
+    <th>Cancelled</th><th>Not Dispatched</th><th>Not Dispatched + 0 Attempt</th><th>Unique Riders</th>
+</tr>`;
+
+    darkstores.forEach(ds => {
+
+        const s = mainStats[ds];
+        const uniqueRiders = s.riderIds.size;
+        s.riderIds.forEach(id => totalRiders.add(id));
+
+        const d0Pct   = s.total ? (((s.total - s.readyZeroAttempt) / s.total) * 100).toFixed(2) : 0;
+        const fasrPct = s.total ? ((s.delivered / s.total) * 100).toFixed(2) : 0;   // FASR% = Delivered / Processed
+
+        totalProcessed += s.total;
+        totalD0 += (s.total - s.readyZeroAttempt);
+        totalCancelled += s.cancelled;
+        totalDelivered += s.delivered;
+        totalNotDispatched += s.notDispatched;
+        totalNotDispatchedZero += s.readyZeroAttempt;
+
+        html += `
+<tr>
+    <td><b>${esc(mainLabelFor(ds))}</b></td>
+    <td>${s.total}</td>
+    <td>${d0Pct}%</td>
+    <td>${s.total - s.readyZeroAttempt}</td>
+    <td>${fasrPct}%</td>
+    <td>${s.delivered}</td>
+    <td>${s.cancelled}</td>
+    <td>${s.notDispatched}</td>
+    <td>${s.readyZeroAttempt}</td>
+    <td>${uniqueRiders}</td>
+</tr>`;
+    });
+
+    html += `
+<tr style="background:#d9edf7;font-weight:700;">
+    <td><b>Total</b></td>
+    <td><b>${totalProcessed}</b></td>
+    <td><b>${totalProcessed ? ((totalD0 / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
+    <td><b>${totalD0}</b></td>
+    <td><b>${totalProcessed ? ((totalDelivered / totalProcessed) * 100).toFixed(2) : 0}%</b></td>
+    <td><b>${totalDelivered}</b></td>
+    <td><b>${totalCancelled}</b></td>
+    <td><b>${totalNotDispatched}</b></td>
+    <td><b>${totalNotDispatchedZero}</b></td>
+    <td><b>${totalRiders.size}</b></td>
+</tr>
+<tr>
+    <td colspan="10" style="background:#D3D3D3;font-weight:700;text-align:center;padding:12px;">
+        Powered by SASA Automation | Zippee
+    </td>
+</tr>
+</table>`;
+
+    mainBox.innerHTML = html;
+
+    /* ---- render unique rider table (one row per darkstore, not merged) ---- */
+    const riderStores = Object.keys(riderStats).sort((a, b) => {
+        if(useSheet){
+            const d = (dsEodRawOrder.get(a.toLowerCase()) ?? 1e9) - (dsEodRawOrder.get(b.toLowerCase()) ?? 1e9);
+            if(d) return d;
+        }
+        return a.localeCompare(b);
+    });
+    const allRiders = new Set();
+
+    let riderHtml = `
+<table class="eod-table">
+<tr>
+    <th colspan="2" style="background:#4ea6d8;color:#000;padding:18px 10px;">
+        <div style="font-size:18px;font-weight:800;white-space:nowrap;">ZIPPEE &lt;&gt; UNIQUE RIDER REPORT</div>
+        <div style="font-size:14px;font-weight:700;margin-top:6px;">${esc(formattedDate)}</div>
+    </th>
+</tr>
+<tr><th>Darkstore</th><th>Unique Riders</th></tr>`;
+
+    riderStores.forEach(ds => {
+        const ids = riderStats[ds];
+        ids.forEach(id => allRiders.add(id));
+        riderHtml += `
+<tr>
+    <td><b>${esc(darkstoreWiseLabel(ds))}</b></td>
+    <td>${ids.size}</td>
+</tr>`;
+    });
+
+    riderHtml += `
+<tr style="background:#d9edf7;font-weight:700;">
+    <td><b>Total</b></td>
+    <td><b>${allRiders.size}</b></td>
+</tr>
+<tr>
+    <td colspan="2" style="background:#D3D3D3;font-weight:700;text-align:center;padding:12px;">
+        Powered by SASA Automation | Zippee
+    </td>
+</tr>
+</table>`;
+
+    riderBox.innerHTML = riderHtml;
+}
+
+/* Adds "which darkstores in this window are NOT in the DS EOD tab"
+   to the DS EOD status line, so a renamed store (like Koregaon
+   Park) is easy to spot and add. */
+function updateDsEodStatusForReport(leftOut, useSheet){
+
+    let msg = dsEodStatusMsg, cls = dsEodStatusCls;
+
+    if(useSheet && leftOut.size){
+        const list = [...leftOut].sort((a, b) => b[1] - a[1])
+            .map(([ds, n]) => esc(ds) + " (" + n + ")");
+        msg += "<br>In this window but not in the DS EOD tab, so left out of the Darkstore-Wise report: " +
+               list.join(", ");
+    }
+
+    setStatus("dsEodStatus", msg, cls);
+}
+
+/* ============================================================
+   DOWNLOADS
+   ============================================================ */
+
+/* html2canvas can't draw <input> boxes properly (the value is drawn
+   too low and gets clipped). Before taking the picture, swap every
+   input in the cloned copy for plain text showing its value. */
+function inputsToText(clonedDoc){
+    clonedDoc.querySelectorAll("input[type=number]").forEach(inp => {
+        const span = clonedDoc.createElement("span");
+        span.textContent = inp.value !== "" ? inp.value : "0";
+        span.style.fontWeight = "700";
+        span.style.fontSize   = "14px";
+        inp.replaceWith(span);
+    });
+}
+
+function downloadBrandReport(tableId, brand){
+
+    const report = document.getElementById(tableId);
+    if(!report) return;
+
+    html2canvas(report, { scale:3, useCORS:true, scrollX:0, scrollY:0, onclone:inputsToText })
+    .then(canvas => {
+        const link = document.createElement("a");
+        link.download = String(brand).replace(/[^a-zA-Z0-9]/g,"_") + "_EOD_Report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
+}
+
+function downloadPNG(){
+
+    const report = document.getElementById("reportTable");
+    if(!report || !report.innerHTML.trim()) return;
+
+    const btns = report.querySelectorAll("button");
+    btns.forEach(b => b.style.visibility = "hidden");
+
+    html2canvas(report, { scale:2, useCORS:true, onclone:inputsToText })
+    .then(canvas => {
+        btns.forEach(b => b.style.visibility = "visible");
+        const link = document.createElement("a");
+        link.download = "Zippee_SDD_EOD_Report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    })
+    .catch(() => btns.forEach(b => b.style.visibility = "visible"));
+}
+
+function downloadDarkstoreWisePNG(){
+
+    const report = document.querySelector("#darkstoreWiseReport table");
+    if(!report) return;
+
+    html2canvas(report, { scale:2, useCORS:true })
+    .then(canvas => {
+        const link = document.createElement("a");
+        link.download = "Zippee_Darkstore_Wise_EOD_Report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
+}
+
+function downloadUniqueRiderPNG(){
+
+    const report = document.querySelector("#uniqueRiderReport table");
+    if(!report) return;
+
+    html2canvas(report, { scale:2, backgroundColor:null, useCORS:true })
+    .then(canvas => {
+        const link = document.createElement("a");
+        link.download = "Zippee_Unique_Rider_Report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+
+window.addEventListener("load", () => {
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    document.getElementById("reportDate").value =
+        yesterday.getFullYear() + "-" +
+        String(yesterday.getMonth() + 1).padStart(2,"0") + "-" +
+        String(yesterday.getDate()).padStart(2,"0");
+
+    initSheetLinkBox();
+    loadSheets();
+});
+</script>
+
+</body>
+</html>
