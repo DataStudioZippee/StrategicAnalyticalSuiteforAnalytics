@@ -124,7 +124,7 @@ input[type=file]{ display:none; }
 /* FILTERS */
 .filters{
     display:grid;
-    grid-template-columns:repeat(7,minmax(130px,1fr));
+    grid-template-columns:repeat(8,minmax(120px,1fr));
     gap:12px;
     background:#F8F9F4;
     border:1px solid #D8DDCE;
@@ -159,7 +159,7 @@ select:focus, input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(3
 /* KPI GRID */
 .kpi-grid{
     display:grid;
-    grid-template-columns:repeat(8,1fr);
+    grid-template-columns:repeat(9,1fr);
     gap:13px;
     margin-bottom:20px;
 }
@@ -278,6 +278,19 @@ tbody tr:hover{ background:#F8FAFC; }
 .badge-red{ background:rgba(239,68,68,.15); }
 .badge-orange{ background:rgba(245,158,11,.15); }
 
+/* SLA */
+.sla-def{
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.5;
+    margin:-6px 0 14px;
+}
+.sla-cell{ font-weight:800; }
+.sla-good{ background:rgba(34,197,94,.14); }
+.sla-mid{ background:rgba(245,158,11,.16); }
+.sla-bad{ background:rgba(239,68,68,.14); }
+.sla-cell .cell-btn{ color:#111827; }
+
 /* LOADER */
 .loader-overlay{
     position:fixed;
@@ -307,7 +320,7 @@ tbody tr:hover{ background:#F8FAFC; }
 
 /* RESPONSIVE */
 @media(max-width:1350px){
-    .kpi-grid{ grid-template-columns:repeat(4,1fr); }
+    .kpi-grid{ grid-template-columns:repeat(3,1fr); }
     .filters{ grid-template-columns:repeat(4,1fr); }
 }
 @media(max-width:900px){
@@ -402,6 +415,16 @@ tbody tr:hover{ background:#F8FAFC; }
         </div>
 
         <div class="filter-group">
+            <label for="slaFilter">SLA Status</label>
+            <select id="slaFilter">
+                <option value="">All SLA</option>
+                <option value="MET">Met</option>
+                <option value="BREACHED">Breached</option>
+                <option value="NOT_DELIVERED">Not delivered (not counted)</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
             <label>Action</label>
             <button class="danger" style="width:100%" onclick="resetFilters()">Reset Filters</button>
         </div>
@@ -456,6 +479,12 @@ tbody tr:hover{ background:#F8FAFC; }
             <div class="kpi-value" id="kpiFASR">0%</div>
             <div class="kpi-sub">Delivered on 1st attempt / Delivered</div>
         </div>
+
+        <div class="kpi cyan">
+            <div class="kpi-label">SLA %</div>
+            <div class="kpi-value" id="kpiSLA">0%</div>
+            <div class="kpi-sub" id="kpiSLASub">Delivered on performance date / Delivered</div>
+        </div>
     </section>
 
     <!-- INSIGHTS -->
@@ -485,6 +514,48 @@ tbody tr:hover{ background:#F8FAFC; }
                 <div class="insight-title">Oldest In-Transit Shipment</div>
                 <div class="insight-value" id="oldestPending">-</div>
             </div>
+        </div>
+    </section>
+
+    <!-- SLA -->
+    <section class="grid-2">
+        <div class="panel">
+            <div class="panel-title">
+                <h3>Daily SLA Performance</h3>
+                <span>Delivered orders by performance date (3 PM cutoff)</span>
+            </div>
+            <div class="chart-wrap"><canvas id="slaTrendChart"></canvas></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                <h3>SLA Breach Breakdown</h3>
+                <span>How late breached deliveries were</span>
+            </div>
+            <div class="chart-wrap"><canvas id="slaBreachChart"></canvas></div>
+        </div>
+    </section>
+
+    <section class="panel table-panel">
+        <div class="panel-title">
+            <div>
+                <h3>Darkstore SLA by Day</h3>
+                <span>Delivered-order SLA % per darkstore per performance date — click a cell to see breached AWBs</span>
+            </div>
+            <button class="success" onclick="downloadSLABreachExcel()">Download SLA Breach Excel</button>
+        </div>
+        <p class="sla-def">
+            Only delivered orders are counted. SLA is met when the delivery date is on or before the
+            performance date (orders created at or after 3 PM belong to the next day), at any time that day.
+            Delivered on a later date = breached. RTO, READY, in-transit and cancelled orders are not part of SLA.
+            Today's column is marked "in progress" (* on the chart) because more deliveries can still come in.
+        </p>
+
+        <div class="table-wrap ready-bifurcation-wrap">
+            <table id="slaPivotTable" class="pivot-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
         </div>
     </section>
 
@@ -585,6 +656,8 @@ tbody tr:hover{ background:#F8FAFC; }
                         <th data-key="rto">RTO</th>
                         <th data-key="rtoPct">RTO %</th>
                         <th data-key="ready">Ready</th>
+                        <th data-key="slaPct">SLA %</th>
+                        <th data-key="slaBreached">SLA Breached</th>
                         <th data-key="avgTat">Avg TAT</th>
                     </tr>
                 </thead>
@@ -616,6 +689,8 @@ tbody tr:hover{ background:#F8FAFC; }
                         <th data-key="rto">RTO</th>
                         <th data-key="rtoPct">RTO %</th>
                         <th data-key="ready">Ready</th>
+                        <th data-key="slaPct">SLA %</th>
+                        <th data-key="slaBreached">SLA Breached</th>
                         <th data-key="avgTat">Avg TAT</th>
                     </tr>
                 </thead>
@@ -747,6 +822,7 @@ const toDate = document.getElementById("toDate");
 const darkstoreFilter = document.getElementById("darkstoreFilter");
 const brandFilter = document.getElementById("brandFilter");
 const statusFilter = document.getElementById("statusFilter");
+const slaFilter = document.getElementById("slaFilter");
 
 /* =========================================================
    HELPERS
@@ -864,12 +940,52 @@ function getPerformanceDate(date){
     return d;
 }
 
+function startOfDay(date){
+    if(!date) return null;
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+    return d;
+}
+
+/*
+   SLA RULE (delivered orders only)
+   Due date = performance date (3 PM cutoff applied). Only calendar dates are compared.
+   MET           : delivered on or before the performance date (any time that day)
+   BREACHED      : delivered after the performance date
+   NOT_DELIVERED : RTO, READY, in-transit, cancelled — not part of SLA
+*/
+function computeSLA(row){
+    row.__slaLateDays = null;
+
+    if(!isDelivered(row) || !row.__deliveryDate || !row.__performanceDate) return "NOT_DELIVERED";
+
+    const late = Math.round((startOfDay(row.__deliveryDate) - row.__performanceDate) / 86400000);
+    if(late <= 0) return "MET";
+
+    row.__slaLateDays = late;
+    return "BREACHED";
+}
+
+// How late a breached delivery was (for the breach chart)
+function breachReason(row){
+    const d = row.__slaLateDays || 0;
+    return d === 1 ? "Delivered next day" : d === 2 ? "Delivered 2 days late" : "Delivered 3+ days late";
+}
+
+const SLA_LABEL = { MET:"Met", BREACHED:"Breached", NOT_DELIVERED:"Not counted" };
+
 function dateKey(date){
     if(!date) return "";
     const y = date.getFullYear();
     const m = String(date.getMonth()+1).padStart(2,"0");
     const d = String(date.getDate()).padStart(2,"0");
     return `${y}-${m}-${d}`;
+}
+
+function formatDateDisplay(key){
+    if(!key) return "";
+    const [y,m,d] = key.split("-");
+    return `${d}/${m}/${y}`;
 }
 
 function formatDateTimeDisplay(date){
@@ -1050,6 +1166,8 @@ function prepareRows(rows){
         row.__attempts = Number(get(row,"attempts").replace(/,/g,"")) || 0;
 
         row.__tat = hoursBetween(row.__marketplaceDate, row.__deliveryDate);
+
+        row.__sla = computeSLA(row);
     });
 }
 
@@ -1092,7 +1210,7 @@ function setDateRange(){
 /* =========================================================
    FILTER EVENTS
 ========================================================= */
-[specificDate, fromDate, toDate, darkstoreFilter, brandFilter, statusFilter]
+[specificDate, fromDate, toDate, darkstoreFilter, brandFilter, statusFilter, slaFilter]
     .forEach(el => el.addEventListener("change", applyFilters));
 
 function applyFilters(){
@@ -1113,6 +1231,7 @@ function applyFilters(){
         const store = darkstoreFilter.value;
         const brand = brandFilter.value;
         const status = statusFilter.value;
+        const sla = slaFilter.value;
 
         filteredData = rawData.filter(row => {
             const d = row.__performanceDate;
@@ -1123,6 +1242,7 @@ function applyFilters(){
             if(store && row.__darkstore !== store) return false;
             if(brand && row.__brand !== brand) return false;
             if(status && row.__status !== status) return false;
+            if(sla && row.__sla !== sla) return false;
 
             return true;
         });
@@ -1139,6 +1259,7 @@ function resetFilters(){
     darkstoreFilter.value = "";
     brandFilter.value = "";
     statusFilter.value = "";
+    slaFilter.value = "";
     fromDate.disabled = false;
     toDate.disabled = false;
     setDateRange();
@@ -1159,6 +1280,10 @@ function updateDashboard(){
 
     updateInsights();
 
+    renderSLATrendChart();
+    renderSLABreachChart();
+    renderSLAPivotTable();
+
     renderPaymentChart();
     renderStatusChart();
     renderStoreChart();
@@ -1177,6 +1302,7 @@ function updateDashboard(){
 ========================================================= */
 function updateKPIs(){
     let total = 0, delivered = 0, rto = 0, cancelled = 0, ready = 0, firstAttempt = 0;
+    let slaMet = 0, slaBreached = 0;
 
     filteredData.forEach(row => {
         total++;
@@ -1187,7 +1313,13 @@ function updateKPIs(){
         if(isRTO(row)) rto++;
         if(isCancelled(row)) cancelled++;
         if(isReady(row)) ready++;
+        if(row.__sla === "MET") slaMet++;
+        else if(row.__sla === "BREACHED") slaBreached++;
     });
+
+    document.getElementById("kpiSLA").textContent = safeFixed(pct(slaMet, slaMet + slaBreached),1) + "%";
+    document.getElementById("kpiSLASub").textContent =
+        `${formatNumber(slaMet)} met • ${formatNumber(slaBreached)} breached (delivered only)`;
 
     document.getElementById("kpiTotal").textContent = formatNumber(total);
     document.getElementById("kpiDelivered").textContent = formatNumber(delivered);
@@ -1209,7 +1341,7 @@ function buildGroupAnalytics(data, key){
         const name = row[key] || "Unknown";
 
         if(!map.has(name)){
-            map.set(name,{ name, total:0, delivered:0, rto:0, ready:0, attempted:0, tatSum:0, tatCount:0 });
+            map.set(name,{ name, total:0, delivered:0, rto:0, ready:0, attempted:0, tatSum:0, tatCount:0, slaMet:0, slaBreached:0 });
         }
 
         const item = map.get(name);
@@ -1219,6 +1351,8 @@ function buildGroupAnalytics(data, key){
         if(isRTO(row)) item.rto++;
         if(isReady(row)) item.ready++;
         if(isAttempted(row)) item.attempted++;
+        if(row.__sla === "MET") item.slaMet++;
+        if(row.__sla === "BREACHED") item.slaBreached++;
 
         if(isDelivered(row) && row.__tat !== null){
             item.tatSum += row.__tat;
@@ -1230,6 +1364,7 @@ function buildGroupAnalytics(data, key){
         ...item,
         deliveryPct: pct(item.delivered,item.total),
         rtoPct: pct(item.rto,item.total),
+        slaPct: pct(item.slaMet, item.slaMet + item.slaBreached),
         avgTat: item.tatCount ? item.tatSum / item.tatCount : 0
     }));
 }
@@ -1433,6 +1568,246 @@ function renderBrandChart(){
 }
 
 /* =========================================================
+   SLA CHARTS + PIVOT
+========================================================= */
+function todayKey(){
+    return dateKey(new Date());
+}
+
+function slaClass(p){
+    return p >= 90 ? "sla-good" : p >= 75 ? "sla-mid" : "sla-bad";
+}
+
+function renderSLATrendChart(){
+    const map = new Map();
+
+    filteredData.forEach(row => {
+        if(row.__sla !== "MET" && row.__sla !== "BREACHED") return;
+        const k = dateKey(row.__performanceDate);
+        if(!map.has(k)) map.set(k,{ met:0, breached:0 });
+        map.get(k)[row.__sla === "MET" ? "met" : "breached"]++;
+    });
+
+    const keys = [...map.keys()].sort();
+    const labels = keys.map(k => k.slice(8,10) + "/" + k.slice(5,7) + (k >= todayKey() ? "*" : ""));
+    const slaPct = keys.map(k => {
+        const v = map.get(k);
+        return (v.met + v.breached) ? +pct(v.met, v.met + v.breached).toFixed(1) : null;
+    });
+
+    makeChart("slaTrend","slaTrendChart",{
+        data:{
+            labels,
+            datasets:[
+                { type:"bar", label:"Met", data:keys.map(k => map.get(k).met), backgroundColor:"#22c55e", stack:"s", yAxisID:"y", order:2 },
+                { type:"bar", label:"Breached", data:keys.map(k => map.get(k).breached), backgroundColor:"#ef4444", stack:"s", yAxisID:"y", order:2 },
+                { type:"line", label:"SLA %", data:slaPct, borderColor:"#2563EB", backgroundColor:"#2563EB",
+                  yAxisID:"y1", tension:.3, pointRadius:3, order:1, spanGaps:true }
+            ]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            interaction:{ mode:"index", intersect:false },
+            plugins:{
+                legend:{ labels:{ color:"#374151" } },
+                datalabels:{
+                    display: ctx => ctx.dataset.type === "line" && ctx.raw !== null,
+                    align:"top",
+                    color:"#1E40AF",
+                    font:{ weight:"bold", size:10 },
+                    formatter: v => v + "%"
+                }
+            },
+            scales:{
+                x:{ ...commonScales.x, stacked:true },
+                y:{ ...commonScales.y, stacked:true, title:{ display:true, text:"Orders", color:"#6B7280" } },
+                y1:{ position:"right", min:0, max:100, grid:{ drawOnChartArea:false },
+                     ticks:{ color:"#2563EB", callback: v => v + "%" } }
+            }
+        }
+    });
+}
+
+const BREACH_COLORS = {
+    "Delivered next day":"#f59e0b",
+    "Delivered 2 days late":"#f97316",
+    "Delivered 3+ days late":"#dc2626"
+};
+
+function renderSLABreachChart(){
+    const order = ["Delivered next day","Delivered 2 days late","Delivered 3+ days late"];
+    const counts = Object.fromEntries(order.map(k => [k,0]));
+
+    filteredData.forEach(row => {
+        if(row.__sla === "BREACHED") counts[breachReason(row)]++;
+    });
+
+    const items = order.filter(k => counts[k] > 0);
+
+    makeChart("slaBreach","slaBreachChart",{
+        type:"doughnut",
+        data:{
+            labels:items,
+            datasets:[{
+                data:items.map(k => counts[k]),
+                backgroundColor:items.map(k => BREACH_COLORS[k]),
+                borderWidth:0
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{
+                legend:{ position:"bottom", labels:{ color:"#374151", boxWidth:10 } },
+                datalabels:{
+                    color:"#fff",
+                    font:{ weight:"bold", size:10 },
+                    formatter:(value,ctx) => {
+                        const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+                        const p = total ? value/total*100 : 0;
+                        return p >= 4 ? p.toFixed(0)+"%" : "";
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderSLAPivotTable(){
+    const map = new Map();
+    const dateSet = new Set();
+
+    filteredData.forEach(row => {
+        if(row.__sla !== "MET" && row.__sla !== "BREACHED") return;
+        const k = dateKey(row.__performanceDate);
+        dateSet.add(k);
+        if(!map.has(row.__darkstore)) map.set(row.__darkstore,{});
+        const obj = map.get(row.__darkstore);
+        if(!obj[k]) obj[k] = { met:0, breached:0 };
+        obj[k][row.__sla === "MET" ? "met" : "breached"]++;
+    });
+
+    const dates = [...dateSet].sort();
+    const thead = document.querySelector("#slaPivotTable thead");
+    const tbody = document.querySelector("#slaPivotTable tbody");
+
+    if(!map.size){
+        thead.innerHTML = "<tr><th>Darkstore</th></tr>";
+        tbody.innerHTML = `<tr><td class="empty">No delivered orders in the current filters</td></tr>`;
+        return;
+    }
+
+    const storeTotals = s => Object.values(map.get(s)).reduce(
+        (a,v) => ({ met:a.met+v.met, breached:a.breached+v.breached }), { met:0, breached:0 });
+
+    const stores = [...map.keys()].sort((a,b) => {
+        const A = storeTotals(a), B = storeTotals(b);
+        return (B.met + B.breached) - (A.met + A.breached);
+    });
+
+    const cell = (store, key, v) => {
+        if(!v || !(v.met + v.breached)) return `<td>-</td>`;
+        const p = pct(v.met, v.met + v.breached);
+        const title = `${v.met} met / ${v.breached} breached`;
+        return v.breached
+            ? `<td class="sla-cell ${slaClass(p)}" title="${title}">
+                   <button type="button" class="cell-btn sla-drilldown-btn"
+                       data-store="${escapeHtml(store)}" data-date="${key}">${safeFixed(p,1)}%</button></td>`
+            : `<td class="sla-cell ${slaClass(p)}" title="${title}">${safeFixed(p,1)}%</td>`;
+    };
+
+    thead.innerHTML = `
+        <tr>
+            <th>Darkstore</th>
+            ${dates.map(k => `<th>${k.slice(8,10)}/${k.slice(5,7)}${k >= todayKey() ? " (in progress)" : ""}</th>`).join("")}
+            <th>Overall</th>
+            <th>Breached</th>
+        </tr>`;
+
+    const dayTotals = {};
+    let gMet = 0, gBr = 0;
+
+    const body = stores.map(store => {
+        const obj = map.get(store);
+        const t = storeTotals(store);
+        gMet += t.met; gBr += t.breached;
+        dates.forEach(k => {
+            if(!obj[k]) return;
+            dayTotals[k] = dayTotals[k] || { met:0, breached:0 };
+            dayTotals[k].met += obj[k].met;
+            dayTotals[k].breached += obj[k].breached;
+        });
+        return `
+            <tr>
+                <td><strong>${escapeHtml(store)}</strong></td>
+                ${dates.map(k => cell(store, k, obj[k])).join("")}
+                ${cell(store, "", t).replace('data-date=""','data-date="ALL"')}
+                <td><strong>${formatNumber(t.breached)}</strong></td>
+            </tr>`;
+    }).join("");
+
+    const totalRow = `
+        <tr class="total-row">
+            <td>All Darkstores</td>
+            ${dates.map(k => {
+                const v = dayTotals[k];
+                return v ? `<td class="${slaClass(pct(v.met, v.met+v.breached))}">${safeFixed(pct(v.met, v.met+v.breached),1)}%</td>` : `<td>-</td>`;
+            }).join("")}
+            <td class="${slaClass(pct(gMet, gMet+gBr))}">${safeFixed(pct(gMet, gMet+gBr),1)}%</td>
+            <td>${formatNumber(gBr)}</td>
+        </tr>`;
+
+    tbody.innerHTML = body + totalRow;
+
+    tbody.querySelectorAll(".sla-drilldown-btn").forEach(btn => {
+        btn.addEventListener("click", () => openSLABreachDetails(btn.dataset.store, btn.dataset.date));
+    });
+}
+
+function openSLABreachDetails(store, dKey){
+    const orders = filteredData
+        .filter(r => r.__sla === "BREACHED" && r.__darkstore === store &&
+            (dKey === "ALL" || dateKey(r.__performanceDate) === dKey))
+        .sort((a,b) => a.__performanceDate - b.__performanceDate);
+
+    const reasons = {};
+    orders.forEach(r => { const k = breachReason(r); reasons[k] = (reasons[k]||0) + 1; });
+
+    openOrdersTab({
+        title:"SLA Breached Orders",
+        subtitle:"Delivered after the performance date",
+        cards:[
+            ["Darkstore", store],
+            ["Performance Date", dKey === "ALL" ? "All dates" : formatDateDisplay(dKey)],
+            ["Breached", formatNumber(orders.length)],
+            ...Object.entries(reasons).sort((a,b) => b[1]-a[1]).slice(0,3)
+        ],
+        orders,
+        fileName:`${safeFileName(store)}_SLA_Breached_${dKey}.csv`
+    });
+}
+
+function downloadSLABreachExcel(){
+    const rows = filteredData.filter(r => r.__sla === "BREACHED");
+    if(!rows.length){
+        alert("No SLA breached orders found.");
+        return;
+    }
+    const enriched = rows.map(r => ({
+        "Performance Date": formatDateDisplay(dateKey(r.__performanceDate)),
+        "SLA Status": "Breached",
+        "Breach Reason": breachReason(r),
+        "Days Late": r.__slaLateDays ?? "",
+        ...stripHelpers(r)
+    }));
+    const ws = XLSX.utils.json_to_sheet(enriched);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "SLA Breached");
+    XLSX.writeFile(wb, "SLA_Breached_Orders.xlsx");
+}
+
+/* =========================================================
    READY PENDENCY BIFURCATION
    Columns: darkstores • Rows: attempt buckets 0,1,2,3,4,5+
 ========================================================= */
@@ -1594,6 +1969,10 @@ const DRILLDOWN_COLUMNS = [
     ["No. of Attempts", r => r.__attempts],
     ["Ageing (days)",   r => r.__ageing ?? ""],
     ["Created",         r => formatDateTimeDisplay(r.__creationDate)],
+    ["Performance Date", r => formatDateDisplay(dateKey(r.__performanceDate))],
+    ["Status",          r => r.__status],
+    ["Delivered",       r => formatDateTimeDisplay(r.__deliveryDate)],
+    ["SLA",             r => SLA_LABEL[r.__sla] + (r.__slaLateDays ? ` (+${r.__slaLateDays}d)` : "")],
     ["Payment",         r => r.__payment],
     ["Latest Attempt Reason", r => r.__attemptReason]
 ];
@@ -1807,6 +2186,8 @@ function groupRowHtml(x){
             <td>${formatNumber(x.rto)}</td>
             <td>${rtoBadge(x.rtoPct)}</td>
             <td>${formatNumber(x.ready)}</td>
+            <td>${(x.slaMet + x.slaBreached) ? performanceBadge(x.slaPct) : "-"}</td>
+            <td>${formatNumber(x.slaBreached)}</td>
             <td>${safeFixed(x.avgTat,1)}h</td>
         </tr>`;
 }
