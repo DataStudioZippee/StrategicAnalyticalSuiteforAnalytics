@@ -98,6 +98,7 @@ summary{cursor:pointer;font-weight:700}
 .map label{display:flex;flex-direction:column;font-size:13px;gap:3px}
 .map select{font:inherit;font-size:14px;padding:5px;border-radius:6px;border:1px solid #9aa6b5;max-width:100%}
 .msg{text-align:center;color:var(--warn);font-weight:600;min-height:1.2em;margin-top:8px}
+.msg.info{color:var(--zippee-primary)}
 
 footer{text-align:center;font-size:13px;opacity:.8;margin:0 0 24px;color:var(--text-dark)}
 @media(max-width:600px){h1{font-size:17px}.tool-button{min-width:180px}.rep-title{font-size:22px}.rep th,.rep td{padding:9px 16px;font-size:16px}}
@@ -155,6 +156,10 @@ const BLANKS=new Set(['','-','--','na','n/a','nan','null','none','nil','0','(bla
 const isBlank=v=>{const t=S(v).toLowerCase();return BLANKS.has(t)||/^[\s`'"‘’´\-_.]*$/.test(t);};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ymd=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+/* Excel refuses cells longer than 32,767 characters, so long text is shortened */
+const XL_MAX=32767;
+const clip=v=>typeof v==='string'&&v.length>XL_MAX?v.slice(0,XL_MAX-3)+'...':v;
 
 function dayKey(v){
   if(typeof v==='number'&&v>20000&&v<90000){const d=new Date(Math.round((Math.floor(v)-25569)*86400000));return ymd(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());}
@@ -319,11 +324,29 @@ async function load(file){
     $('pick').textContent='🔁 Load another file';
     render();
   }catch(err){
+    console.error(err);
     fn.className='fname err';fn.textContent=err.message||'Could not read this file.';
   }
 }
 function courierList(res){return [...new Set(res.recs.filter(x=>x.unique).map(x=>x.courier))].sort((a,b)=>a.localeCompare(b));}
 function resetSel(s){s.couriers=new Set(courierList(s.res).filter(c=>COURIER_DEFAULT.some(k=>norm(c).includes(k))));}
+
+function setMsg(text,info){const m=$('msg');if(!m)return;m.textContent=text||'';m.className='msg'+(info?' info':'');}
+
+/* runs a download task, disables its button while busy and shows any error on the page */
+async function runTask(btn,label,task){
+  if(btn)btn.disabled=true;
+  setMsg(label,true);
+  try{
+    const ok=await task();
+    if(ok!==false&&$('msg').textContent===label)setMsg('');
+  }catch(e){
+    console.error(e);
+    setMsg('Failed: '+((e&&e.message)||String(e)));
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+}
 
 function render(){
   const out=$('out');if(!sl)return;
@@ -355,9 +378,9 @@ function render(){
       <div class="map">${FIELDS.map(f=>`<label>${f.label}<select data-f="${f.key}"><option value="-1">(not in file)</option>${sl.headers.map((h,i)=>`<option value="${i}" ${sl.map[f.key]===i?'selected':''}>${XLSX.utils.encode_col(i)}: ${esc(h||'(no header)')}</option>`).join('')}</select></label>`).join('')}</div>
     </details>`;
   out.querySelectorAll('select[data-f]').forEach(s=>s.onchange=()=>{sl.map[s.dataset.f]=+s.value;sl.res=compute(sl);resetSel(sl);render();});
-  $('png').onclick=()=>downloadPNG(M);
-  out.querySelectorAll('[data-png]').forEach(b=>b.onclick=()=>downloadPNG(M,M.sections[+b.dataset.png]));
-  $('xls').onclick=()=>downloadXLSX(p,M);
+  $('png').onclick=e=>runTask(e.currentTarget,'Preparing PNG…',()=>downloadPNG(M));
+  out.querySelectorAll('[data-png]').forEach(b=>b.onclick=()=>runTask(b,'Preparing PNG…',()=>downloadPNG(M,M.sections[+b.dataset.png])));
+  $('xls').onclick=e=>runTask(e.currentTarget,'Preparing Excel…',()=>downloadXLSX(p,M));
 }
 
 /* ---------- PNG (drawn on canvas, same look as the on-screen report) ---------- */
@@ -398,22 +421,25 @@ function pngBlob(M){
   }
   c.fillStyle='#000';c.textAlign='center';c.font='400 17px '+FONT;c.fillText('Powered By SASA Automation',W/2,y+FOOT_H/2+1);
   c.strokeRect(.75,.75,W-1.5,H-1.5);
-  return new Promise(res=>cv.toBlob(res,'image/png'));
+  return new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('Could not draw the PNG.')),'image/png'));
 }
-async function drawPNG(M,filename){await saveBlob(await pngBlob(M),filename);}
+async function drawPNG(M,filename){return saveBlob(await pngBlob(M),filename);}
 const safeName=t=>String(t).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
 async function downloadPNG(M,only){
-  if(REPORT!=='p3'){await drawPNG(M,`${FILE_TAG}_${today()}.png`);return;}
+  if(REPORT!=='p3')return drawPNG(M,`${FILE_TAG}_${today()}.png`);
   const secs=M.sections.filter(s=>s.body.length&&(only==null||s===only));
-  if(secs.length===1){await drawPNG({...M,sections:[secs[0]]},`${FILE_TAG}_${safeName(secs[0].name)}_${today()}.png`);return;}
+  if(!secs.length)throw new Error('Nothing to draw for this selection.');
+  if(secs.length===1)return drawPNG({...M,sections:[secs[0]]},`${FILE_TAG}_${safeName(secs[0].name)}_${today()}.png`);
   // several images -> one zip, so the browser downloads once with no "multiple downloads" prompt
   const zip=new JSZip();
   for(const s of secs)zip.file(`${FILE_TAG}_${safeName(s.name)}_${today()}.png`,await pngBlob({...M,sections:[s]}));
-  await saveBlob(await zip.generateAsync({type:'blob'}),`${FILE_TAG}_All_Couriers_${today()}.zip`);
+  return saveBlob(await zip.generateAsync({type:'blob'}),`${FILE_TAG}_All_Couriers_${today()}.zip`);
 }
 
 /* ---------- Excel ---------- */
-function downloadXLSX(p,M){
+async function downloadXLSX(p,M){
+  // let the "Preparing Excel…" message paint before the heavy work starts
+  await new Promise(r=>setTimeout(r,30));
   const wb=XLSX.utils.book_new(),H=sl.headers,m=sl.map,r=sl.res,col=XLSX.utils.encode_col;
   const cols=H.map((h,i)=>({t:'o',i,h}));
   const pos=i=>cols.findIndex(c=>c.t==='o'&&c.i===i);
@@ -422,45 +448,54 @@ function downloadXLSX(p,M){
     if(m.status>=0)cols.splice(pos(m.status),0,{t:'ff',h:'FF'});else cols.push({t:'ff',h:'FF'});
     if(m.ship>=0)cols.splice(pos(m.ship),0,{t:'fs',h:'Final Status'});else cols.push({t:'fs',h:'Final Status'});
   }
-  const aoa=[cols.map(c=>c.h)];
-  for(const x of r.recs)aoa.push(cols.map(c=>c.t==='o'?(x.raw[c.i]??''):c.t==='u'?(x.unique?'Unique':'Duplicate'):c.t==='ff'?x.ff:x.final));
+  const aoa=[cols.map(c=>clip(c.h))];
+  for(const x of r.recs)aoa.push(cols.map(c=>c.t==='o'?clip(x.raw[c.i]??''):c.t==='u'?(x.unique?'Unique':'Duplicate'):c.t==='ff'?x.ff:x.final));
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   const L={ref:pos(m.ref),st:pos(m.status),u:cols.findIndex(c=>c.t==='u'),ff:cols.findIndex(c=>c.t==='ff'),fs:cols.findIndex(c=>c.t==='fs')};
   const dateCols=cols.map((c,j)=>c.t==='o'&&norm(c.h).includes('date')?j:-1).filter(j=>j>=0);
   const canLookup=m.ref>=0&&m.status>m.ref;
+  const cell=a=>ws[a]||(ws[a]={t:'s',v:''}); // never write a formula onto a missing cell
   r.recs.forEach((x,k)=>{
     const n=k+2,R=L.ref>=0?col(L.ref):null;
-    if(R)ws[col(L.u)+n].f=`IF(COUNTIF($${R}$2:${R}${n},${R}${n})=1,"Unique","Duplicate")`;
+    if(R)cell(col(L.u)+n).f=`IF(COUNTIF($${R}$2:${R}${n},${R}${n})=1,"Unique","Duplicate")`;
     if(r.hasPending){
       const fa=col(L.ff)+n;
       if(x.ff==='#N/A')ws[fa]={t:'e',v:42,w:'#N/A'};
-      if(R&&canLookup)ws[fa].f=`VLOOKUP(${R}${n},'Pending ref sheet'!${col(m.ref)}:${col(m.status)},${m.status-m.ref+1},0)`;
-      if(L.st>=0){const F=col(L.ff)+n,M=col(L.st)+n;ws[col(L.fs)+n].f=`IFERROR(IF(${F}="Pending",${F},${M}),${M})`;}
+      if(R&&canLookup)cell(fa).f=`VLOOKUP(${R}${n},'Pending ref sheet'!${col(m.ref)}:${col(m.status)},${m.status-m.ref+1},0)`;
+      if(L.st>=0){const F=col(L.ff)+n,ST=col(L.st)+n;cell(col(L.fs)+n).f=`IFERROR(IF(${F}="Pending",${F},${ST}),${ST})`;}
     }
     for(const j of dateCols){const c=ws[col(j)+n];if(c&&c.t==='n'&&c.v>20000&&c.v<90000)c.z='dd-mm-yyyy hh:mm';}
   });
   ws['!autofilter']={ref:ws['!ref']};
   XLSX.utils.book_append_sheet(wb,ws,'Data');
-  if(r.hasPending)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([H,...r.recs.map(x=>H.map((_,i)=>x.raw[i]??''))]),'Pending ref sheet');
-  const num=row=>row.map((v,i)=>i&&v!==''?+v:v);
+  if(r.hasPending)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([H.map(clip),...r.recs.map(x=>H.map((_,i)=>clip(x.raw[i]??'')))]),'Pending ref sheet');
+  const num=row=>row.map((v,i)=>i&&v!==''&&!isNaN(+v)?+v:v);
   const ra=[[TITLE],...(M.sub?[[M.sub]]:[]),[]];
   for(const s of M.sections){if(s.name)ra.push([s.name]);ra.push(s.head,...s.body.map(num),num(s.foot),[]);}
   const rs=XLSX.utils.aoa_to_sheet(ra);
-  rs['!cols']=M.sections[0].head.map(h=>({wch:Math.max(12,h.length+3)}));
+  rs['!cols']=M.sections[0].head.map(h=>({wch:Math.max(12,String(h).length+3)}));
   XLSX.utils.book_append_sheet(wb,rs,'Report');
-  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-  saveBlob(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${FILE_TAG}_${today()}.xlsx`);
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+  return saveBlob(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${FILE_TAG}_${today()}.xlsx`);
 }
 
 /* ---------- save helper ---------- */
 function today(){const d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
 async function saveBlob(blob,filename){
-  const msg=$('msg');msg.textContent='';
   let dl=null;
   try{if(window.claude&&window.claude.use)dl=await window.claude.use('downloads');}catch(e){dl=null;}
-  if(dl){try{await dl.save({filename,data:blob});}catch(e){if(e&&e.code!=='declined')msg.textContent='Saving isn’t available in this view.';}return;}
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+  if(dl){
+    try{await dl.save({filename,data:blob});return true;}
+    catch(e){
+      console.error(e);
+      setMsg(e&&e.code==='declined'?'Download was declined.':'Could not save: '+((e&&(e.message||e.code))||'unknown error'));
+      return false;
+    }
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  return true;
 }
 </script>
 </body>
