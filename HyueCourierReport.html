@@ -98,6 +98,26 @@ summary{cursor:pointer;font-weight:700}
 .map label{display:flex;flex-direction:column;font-size:13px;gap:3px}
 .map select{font:inherit;font-size:14px;padding:5px;border-radius:6px;border:1px solid #9aa6b5;max-width:100%}
 .msg{text-align:center;color:var(--warn);font-weight:600;min-height:1.2em;margin-top:8px}
+.msg.info{color:var(--zippee-primary)}
+.rep button.num{all:unset;cursor:pointer;display:inline-block;min-width:2ch;padding:2px 6px;border-radius:6px;color:#0757ad;text-decoration:underline;text-underline-offset:3px;font:inherit}
+.rep button.num:hover{background:#e3f1ff}
+.rep button.num:focus-visible{outline:3px solid #ffd54a;outline-offset:2px}
+.hint{text-align:center;font-size:14px;font-weight:600;opacity:.8;margin:4px 0 0}
+.ref-panel{position:fixed;inset:0;background:rgba(0,20,45,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.ref-panel[hidden]{display:none}
+.ref-box{background:#fff;color:#1d2a38;border-radius:16px;width:min(460px,100%);max-height:90vh;display:flex;flex-direction:column;padding:18px 18px 14px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+body.dark .ref-box{background:#14213a;color:#f5f5f5}
+.ref-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.ref-head h3{margin:0 0 2px;font-size:18px}
+.ref-head span{font-size:14px;opacity:.75;font-weight:600}
+.ref-x{border:0;background:transparent;color:inherit;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}
+.ref-x:hover{background:rgba(0,0,0,.08)}
+#refList{width:100%;flex:1;min-height:220px;resize:vertical;font:15px/1.5 Consolas,"Courier New",monospace;padding:10px;border:1px solid #9aa6b5;border-radius:10px;background:#f7f9fc;color:#1d2a38}
+body.dark #refList{background:#0b1320;color:#f5f5f5;border-color:#3a4d6b}
+.ref-actions{display:flex;justify-content:center;margin-top:12px}
+.ref-msg{text-align:center;font-weight:600;min-height:1.2em;margin-top:8px;color:var(--ok)}
+.full{display:block;text-align:center;font-size:14px;font-weight:600;margin-top:4px;cursor:pointer}
+.full input{margin-right:6px;vertical-align:-2px}
 
 footer{text-align:center;font-size:13px;opacity:.8;margin:0 0 24px;color:var(--text-dark)}
 @media(max-width:600px){h1{font-size:17px}.tool-button{min-width:180px}.rep-title{font-size:22px}.rep th,.rep td{padding:9px 16px;font-size:16px}}
@@ -128,6 +148,20 @@ footer{text-align:center;font-size:13px;opacity:.8;margin:0 0 24px;color:var(--t
   <div id="out"></div>
 </div>
 
+<div class="ref-panel" id="refPanel" hidden role="dialog" aria-modal="true" aria-labelledby="refTitle">
+  <div class="ref-box">
+    <div class="ref-head">
+      <div><h3 id="refTitle"></h3><span id="refCount"></span></div>
+      <button class="ref-x" id="refClose" aria-label="Close">✕</button>
+    </div>
+    <textarea id="refList" readonly spellcheck="false"></textarea>
+    <div class="ref-actions">
+      <button class="tool-button" id="refCopy">📋 Copy reference codes</button>
+    </div>
+    <div class="ref-msg" id="refMsg" role="status"></div>
+  </div>
+</div>
+
 <footer>© 2026 SASA Automation — All Rights Reserved | Harshit Saini, Data Analyst – Zippee</footer>
 
 <script>
@@ -155,6 +189,10 @@ const BLANKS=new Set(['','-','--','na','n/a','nan','null','none','nil','0','(bla
 const isBlank=v=>{const t=S(v).toLowerCase();return BLANKS.has(t)||/^[\s`'"‘’´\-_.]*$/.test(t);};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ymd=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+/* Excel refuses cells longer than 32,767 characters, so long text is shortened */
+const XL_MAX=32767;
+const clip=v=>typeof v==='string'&&v.length>XL_MAX?v.slice(0,XL_MAX-3)+'...':v;
 
 function dayKey(v){
   if(typeof v==='number'&&v>20000&&v<90000){const d=new Date(Math.round((Math.floor(v)-25569)*86400000));return ymd(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());}
@@ -228,7 +266,8 @@ function pivot(list,colFn,valFn,order){
   const rowKeys=[...rm.keys()].sort((a,b)=>a===''?1:b===''?-1:a.localeCompare(b));
   const data=rowKeys.map(r=>{const m=rm.get(r),vals=colKeys.map(c=>m.get(c)||0);return {r,vals,total:vals.reduce((a,b)=>a+b,0)};});
   const colTot=colKeys.map((_,i)=>data.reduce((a,d)=>a+d.vals[i],0));
-  return {colKeys,data,colTot,grand:colTot.reduce((a,b)=>a+b,0)};
+  const refsFor=(day,c)=>list.filter(x=>valFn(x)&&(day==null||x.day===day)&&(c==null||colFn(x)===c)).map(x=>x.ref);
+  return {colKeys,data,colTot,grand:colTot.reduce((a,b)=>a+b,0),refsFor};
 }
 
 function pivots(sl){
@@ -252,12 +291,12 @@ function trimPivot(p){
   const keep=p.colKeys.map((_,i)=>p.colTot[i]>0);
   const colKeys=p.colKeys.filter((_,i)=>keep[i]);
   const data=p.data.map(d=>({r:d.r,vals:d.vals.filter((_,i)=>keep[i]),total:d.total})).filter(d=>d.total>0);
-  return {colKeys,data,colTot:p.colTot.filter((_,i)=>keep[i]),grand:p.grand};
+  return {colKeys,data,colTot:p.colTot.filter((_,i)=>keep[i]),grand:p.grand,refsFor:p.refsFor};
 }
 function shortDay(k){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k);return m?`${m[3]}-${MON[+m[2]-1]}`:(k||'(blank)');}
 function reportGrid(p){
   const t=trimPivot(p),blank=v=>v?String(v):'';
-  return {head:['Date',...t.colKeys,'Grand Total'],
+  return {head:['Date',...t.colKeys,'Grand Total'],rowKeys:t.data.map(d=>d.r),colKeys:t.colKeys,refsFor:t.refsFor||(()=>[]),
     body:t.data.map(d=>[shortDay(d.r),...d.vals.map(blank),String(d.total)]),
     foot:['Grand Total',...t.colTot.map(blank),String(t.grand)]};
 }
@@ -278,7 +317,7 @@ function courierModel(){
     const idx=cols.map(c=>f.p.colKeys.indexOf(c)),pick=vals=>idx.map(i=>i<0?0:vals[i]);
     const data=f.p.data.map(d=>({r:d.r,vals:pick(d.vals)})).map(d=>({...d,total:d.vals.reduce((a,b)=>a+b,0)})).filter(d=>d.total>0);
     const tot=cols.map((_,i)=>data.reduce((a,d)=>a+d.vals[i],0)),grand=tot.reduce((a,b)=>a+b,0);
-    return {name:f.name,head:['Row Labels',...cols,'Grand Total'],
+    return {name:f.name,head:['Row Labels',...cols,'Grand Total'],rowKeys:data.map(d=>d.r),colKeys:cols,refsFor:f.p.refsFor,
       body:data.map(d=>[shortDay(d.r),...d.vals.map(v=>v?String(v):''),String(d.total)]),
       foot:['Grand Total',...tot.map(String),String(grand)],grand};
   });
@@ -291,11 +330,16 @@ function reportModel(){
 }
 function reportHTML(M){
   if(!M.sections.some(s=>s.body.length||s.name))return `<div class="empty">No rows match this report's filters.</div>`;
-  const tbl=s=>`<table><thead><tr>${s.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
-    ${s.body.map(row=>`<tr>${row.map((v,i)=>`<td${M.left&&i===0?' class="l"':''}>${esc(v)}</td>`).join('')}</tr>`).join('')}
-    <tr class="gt">${s.foot.map((v,i)=>`<td${M.left&&i===0?' class="l"':''}>${esc(v)}</td>`).join('')}</tr></tbody></table>`;
+  const cell=(v,i,si,ri)=>{
+    const cls=M.left&&i===0?' class="l"':'';
+    if(i===0||v===''||v==='0')return `<td${cls}>${esc(v)}</td>`;
+    return `<td${cls}><button class="num" data-s="${si}" data-r="${ri}" data-c="${i}" title="Show reference codes">${esc(v)}</button></td>`;
+  };
+  const tbl=(s,si)=>`<table><thead><tr>${s.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
+    ${s.body.map((row,ri)=>`<tr>${row.map((v,i)=>cell(v,i,si,ri)).join('')}</tr>`).join('')}
+    <tr class="gt">${s.foot.map((v,i)=>cell(v,i,si,-1)).join('')}</tr></tbody></table>`;
   return `<div class="rep-wrap"><div class="rep"><div class="rep-title">${esc(M.title)}</div>${M.sub?`<div class="rep-sub">${esc(M.sub)}</div>`:''}
-    ${M.sections.map(s=>(s.name?`<div class="rep-sec">${esc(s.name)}</div>`:'')+tbl(s)).join('')}
+    ${M.sections.map((s,si)=>(s.name?`<div class="rep-sec">${esc(s.name)}</div>`:'')+tbl(s,si)).join('')}
     <div class="rep-foot">Powered By SASA Automation</div></div></div>`;
 }
 
@@ -319,11 +363,29 @@ async function load(file){
     $('pick').textContent='🔁 Load another file';
     render();
   }catch(err){
+    console.error(err);
     fn.className='fname err';fn.textContent=err.message||'Could not read this file.';
   }
 }
 function courierList(res){return [...new Set(res.recs.filter(x=>x.unique).map(x=>x.courier))].sort((a,b)=>a.localeCompare(b));}
 function resetSel(s){s.couriers=new Set(courierList(s.res).filter(c=>COURIER_DEFAULT.some(k=>norm(c).includes(k))));}
+
+function setMsg(text,info){const m=$('msg');if(!m)return;m.textContent=text||'';m.className='msg'+(info?' info':'');}
+
+/* runs a download task, disables its button while busy and shows any error on the page */
+async function runTask(btn,label,task){
+  if(btn)btn.disabled=true;
+  setMsg(label,true);
+  try{
+    const ok=await task();
+    if(ok!==false&&$('msg').textContent===label)setMsg('');
+  }catch(e){
+    console.error(e);
+    setMsg('Failed: '+((e&&e.message)||String(e)));
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+}
 
 function render(){
   const out=$('out');if(!sl)return;
@@ -345,20 +407,54 @@ function render(){
       <div class="stat"><b>${fmt(M.grand)}</b><span>Report total</span></div>
     </div>
     ${note}${table}
+    ${has?'<p class="hint">Click any number to see its reference codes.</p>':''}
     <div class="button-group">
       <button class="tool-button" id="png" ${has?'':'disabled'}>🖼️ ${REPORT==='p3'?'Download all courier PNGs':'Download PNG'}</button>
       ${REPORT==='p3'?M.sections.map((x,i)=>`<button class="tool-button" data-png="${i}" ${x.body.length?'':'disabled'}>🖼️ ${esc(x.name)} PNG</button>`).join(''):''}
       <button class="tool-button" id="xls">📊 Download Excel</button>
     </div>
+    <label class="full"><input type="checkbox" id="fullcols"> Include all ${sl.headers.length} columns in the Data sheet (larger file, slower)</label>
     <div class="msg" id="msg" role="status"></div>
     <details ${missing.length?'open':''}><summary>Column mapping${missing.length?` (not found: ${esc(missing.join(', '))})`:''}</summary>
       <div class="map">${FIELDS.map(f=>`<label>${f.label}<select data-f="${f.key}"><option value="-1">(not in file)</option>${sl.headers.map((h,i)=>`<option value="${i}" ${sl.map[f.key]===i?'selected':''}>${XLSX.utils.encode_col(i)}: ${esc(h||'(no header)')}</option>`).join('')}</select></label>`).join('')}</div>
     </details>`;
   out.querySelectorAll('select[data-f]').forEach(s=>s.onchange=()=>{sl.map[s.dataset.f]=+s.value;sl.res=compute(sl);resetSel(sl);render();});
-  $('png').onclick=()=>downloadPNG(M);
-  out.querySelectorAll('[data-png]').forEach(b=>b.onclick=()=>downloadPNG(M,M.sections[+b.dataset.png]));
-  $('xls').onclick=()=>downloadXLSX(p,M);
+  out.querySelectorAll('button.num').forEach(b=>b.onclick=()=>showRefs(M,+b.dataset.s,+b.dataset.r,+b.dataset.c,b));
+  $('png').onclick=e=>runTask(e.currentTarget,'Preparing PNG…',()=>downloadPNG(M));
+  out.querySelectorAll('[data-png]').forEach(b=>b.onclick=()=>runTask(b,'Preparing PNG…',()=>downloadPNG(M,M.sections[+b.dataset.png])));
+  $('xls').onclick=e=>runTask(e.currentTarget,'Preparing Excel…',()=>downloadXLSX(p,M,$('fullcols').checked));
 }
+
+/* ---------- reference code panel ---------- */
+let lastBtn=null;
+function showRefs(M,si,ri,ci,btn){
+  const s=M.sections[si],nCols=s.colKeys.length;
+  const day=ri<0?null:s.rowKeys[ri];
+  const col=ci>=1&&ci<=nCols?s.colKeys[ci-1]:null;
+  const refs=s.refsFor(day,col).map(r=>r.replace(/^[`'‘’\s]+/,'')); // Easycom prefixes codes with ` to keep them as text
+  const parts=[s.name,col||'All statuses',day==null?'All dates':shortDay(day)].filter(Boolean);
+  lastBtn=btn;
+  $('refTitle').textContent=parts.join(', ');
+  $('refCount').textContent=`${refs.length} reference code${refs.length===1?'':'s'}`;
+  $('refList').value=refs.join('\n');
+  $('refMsg').textContent='';
+  $('refPanel').hidden=false;
+  $('refCopy').focus();
+}
+function closeRefs(){$('refPanel').hidden=true;if(lastBtn)lastBtn.focus();}
+async function copyText(text){
+  try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return true;}}catch(e){}
+  const ta=$('refList');ta.focus();ta.select();
+  try{return document.execCommand('copy');}catch(e){return false;}
+}
+$('refCopy').onclick=async()=>{
+  const text=$('refList').value,n=text?text.split('\n').length:0;
+  const ok=await copyText(text);
+  $('refMsg').textContent=ok?`Copied ${n} code${n===1?'':'s'}.`:'Copy was blocked. Select the list and press Ctrl+C.';
+};
+$('refClose').onclick=closeRefs;
+$('refPanel').addEventListener('click',e=>{if(e.target.id==='refPanel')closeRefs();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('refPanel').hidden)closeRefs();});
 
 /* ---------- PNG (drawn on canvas, same look as the on-screen report) ---------- */
 function pngBlob(M){
@@ -398,69 +494,110 @@ function pngBlob(M){
   }
   c.fillStyle='#000';c.textAlign='center';c.font='400 17px '+FONT;c.fillText('Powered By SASA Automation',W/2,y+FOOT_H/2+1);
   c.strokeRect(.75,.75,W-1.5,H-1.5);
-  return new Promise(res=>cv.toBlob(res,'image/png'));
+  return new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('Could not draw the PNG.')),'image/png'));
 }
-async function drawPNG(M,filename){await saveBlob(await pngBlob(M),filename);}
+async function drawPNG(M,filename){return saveBlob(await pngBlob(M),filename);}
 const safeName=t=>String(t).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
 async function downloadPNG(M,only){
-  if(REPORT!=='p3'){await drawPNG(M,`${FILE_TAG}_${today()}.png`);return;}
+  if(REPORT!=='p3')return drawPNG(M,`${FILE_TAG}_${today()}.png`);
   const secs=M.sections.filter(s=>s.body.length&&(only==null||s===only));
-  if(secs.length===1){await drawPNG({...M,sections:[secs[0]]},`${FILE_TAG}_${safeName(secs[0].name)}_${today()}.png`);return;}
+  if(!secs.length)throw new Error('Nothing to draw for this selection.');
+  if(secs.length===1)return drawPNG({...M,sections:[secs[0]]},`${FILE_TAG}_${safeName(secs[0].name)}_${today()}.png`);
   // several images -> one zip, so the browser downloads once with no "multiple downloads" prompt
   const zip=new JSZip();
   for(const s of secs)zip.file(`${FILE_TAG}_${safeName(s.name)}_${today()}.png`,await pngBlob({...M,sections:[s]}));
-  await saveBlob(await zip.generateAsync({type:'blob'}),`${FILE_TAG}_All_Couriers_${today()}.zip`);
+  return saveBlob(await zip.generateAsync({type:'blob'}),`${FILE_TAG}_All_Couriers_${today()}.zip`);
 }
 
 /* ---------- Excel ---------- */
-function downloadXLSX(p,M){
-  const wb=XLSX.utils.book_new(),H=sl.headers,m=sl.map,r=sl.res,col=XLSX.utils.encode_col;
-  const cols=H.map((h,i)=>({t:'o',i,h}));
+/* Columns kept in the Data sheet by default. Tick "Include all columns" to export every column of the file. */
+const KEY_COLS=['mpname','referencecode','suborderno','ordertype','manifestid','orderstatus','shippingstatus','importdate','orderdate',
+  'assignedat','confirmedat','printedat','manifestedat','cancelledat','batchid','message','courieraggregatorname','courier','awbno',
+  'sku','itemquantity','suborderquantity','productname','paymentmode','ordersinvoiceamount','orderinvoiceamount','shippingcity','shippingstate','shippingzipcode'];
+const isEmptyVal=v=>v==null||(typeof v==='string'&&v.trim()==='');
+const tick=()=>new Promise(r=>setTimeout(r,0));
+
+async function downloadXLSX(p,M,full){
+  await new Promise(r=>setTimeout(r,30)); // let "Preparing Excel…" paint
+  const H=sl.headers,m=sl.map,r=sl.res,col=XLSX.utils.encode_col,recs=r.recs;
+  const mapped=new Set(Object.values(m).filter(i=>i>=0));
+  // which source columns go into the Data sheet: never fully empty ones; by default only key + mapped columns
+  const used=H.map((h,i)=>recs.some(x=>!isEmptyVal(x.raw[i])));
+  const pick=H.map((h,i)=>mapped.has(i)||(used[i]&&(full||KEY_COLS.includes(norm(h)))));
+  const cols=[];H.forEach((h,i)=>{if(pick[i])cols.push({t:'o',i,h});});
   const pos=i=>cols.findIndex(c=>c.t==='o'&&c.i===i);
   if(m.ref>=0)cols.splice(pos(m.ref)+1,0,{t:'u',h:'Unique'});else cols.push({t:'u',h:'Unique'});
   if(r.hasPending){
     if(m.status>=0)cols.splice(pos(m.status),0,{t:'ff',h:'FF'});else cols.push({t:'ff',h:'FF'});
     if(m.ship>=0)cols.splice(pos(m.ship),0,{t:'fs',h:'Final Status'});else cols.push({t:'fs',h:'Final Status'});
   }
-  const aoa=[cols.map(c=>c.h)];
-  for(const x of r.recs)aoa.push(cols.map(c=>c.t==='o'?(x.raw[c.i]??''):c.t==='u'?(x.unique?'Unique':'Duplicate'):c.t==='ff'?x.ff:x.final));
-  const ws=XLSX.utils.aoa_to_sheet(aoa);
-  const L={ref:pos(m.ref),st:pos(m.status),u:cols.findIndex(c=>c.t==='u'),ff:cols.findIndex(c=>c.t==='ff'),fs:cols.findIndex(c=>c.t==='fs')};
-  const dateCols=cols.map((c,j)=>c.t==='o'&&norm(c.h).includes('date')?j:-1).filter(j=>j>=0);
-  const canLookup=m.ref>=0&&m.status>m.ref;
-  r.recs.forEach((x,k)=>{
-    const n=k+2,R=L.ref>=0?col(L.ref):null;
-    if(R)ws[col(L.u)+n].f=`IF(COUNTIF($${R}$2:${R}${n},${R}${n})=1,"Unique","Duplicate")`;
-    if(r.hasPending){
-      const fa=col(L.ff)+n;
-      if(x.ff==='#N/A')ws[fa]={t:'e',v:42,w:'#N/A'};
-      if(R&&canLookup)ws[fa].f=`VLOOKUP(${R}${n},'Pending ref sheet'!${col(m.ref)}:${col(m.status)},${m.status-m.ref+1},0)`;
-      if(L.st>=0){const F=col(L.ff)+n,M=col(L.st)+n;ws[col(L.fs)+n].f=`IFERROR(IF(${F}="Pending",${F},${M}),${M})`;}
-    }
-    for(const j of dateCols){const c=ws[col(j)+n];if(c&&c.t==='n'&&c.v>20000&&c.v<90000)c.z='dd-mm-yyyy hh:mm';}
-  });
+  const L={ref:pos(m.ref),st:pos(m.status),ff:cols.findIndex(c=>c.t==='ff')};
+  const isDate=cols.map(c=>c.t==='o'&&/date|at$/.test(norm(c.h)));
+  const canLookup=r.hasPending&&m.ref>=0&&m.status>m.ref&&L.ref>=0;
+  const R=L.ref>=0?col(L.ref):null;
+  const val=(v,j)=>{
+    if(isEmptyVal(v))return undefined;               // no cell for blanks (much smaller, faster file)
+    if(typeof v==='number'){const c={t:'n',v};if(isDate[j]&&v>20000&&v<90000)c.z='dd-mm-yyyy hh:mm';return c;}
+    return {t:'s',v:clip(String(v))};
+  };
+  const aoa=[cols.map(c=>({t:'s',v:clip(c.h)}))];
+  for(let k=0;k<recs.length;k++){
+    const x=recs[k],n=k+2;
+    aoa.push(cols.map((c,j)=>{
+      if(c.t==='o')return val(x.raw[c.i],j);
+      if(c.t==='u')return {t:'s',v:x.unique?'Unique':'Duplicate'};
+      if(c.t==='ff'){
+        const cell=x.ff==='#N/A'?{t:'e',v:42,w:'#N/A'}:{t:'s',v:x.ff};
+        if(canLookup)cell.f=`VLOOKUP(${R}${n},'Pending ref sheet'!${col(m.ref)}:${col(m.status)},${m.status-m.ref+1},0)`;
+        return cell;
+      }
+      const cell={t:'s',v:x.final};
+      if(L.st>=0&&L.ff>=0){const F=col(L.ff)+n,ST=col(L.st)+n;cell.f=`IFERROR(IF(${F}="Pending",${F},${ST}),${ST})`;}
+      return cell;
+    }));
+    if(k%5000===4999)await tick();
+  }
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(aoa,{dense:true});
   ws['!autofilter']={ref:ws['!ref']};
   XLSX.utils.book_append_sheet(wb,ws,'Data');
-  if(r.hasPending)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([H,...r.recs.map(x=>H.map((_,i)=>x.raw[i]??''))]),'Pending ref sheet');
-  const num=row=>row.map((v,i)=>i&&v!==''?+v:v);
+  await tick();
+  if(r.hasPending){
+    // only columns A..Order Status are needed for the VLOOKUP, kept in their original positions
+    const last=Math.max(m.ref,m.status);
+    const pr=[H.slice(0,last+1).map(h=>({t:'s',v:clip(h)}))];
+    for(const x of recs)pr.push(H.slice(0,last+1).map((_,i)=>isEmptyVal(x.raw[i])?undefined:(typeof x.raw[i]==='number'?{t:'n',v:x.raw[i]}:{t:'s',v:clip(String(x.raw[i]))})));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(pr,{dense:true}),'Pending ref sheet');
+  }
+  const num=row=>row.map((v,i)=>i&&v!==''&&!isNaN(+v)?+v:v);
   const ra=[[TITLE],...(M.sub?[[M.sub]]:[]),[]];
   for(const s of M.sections){if(s.name)ra.push([s.name]);ra.push(s.head,...s.body.map(num),num(s.foot),[]);}
   const rs=XLSX.utils.aoa_to_sheet(ra);
-  rs['!cols']=M.sections[0].head.map(h=>({wch:Math.max(12,h.length+3)}));
+  rs['!cols']=M.sections[0].head.map(h=>({wch:Math.max(12,String(h).length+3)}));
   XLSX.utils.book_append_sheet(wb,rs,'Report');
-  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-  saveBlob(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${FILE_TAG}_${today()}.xlsx`);
+  wb.SheetNames=['Report',...wb.SheetNames.filter(n=>n!=='Report')]; // open on the report
+  await tick();
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+  return saveBlob(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${FILE_TAG}_${today()}.xlsx`);
 }
 
 /* ---------- save helper ---------- */
 function today(){const d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
 async function saveBlob(blob,filename){
-  const msg=$('msg');msg.textContent='';
   let dl=null;
   try{if(window.claude&&window.claude.use)dl=await window.claude.use('downloads');}catch(e){dl=null;}
-  if(dl){try{await dl.save({filename,data:blob});}catch(e){if(e&&e.code!=='declined')msg.textContent='Saving isn’t available in this view.';}return;}
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+  if(dl){
+    try{await dl.save({filename,data:blob});return true;}
+    catch(e){
+      console.error(e);
+      setMsg(e&&e.code==='declined'?'Download was declined.':'Could not save: '+((e&&(e.message||e.code))||'unknown error'));
+      return false;
+    }
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  return true;
 }
 </script>
 </body>
