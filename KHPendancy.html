@@ -72,6 +72,7 @@ body::before{
   color:#0a5c36;
   font-weight:600;
 }
+.upload-status.warn{ color:#8a1c1c; }
 .upload-hint{
   font-size:11px;
   color:#334;
@@ -340,9 +341,10 @@ Download Filtered CSV
 
 <div class="upload-row">
   <div class="upload-box">
-    <label for="blazeFileInput">Blaze File</label>
-    <input type="file" id="blazeFileInput" accept=".csv">
-    <div class="upload-status" id="blazeStatus">No file loaded</div>
+    <label for="boltFileInput">bolt Detailed Report</label>
+    <div class="upload-hint">Upload the Detailed_Report_*.csv export.</div>
+    <input type="file" id="boltFileInput" accept=".csv">
+    <div class="upload-status" id="boltStatus">No file loaded</div>
   </div>
 
   <div class="upload-box krishna-box">
@@ -439,10 +441,11 @@ function storeDisplayName(raw){
 const cutoffHour = 16;
 
 // Brand filter: a brand is allowed if its name CONTAINS any of these words
-// (case-insensitive). This covers every name the brand appears under in Blaze:
-//   "Sandipani Healthcare"
+// (case-insensitive). This covers every name the brand appears under in
+// the "Brand Name" column:
+//   "SANDIPANI HEALTHCARE"
 //   "Krishna's Hebral & Ayurveda"
-//   "Krishna's Hebral & Ayurveda (Sandipani Healthcare)"
+//   "Krishna's Hebral & Ayurveda (SANDIPANI HEALTHCARE)"
 // Set to null to allow all brands. Not applied to Krishna Herbal stores.
 const allowedBrandKeywords = ["sandipani", "krishna's hebral"];
 
@@ -473,10 +476,38 @@ const statusesList = [
   "REACHED_DELIVERY"
 ];
 
+/* ---------- Input file columns ----------
+   Each field lists the column names it can be read from, in order of
+   preference. The first name is the new Detailed Report column; the
+   second is the older Bolt_to_bolt column, so either export still works.
+   If bolt renames a column again, add the new name to the front of the
+   matching list. */
+const COLUMNS = {
+  store:           ["Warehouse Name", "Darkstore"],
+  awb:             ["Zippee AWB", "AWB Number"],
+  orderNumber:     ["Order Number"],
+  brand:           ["Brand Name"],
+  trip:            ["Trip Code", "Trip ID"],
+  attempts:        ["Total Attempt Count", "No. of Attempts"],
+  status:          ["Current Status"],
+  creationDate:    ["Creation Date"],
+  creationTime:    ["Creation Time"],     // new export only; old one has date + time in Creation Date
+  customerName:    ["Customer Name"],
+  customerMobile:  ["Customer Mobile"],
+  deliveryAddress: ["Delivery Address"],
+  deliveryPincode: ["Delivery Pincode"],
+  riderName:       ["Rider Name"]
+};
+
+// Fields the reports cannot work without. A file missing any of these is
+// flagged in the upload status instead of silently producing empty tables.
+const REQUIRED_FIELDS = ["store", "awb", "orderNumber", "brand", "attempts", "status", "creationDate"];
+
 /* ========================= STATE ========================= */
 
-let blazeNormalized = [];
+let boltNormalized = [];
 let lastReadyRows = [];       // rows feeding Report 1, kept for its CSV download
+let columnMap = {};           // field -> actual header found in the loaded file
 
 /* ========================= HELPERS ========================= */
 
@@ -496,9 +527,27 @@ function brandAllowed(brand){
   return allowedBrandKeywords.some(k => brand.includes(k));
 }
 
-// Blaze: single field like ="17/08/2026 5:16 PM" -> dd/mm/yyyy hh:mm[:ss] AM/PM
-// Also tolerates seconds and 24-hour times without AM/PM.
-function parseBlazeDate(raw){
+// Works out which header in the loaded file holds each field.
+function buildColumnMap(headers){
+  let map = {};
+  Object.entries(COLUMNS).forEach(([field, names])=>{
+    let found = names.find(n => headers.includes(n));
+    if(found) map[field] = found;
+  });
+  return map;
+}
+
+// Reads one field from a raw CSV row using the detected column map.
+function col(row, field){
+  let h = columnMap[field];
+  return h ? (row[h] ?? "") : "";
+}
+
+// Accepts any of:
+//   ="17/08/2026 5:16 PM"   (old export: date + 12-hour time in one field)
+//   17/08/2026 17:16        (new export: Creation Date + Creation Time joined)
+//   17/08/2026 17:16:05
+function parseboltDate(raw){
   raw = (raw || "").trim().replace(/^="|"$/g, "").trim();
   if(!raw) return null;
   let m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
@@ -516,21 +565,31 @@ function parseBlazeDate(raw){
   return isNaN(d.getTime()) ? null : d;
 }
 
-function normalizeBlazeRow(row){
+// New export splits the timestamp into "Creation Date" (dd/mm/yyyy) and
+// "Creation Time" (HH:MM, 24h). Join them when the time column exists and
+// the date field doesn't already carry a time.
+function readCreationDate(row){
+  let date = col(row, "creationDate").trim().replace(/^="|"$/g, "").trim();
+  let time = col(row, "creationTime").trim();
+  if(time && !/\d:\d{2}/.test(date)) date = `${date} ${time}`;
+  return parseboltDate(date);
+}
+
+function normalizeboltRow(row){
   return {
-    store: (row["Darkstore"] || "").trim(),
-    awb: (row["AWB Number"] || "").trim(),
-    orderNumber: (row["Order Number"] || "").trim(),
-    brand: (row["Brand Name"] || "").trim().toLowerCase(),
-    trip: (row["Trip ID"] || "").toString().trim(),
-    attempts: parseInt(row["No. of Attempts"]) || 0,
-    status: (row["Current Status"] || "").trim().toUpperCase(),
-    creationDate: parseBlazeDate(row["Creation Date"]),
-    customerName: (row["Customer Name"] || "").trim(),
-    customerMobile: (row["Customer Mobile"] || "").trim(),
-    deliveryAddress: (row["Delivery Address"] || "").trim(),
-    deliveryPincode: (row["Delivery Pincode"] || "").trim(),
-    riderName: (row["Rider Name"] || "").trim()
+    store: col(row, "store").trim(),
+    awb: col(row, "awb").trim(),
+    orderNumber: col(row, "orderNumber").trim(),
+    brand: col(row, "brand").trim().toLowerCase(),
+    trip: col(row, "trip").toString().trim(),
+    attempts: parseInt(col(row, "attempts")) || 0,
+    status: col(row, "status").trim().toUpperCase(),
+    creationDate: readCreationDate(row),
+    customerName: col(row, "customerName").trim(),
+    customerMobile: col(row, "customerMobile").trim(),
+    deliveryAddress: col(row, "deliveryAddress").trim(),
+    deliveryPincode: col(row, "deliveryPincode").trim(),
+    riderName: col(row, "riderName").trim()
   };
 }
 
@@ -602,14 +661,14 @@ function updateKrishnaStatus(){
     el.textContent = "No numbers entered — no Krishna Herbal orders will be shown";
     return;
   }
-  if(blazeNormalized.length === 0){
-    el.textContent = `${ids.length} number${ids.length === 1 ? "" : "s"} entered — load the Blaze file to match`;
+  if(boltNormalized.length === 0){
+    el.textContent = `${ids.length} number${ids.length === 1 ? "" : "s"} entered — load the bolt file to match`;
     return;
   }
 
   let idSet = new Set(ids);
   let found = new Set();
-  blazeNormalized.forEach(r=>{
+  boltNormalized.forEach(r=>{
     if(!isKrishna(r)) return;
     let a = normId(r.awb), o = normId(r.orderNumber);
     if(idSet.has(a)) found.add(a);
@@ -670,7 +729,7 @@ function getFilteredDeduped(){
   };
 
   let bestByKey = {};
-  blazeNormalized.forEach(nrow=>{
+  boltNormalized.forEach(nrow=>{
     if(!passesFilters(nrow, ctx)) return;
     let key = nrow.awb || ("ORDER:" + nrow.orderNumber);
     if(!bestByKey[key] || nrow.attempts > bestByKey[key].attempts){
@@ -696,16 +755,40 @@ function getStatusRows(filtered, selectedStatuses){
 
 /* ========================= FILE HANDLING ========================= */
 
-document.getElementById("blazeFileInput").addEventListener("change", function(e){
+document.getElementById("boltFileInput").addEventListener("change", function(e){
   if(!e.target.files[0]) return;
+  let statusEl = document.getElementById("boltStatus");
+  statusEl.classList.remove("warn");
+  statusEl.textContent = "Reading file…";
+
   Papa.parse(e.target.files[0], {
     header: true,
     skipEmptyLines: true,
     transformHeader: h => h.replace(/^\uFEFF/, "").trim(),
     complete: function(res){
-      blazeNormalized = res.data.map(normalizeBlazeRow);
-      document.getElementById("blazeStatus").textContent =
-        `Loaded ${blazeNormalized.length} rows`;
+      let headers = res.meta.fields || [];
+      columnMap = buildColumnMap(headers);
+      let missing = REQUIRED_FIELDS.filter(f => !columnMap[f]);
+
+      if(missing.length){
+        boltNormalized = [];
+        statusEl.classList.add("warn");
+        statusEl.textContent =
+          "This file is missing columns the reports need: " +
+          missing.map(f => COLUMNS[f][0]).join(", ") +
+          ". Check that it's the bolt Detailed Report export.";
+        updateTable();
+        return;
+      }
+
+      boltNormalized = res.data.map(normalizeboltRow);
+      let undated = boltNormalized.filter(r => !r.creationDate).length;
+      let layout = columnMap.store === "Warehouse Name" ? "Detailed Report" : "older Bolt_to_bolt";
+      statusEl.textContent = `Loaded ${boltNormalized.length} rows (${layout} layout)`;
+      if(undated){
+        statusEl.classList.add("warn");
+        statusEl.textContent += `. ${undated} row${undated === 1 ? " has" : "s have"} an unreadable Creation Date and will show as "Unknown".`;
+      }
       updateTable();
     }
   });
@@ -1027,8 +1110,8 @@ function renderTable(selectedStatuses){
   drillRegistry = {};
   drillCounter = 0;
 
-  // Nothing to show until the Blaze file has been loaded.
-  if(blazeNormalized.length === 0){
+  // Nothing to show until the bolt file has been loaded.
+  if(boltNormalized.length === 0){
     document.getElementById("tableContainer").innerHTML = "";
     lastReadyRows = [];
     return;
@@ -1064,7 +1147,7 @@ function renderTable(selectedStatuses){
 function downloadImage(id){
   let area = document.getElementById(id);
   if(!area){
-    alert("Load the Blaze file first — there is no report to download yet.");
+    alert("Load the bolt file first — there is no report to download yet.");
     return;
   }
   html2canvas(area, {
@@ -1113,8 +1196,8 @@ function triggerDownload(blob, filename){
 }
 
 function downloadCSV(){
-  if(blazeNormalized.length === 0){
-    alert("Load the Blaze file first — there is no data to export yet.");
+  if(boltNormalized.length === 0){
+    alert("Load the bolt file first — there is no data to export yet.");
     return;
   }
   let { rows } = getStatusRows(getFilteredDeduped(), getSelectedStatuses());
