@@ -6,33 +6,25 @@
 
 <title>SASA Shipment Analytics Dashboard</title>
 
-<!-- Libraries -->
+<!-- Libraries (all pinned) -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
 <style>
 /* =========================================================
    GLOBAL
 ========================================================= */
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-}
+*{ box-sizing:border-box; margin:0; padding:0; }
 
 :root{
     --bg:#F5F7FA;
     --panel:#FFFFFF;
-    --panel2:#F8FAFC;
-
     --border:#E5E7EB;
-
     --text:#1F2937;
     --muted:#64748B;
-
     --blue:#2563EB;
     --green:#16A34A;
     --red:#DC2626;
@@ -42,18 +34,16 @@
 }
 
 body{
-    font-family:Inter,Segoe UI,Arial,sans-serif;
+    font-family:Inter,"Segoe UI",Arial,sans-serif;
     background:
-    radial-gradient(circle at 15% 20%, rgba(56,189,248,.08), transparent 25%),
-    radial-gradient(circle at 85% 10%, rgba(168,85,247,.06), transparent 25%),
-    linear-gradient(135deg,#F4F6F1,#D9DFC9 45%,#B9BEAA);
+        radial-gradient(circle at 15% 20%, rgba(56,189,248,.08), transparent 25%),
+        radial-gradient(circle at 85% 10%, rgba(168,85,247,.06), transparent 25%),
+        linear-gradient(135deg,#F4F6F1,#D9DFC9 45%,#B9BEAA);
     color:var(--text);
     min-height:100vh;
 }
 
-/* =========================================================
-   HEADER
-========================================================= */
+/* HEADER */
 .header{
     padding:24px 28px;
     border-bottom:1px solid #E5E7EB;
@@ -63,7 +53,6 @@ body{
     top:0;
     z-index:50;
 }
-
 .header-inner{
     max-width:1700px;
     margin:auto;
@@ -72,34 +61,13 @@ body{
     justify-content:space-between;
     gap:20px;
 }
+.brand h1{ font-size:25px; font-weight:800; letter-spacing:-.5px; }
+.brand h1 span{ color:var(--blue); }
+.brand p{ color:var(--muted); margin-top:5px; font-size:13px; }
+.header-actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
-.brand h1{
-    font-size:25px;
-    font-weight:800;
-    letter-spacing:-.5px;
-}
-
-.brand h1 span{
-    color:var(--blue);
-}
-
-.brand p{
-    color:var(--muted);
-    margin-top:5px;
-    font-size:13px;
-}
-
-.header-actions{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-}
-
-/* =========================================================
-   BUTTONS
-========================================================= */
-button,
-.upload-btn{
+/* BUTTONS */
+button, .upload-btn{
     border:none;
     border-radius:10px;
     padding:11px 16px;
@@ -107,51 +75,36 @@ button,
     cursor:pointer;
     transition:.2s ease;
     font-size:13px;
+    display:inline-block;
 }
+button:hover, .upload-btn:hover{ transform:translateY(-1px); }
+button:focus-visible, .upload-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
 
-button:hover,
-.upload-btn:hover{
-    transform:translateY(-1px);
-}
+.primary{ background:linear-gradient(135deg,#0ea5e9,#2563eb); color:white; }
+.success{ background:linear-gradient(135deg,#16a34a,#22c55e); color:white; }
+.secondary{ background:#FFFFFF; color:#374151; border:1px solid #D1D5DB; }
+.danger{ background:#EF4444; color:white; }
 
-.primary{
-    background:linear-gradient(135deg,#0ea5e9,#2563eb);
-    color:white;
-}
-
-.success{
-    background:linear-gradient(135deg,#16a34a,#22c55e);
-    color:white;
-}
-
-.secondary{
-background:#FFFFFF;
-    color:#374151;
-    border:1px solid #D1D5DB;
-}
-
-.danger{
-    background:#EF4444;
-    color:white;
+/* Small link-style buttons inside tables */
+.cell-btn{
+    background:none;
     border:none;
+    padding:4px 10px;
+    border-radius:6px;
+    color:var(--blue);
+    font-weight:800;
+    font-size:12px;
+    text-decoration:underline;
+    text-underline-offset:3px;
 }
+.cell-btn:hover{ background:rgba(37,99,235,.08); transform:none; }
 
-input[type=file]{
-    display:none;
-}
+input[type=file]{ display:none; }
 
-/* =========================================================
-   CONTAINER
-========================================================= */
-.container{
-    max-width:1700px;
-    margin:auto;
-    padding:24px;
-}
+/* CONTAINER */
+.container{ max-width:1700px; margin:auto; padding:24px; }
 
-/* =========================================================
-   UPLOAD
-========================================================= */
+/* UPLOAD */
 .upload-zone{
     border:1.5px dashed #C9D0BF;
     background:#F8F9F4;
@@ -162,35 +115,16 @@ input[type=file]{
     transition:.2s;
     box-shadow:0 8px 24px rgba(0,0,0,.08);
 }
+.upload-zone.dragover{ border-color:var(--blue); background:rgba(56,189,248,.10); }
+.upload-zone h2{ font-size:20px; margin-bottom:7px; }
+.upload-zone p{ color:var(--muted); margin-bottom:16px; font-size:14px; }
+.file-info{ margin-top:12px; color:#1E40AF; font-size:13px; font-weight:600; }
+.file-warn{ margin-top:6px; color:#B45309; font-size:12px; }
 
-.upload-zone.dragover{
-    border-color:var(--blue);
-    background:rgba(56,189,248,.10);
-}
-
-.upload-zone h2{
-    font-size:20px;
-    margin-bottom:7px;
-}
-
-.upload-zone p{
-    color:var(--muted);
-    margin-bottom:16px;
-    font-size:14px;
-}
-
-.file-info{
-    margin-top:12px;
-    color:#bae6fd;
-    font-size:13px;
-}
-
-/* =========================================================
-   FILTERS
-========================================================= */
+/* FILTERS */
 .filters{
     display:grid;
-    grid-template-columns:repeat(6,minmax(150px,1fr));
+    grid-template-columns:repeat(7,minmax(130px,1fr));
     gap:12px;
     background:#F8F9F4;
     border:1px solid #D8DDCE;
@@ -198,8 +132,8 @@ input[type=file]{
     border-radius:16px;
     margin-bottom:20px;
     box-shadow:0 8px 24px rgba(0,0,0,.08);
+    align-items:end;
 }
-
 .filter-group label{
     display:block;
     color:var(--muted);
@@ -209,30 +143,26 @@ input[type=file]{
     margin-bottom:7px;
     letter-spacing:.5px;
 }
-
-select,
-input[type=date],
-input[type=text]{
+select, input[type=date], input[type=text]{
+    width:100%;
     background:#FFFFFF;
     color:#111827;
     border:1px solid #D1D5DB;
+    border-radius:8px;
+    padding:9px 10px;
+    font-size:13px;
+    font-family:inherit;
+    outline:none;
 }
+select:focus, input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,.15); }
 
-select:focus,
-input:focus{
-    border-color:var(--blue);
-}
-
-/* =========================================================
-   KPI GRID
-========================================================= */
+/* KPI GRID */
 .kpi-grid{
-  display:grid;
+    display:grid;
     grid-template-columns:repeat(8,1fr);
     gap:13px;
     margin-bottom:20px;
 }
-
 .kpi{
     position:relative;
     overflow:hidden;
@@ -243,39 +173,18 @@ input:focus{
     min-height:112px;
     box-shadow:0 6px 18px rgba(0,0,0,.08);
 }
-
 .kpi::after{
     content:"";
     position:absolute;
-    width:75px;
-    height:75px;
+    width:75px; height:75px;
     border-radius:50%;
-    right:-25px;
-    top:-25px;
+    right:-25px; top:-25px;
     background:var(--accent);
     opacity:.12;
 }
-
-.kpi-label{
-    color:var(--muted);
-    font-size:11px;
-    text-transform:uppercase;
-    font-weight:800;
-    letter-spacing:.5px;
-}
-
-.kpi-value{
-    font-size:27px;
-    font-weight:900;
-    margin-top:10px;
-    letter-spacing:-1px;
-}
-
-.kpi-sub{
-    color:var(--muted);
-    font-size:11px;
-    margin-top:6px;
-}
+.kpi-label{ color:var(--muted); font-size:11px; text-transform:uppercase; font-weight:800; letter-spacing:.5px; }
+.kpi-value{ font-size:27px; font-weight:900; margin-top:10px; letter-spacing:-1px; }
+.kpi-sub{ color:var(--muted); font-size:11px; margin-top:6px; }
 
 .blue{--accent:var(--blue)}
 .green{--accent:var(--green)}
@@ -284,22 +193,9 @@ input:focus{
 .purple{--accent:var(--purple)}
 .cyan{--accent:var(--cyan)}
 
-/* =========================================================
-   PANELS
-========================================================= */
-.grid-2{
-    display:grid;
-    grid-template-columns:1.6fr 1fr;
-    gap:16px;
-    margin-bottom:16px;
-}
-
-.grid-equal{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:16px;
-    margin-bottom:16px;
-}
+/* PANELS */
+.grid-2{ display:grid; grid-template-columns:1.6fr 1fr; gap:16px; margin-bottom:16px; }
+.grid-equal{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
 
 .panel{
     background:#F8F9F4;
@@ -309,7 +205,6 @@ input:focus{
     overflow:hidden;
     box-shadow:0 8px 24px rgba(0,0,0,.08);
 }
-
 .panel-title{
     display:flex;
     justify-content:space-between;
@@ -317,30 +212,12 @@ input:focus{
     margin-bottom:16px;
     gap:12px;
 }
+.panel-title h3{ font-size:15px; }
+.panel-title span{ color:var(--muted); font-size:11px; }
+.chart-wrap{ height:330px; position:relative; }
 
-.panel-title h3{
-    font-size:15px;
-}
-
-.panel-title span{
-    color:var(--muted);
-    font-size:11px;
-}
-
-.chart-wrap{
-    height:330px;
-    position:relative;
-}
-
-/* =========================================================
-   INSIGHTS
-========================================================= */
-.insights{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:12px;
-}
-
+/* INSIGHTS */
+.insights{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
 .insight{
     padding:15px;
     background:#FFFFFF;
@@ -348,94 +225,30 @@ input:focus{
     box-shadow:0 6px 16px rgba(0,0,0,.06);
     border-radius:12px;
 }
+.insight-title{ font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:800; }
+.insight-value{ margin-top:8px; font-size:15px; font-weight:800; line-height:1.4; }
 
-.insight-title{
-    font-size:11px;
-    color:var(--muted);
-    text-transform:uppercase;
-    font-weight:800;
-}
+/* TABLES */
+.table-panel{ margin-bottom:16px; }
+.table-tools{ display:flex; gap:10px; align-items:center; }
+.table-tools input{ width:220px; }
+.table-wrap{ overflow:auto; max-height:520px; border-radius:10px; }
 
-.insight-value{
-    margin-top:8px;
-    font-size:15px;
-    font-weight:800;
-    line-height:1.4;
-}
+table{ width:100%; border-collapse:collapse; min-width:900px; }
 
-/* =========================================================
-   TABLES
-========================================================= */
-.table-panel{
-    margin-bottom:16px;
-}
+.ready-bifurcation-wrap{ width:100%; max-height:none; overflow-x:auto; overflow-y:hidden; }
 
-.table-tools{
-    display:flex;
-    gap:10px;
-    align-items:center;
-}
-
-.table-tools input{
-    width:220px;
-}
-
-.table-wrap{
-    overflow:auto;
-    max-height:520px;
-    border-radius:10px;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-    min-width:900px;
-}
-
-/* =========================================================
-   READY BIFURCATION FULL WIDTH
-========================================================= */
-.ready-bifurcation-wrap{
-    width:100%;
-    max-height:none;
-    overflow-x:auto;
-    overflow-y:hidden;
-}
-
-#readyBifurcationTable{
-    width:max-content;
-    min-width:100%;
-    border-collapse:collapse;
-    table-layout:auto;
-}
-
-#readyBifurcationTable th,
-#readyBifurcationTable td{
-    white-space:nowrap;
-    text-align:center;
-    padding:2px 16px;
-}
-
-#readyBifurcationTable th:first-child{
-    background:#F3F4F6;
-}
-
-#readyBifurcationTable td:first-child{
+.pivot-table{ width:max-content; min-width:100%; border-collapse:collapse; table-layout:auto; }
+.pivot-table th, .pivot-table td{ white-space:nowrap; text-align:center; padding:4px 14px; }
+.pivot-table td:first-child{
     background:#FFFFFF;
     color:#374151;
     border-right:1px solid #E5E7EB;
     font-weight:600;
 }
+.pivot-table tr.total-row td{ background:#F3F4F6; font-weight:800; }
 
-#readyBifurcationTable thead th{
-    min-width:150px;
-}
-
-thead{
-    position:sticky;
-    top:0;
-    z-index:4;
-}
+thead{ position:sticky; top:0; z-index:4; }
 
 th{
     background:#F3F4F6;
@@ -445,8 +258,10 @@ th{
     font-size:11px;
     text-transform:uppercase;
     white-space:nowrap;
-    cursor:pointer;
 }
+th[data-key]{ cursor:pointer; user-select:none; }
+th[data-key]:hover{ background:#E5E7EB; }
+th .sort-arrow{ color:var(--blue); margin-left:4px; }
 
 td{
     padding:11px 10px;
@@ -456,38 +271,14 @@ td{
     white-space:nowrap;
     text-align:center;
 }
+tbody tr:hover{ background:#F8FAFC; }
 
-tbody tr:hover{
-    background:#F8FAFC;
-}
+.badge{ display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#000; }
+.badge-green{ background:rgba(34,197,94,.15); }
+.badge-red{ background:rgba(239,68,68,.15); }
+.badge-orange{ background:rgba(245,158,11,.15); }
 
-.badge{
-    display:inline-block;
-    padding:2px 8px;
-    border-radius:20px;
-    font-size:10px;
-    font-weight:800;
-}
-
-.badge-green{
-    background:rgba(34,197,94,.15);
-    color:#000;
-}
-
-.badge-red{
-    background:rgba(239,68,68,.15);
-    color:#000;
-}
-
-.badge-orange{
-    background:rgba(245,158,11,.15);
-    color:#000;
-    font-weight:800;
-}
-
-/* =========================================================
-   LOADER
-========================================================= */
+/* LOADER */
 .loader-overlay{
     position:fixed;
     inset:0;
@@ -498,99 +289,41 @@ tbody tr:hover{
     justify-content:center;
     backdrop-filter:blur(7px);
 }
-
-.loader-box{
-    text-align:center;
-}
-
+.loader-box{ text-align:center; }
 .spinner{
-    width:54px;
-    height:54px;
+    width:54px; height:54px;
     border:5px solid rgba(255,255,255,.12);
     border-top-color:var(--blue);
     border-radius:50%;
     animation:spin .8s linear infinite;
     margin:auto;
 }
+@keyframes spin{ to{transform:rotate(360deg)} }
+.loader-box p{ margin-top:14px; color:#bae6fd; }
 
-@keyframes spin{
-    to{transform:rotate(360deg)}
-}
+.empty{ color:var(--muted); text-align:center; padding:30px; }
 
-.loader-box p{
-    margin-top:14px;
-    color:#bae6fd;
-}
+.footer{ text-align:center; color:var(--muted); padding:25px 10px 35px; font-size:12px; }
 
-/* =========================================================
-   EMPTY
-========================================================= */
-.empty{
-    color:var(--muted);
-    text-align:center;
-    padding:30px;
-}
-
-/* =========================================================
-   FOOTER
-========================================================= */
-.footer{
-    text-align:center;
-    color:var(--muted);
-    padding:25px 10px 35px;
-    font-size:12px;
-}
-
-/* =========================================================
-   RESPONSIVE
-========================================================= */
+/* RESPONSIVE */
 @media(max-width:1350px){
-    .kpi-grid{
-        grid-template-columns:repeat(4,1fr);
-    }
-    .filters{
-        grid-template-columns:repeat(3,1fr);
-    }
+    .kpi-grid{ grid-template-columns:repeat(4,1fr); }
+    .filters{ grid-template-columns:repeat(4,1fr); }
 }
-
 @media(max-width:900px){
-    .grid-2,
-    .grid-equal{
-        grid-template-columns:1fr;
-    }
-
-    .kpi-grid{
-        grid-template-columns:repeat(2,1fr);
-    }
-
-    .filters{
-        grid-template-columns:1fr 1fr;
-    }
-
-    .insights{
-        grid-template-columns:1fr 1fr;
-    }
-
-    .header-inner{
-        flex-direction:column;
-        align-items:flex-start;
-    }
+    .grid-2, .grid-equal{ grid-template-columns:1fr; }
+    .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+    .filters{ grid-template-columns:1fr 1fr; }
+    .insights{ grid-template-columns:1fr 1fr; }
+    .header-inner{ flex-direction:column; align-items:flex-start; }
 }
-
 @media(max-width:560px){
-    .container{
-        padding:12px;
-    }
-
-    .kpi-grid,
-    .filters,
-    .insights{
-        grid-template-columns:1fr;
-    }
-
-    .header{
-        padding:18px 14px;
-    }
+    .container{ padding:12px; }
+    .kpi-grid, .filters, .insights{ grid-template-columns:1fr; }
+    .header{ padding:18px 14px; }
+}
+@media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
 }
 </style>
 </head>
@@ -614,19 +347,11 @@ tbody tr:hover{
         </div>
 
         <div class="header-actions">
-            <label for="fileInput" class="upload-btn primary">
-                Upload CSV
-            </label>
-
+            <label for="fileInput" class="upload-btn primary">Upload CSV</label>
             <input type="file" id="fileInput" accept=".csv">
 
-            <button class="success" onclick="downloadFilteredCSV()">
-                Download Filtered CSV
-            </button>
-
-            <button class="secondary" onclick="downloadDashboardPNG()">
-                Download PNG
-            </button>
+            <button class="success" onclick="downloadFilteredCSV()">Download Filtered CSV</button>
+            <button class="secondary" onclick="downloadDashboardPNG()">Download PNG</button>
         </div>
     </div>
 </header>
@@ -636,66 +361,54 @@ tbody tr:hover{
     <!-- UPLOAD -->
     <section class="upload-zone" id="dropZone">
         <h2>Upload Shipment Detailed Report</h2>
-        <p>Upload your SHIPMENT_DETAILED_REPORT CSV file</p>
+        <p>Drop the Detailed_Report CSV here (the older SHIPMENT_DETAILED_REPORT format also works)</p>
 
-        <label for="fileInput" class="upload-btn primary">
-            Select CSV File
-        </label>
+        <label for="fileInput" class="upload-btn primary">Select CSV File</label>
 
-        <div class="file-info" id="fileInfo">
-            No file loaded
-        </div>
+        <div class="file-info" id="fileInfo">No file loaded</div>
+        <div class="file-warn" id="fileWarn"></div>
     </section>
 
     <!-- FILTERS -->
     <section class="filters">
-<div class="filter-group">
-    <label>Specific Date</label>
-    <input type="date" id="specificDate">
-</div>
         <div class="filter-group">
-            <label>From Date</label>
+            <label for="specificDate">Specific Date</label>
+            <input type="date" id="specificDate">
+        </div>
+
+        <div class="filter-group">
+            <label for="fromDate">From Date</label>
             <input type="date" id="fromDate">
         </div>
 
         <div class="filter-group">
-            <label>To Date</label>
+            <label for="toDate">To Date</label>
             <input type="date" id="toDate">
         </div>
 
         <div class="filter-group">
-            <label>Darkstore</label>
-            <select id="darkstoreFilter">
-                <option value="">All Darkstores</option>
-            </select>
+            <label for="darkstoreFilter">Darkstore</label>
+            <select id="darkstoreFilter"><option value="">All Darkstores</option></select>
         </div>
 
         <div class="filter-group">
-            <label>Brand</label>
-            <select id="brandFilter">
-                <option value="">All Brands</option>
-            </select>
+            <label for="brandFilter">Brand</label>
+            <select id="brandFilter"><option value="">All Brands</option></select>
         </div>
 
         <div class="filter-group">
-            <label>Status</label>
-            <select id="statusFilter">
-                <option value="">All Statuses</option>
-            </select>
+            <label for="statusFilter">Status</label>
+            <select id="statusFilter"><option value="">All Statuses</option></select>
         </div>
 
         <div class="filter-group">
             <label>Action</label>
-            <button class="danger" style="width:100%" onclick="resetFilters()">
-                Reset Filters
-            </button>
+            <button class="danger" style="width:100%" onclick="resetFilters()">Reset Filters</button>
         </div>
-
     </section>
 
     <!-- KPI -->
     <section class="kpi-grid">
-
         <div class="kpi blue">
             <div class="kpi-label">Total Orders</div>
             <div class="kpi-value" id="kpiTotal">0</div>
@@ -729,7 +442,7 @@ tbody tr:hover{
         <div class="kpi red">
             <div class="kpi-label">Cancelled Orders</div>
             <div class="kpi-value" id="kpiCancelled">0</div>
-            <div class="kpi-sub">Current CANCELLED Orders</div>
+            <div class="kpi-sub">Status CANCELLED or flagged cancelled</div>
         </div>
 
         <div class="kpi orange">
@@ -737,12 +450,12 @@ tbody tr:hover{
             <div class="kpi-value" id="kpiPending">0</div>
             <div class="kpi-sub">Current READY Orders</div>
         </div>
-                <div class="kpi purple">
-    <div class="kpi-label">FASR %</div>
-    <div class="kpi-value" id="kpiFASR">0%</div>
-    <div class="kpi-sub">Delivered in 0 Attempts</div>
-</div>
-   
+
+        <div class="kpi purple">
+            <div class="kpi-label">FASR %</div>
+            <div class="kpi-value" id="kpiFASR">0%</div>
+            <div class="kpi-sub">Delivered on 1st attempt / Delivered</div>
+        </div>
     </section>
 
     <!-- INSIGHTS -->
@@ -769,7 +482,7 @@ tbody tr:hover{
             </div>
 
             <div class="insight">
-                <div class="insight-title">Oldest Pending Shipment</div>
+                <div class="insight-title">Oldest In-Transit Shipment</div>
                 <div class="insight-value" id="oldestPending">-</div>
             </div>
         </div>
@@ -777,16 +490,12 @@ tbody tr:hover{
 
     <!-- CHART ROW 1 -->
     <section class="grid-2">
-
         <div class="panel">
             <div class="panel-title">
                 <h3>COD vs PREPAID (Darkstore Wise)</h3>
                 <span>Payment Mode Distribution</span>
             </div>
-
-            <div class="chart-wrap">
-                <canvas id="dailyTrendChart"></canvas>
-            </div>
+            <div class="chart-wrap"><canvas id="paymentChart"></canvas></div>
         </div>
 
         <div class="panel">
@@ -794,26 +503,18 @@ tbody tr:hover{
                 <h3>Status Distribution</h3>
                 <span>Current shipment status</span>
             </div>
-
-            <div class="chart-wrap">
-                <canvas id="statusChart"></canvas>
-            </div>
+            <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
         </div>
-
     </section>
 
     <!-- CHART ROW 2 -->
     <section class="grid-equal">
-
         <div class="panel">
             <div class="panel-title">
                 <h3>Darkstore Performance</h3>
                 <span>Top stores by volume</span>
             </div>
-
-            <div class="chart-wrap">
-                <canvas id="storeChart"></canvas>
-            </div>
+            <div class="chart-wrap"><canvas id="storeChart"></canvas></div>
         </div>
 
         <div class="panel">
@@ -821,78 +522,55 @@ tbody tr:hover{
                 <h3>Brand Performance</h3>
                 <span>Top brands by order volume</span>
             </div>
-
-            <div class="chart-wrap">
-                <canvas id="brandChart"></canvas>
-            </div>
+            <div class="chart-wrap"><canvas id="brandChart"></canvas></div>
         </div>
-
     </section>
 
-
-    <!-- READY PENDENCY BIFURCATION - FULL WIDTH -->
+    <!-- READY PENDENCY BIFURCATION -->
     <section class="panel table-panel">
-
-<div class="panel-title">
-    <div>
-        <h3>READY Pendency Bifurcation</h3>
-        <span>Darkstore-wise READY orders by No. of Attempts</span>
-    </div>
-
-    <button
-        class="success"
-        onclick="downloadReadyOrdersExcel()">
-        Download READY Orders Excel
-    </button>
-</div>
+        <div class="panel-title">
+            <div>
+                <h3>READY Pendency Bifurcation</h3>
+                <span>Darkstore-wise READY orders by No. of Attempts — click a store or a count for AWBs</span>
+            </div>
+            <button class="success" onclick="downloadReadyOrdersExcel()">Download READY Orders Excel</button>
+        </div>
 
         <div class="table-wrap ready-bifurcation-wrap">
-            <table id="readyBifurcationTable">
+            <table id="readyBifurcationTable" class="pivot-table">
                 <thead></thead>
                 <tbody></tbody>
             </table>
         </div>
-
     </section>
-<section class="panel table-panel">
 
-    <div class="panel-title">
-    <div>
-        <h3>Order Ageing</h3>
-        <span>Darkstore-wise READY Orders by Ageing</span>
-    </div>
+    <!-- ORDER AGEING -->
+    <section class="panel table-panel">
+        <div class="panel-title">
+            <div>
+                <h3>Order Ageing</h3>
+                <span>Darkstore-wise READY orders with 0 attempts, by age in days (3 PM cutoff)</span>
+            </div>
+            <button class="success" onclick="downloadOrderAgeingExcel()">Download Order Ageing Excel</button>
+        </div>
 
-    <button
-        class="success"
-        onclick="downloadOrderAgeingExcel()">
-        Download Order Ageing Excel
-    </button>
-</div>
+        <div class="table-wrap ready-bifurcation-wrap">
+            <table id="orderAgeingTable" class="pivot-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
 
-    <div class="table-wrap ready-bifurcation-wrap">
-        <table id="orderAgeingTable">
-            <thead></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-</section>
     <!-- DARKSTORE TABLE -->
     <section class="panel table-panel">
-
-
         <div class="panel-title">
             <div>
                 <h3>Darkstore Performance Analytics</h3>
                 <span>Click table headers to sort</span>
             </div>
-
             <div class="table-tools">
-                <input
-                    type="text"
-                    id="storeSearch"
-                    placeholder="Search darkstore..."
-                >
+                <input type="text" id="storeSearch" placeholder="Search darkstore...">
             </div>
         </div>
 
@@ -906,32 +584,24 @@ tbody tr:hover{
                         <th data-key="deliveryPct">Delivery %</th>
                         <th data-key="rto">RTO</th>
                         <th data-key="rtoPct">RTO %</th>
-                        <th data-key="pending">Ready</th>
-                        
+                        <th data-key="ready">Ready</th>
                         <th data-key="avgTat">Avg TAT</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
         </div>
-
     </section>
 
     <!-- BRAND TABLE -->
     <section class="panel table-panel">
-
         <div class="panel-title">
             <div>
                 <h3>Brand Performance Analytics</h3>
-                <span>Brand-wise shipment performance</span>
+                <span>Click table headers to sort</span>
             </div>
-
             <div class="table-tools">
-                <input
-                    type="text"
-                    id="brandSearch"
-                    placeholder="Search brand..."
-                >
+                <input type="text" id="brandSearch" placeholder="Search brand...">
             </div>
         </div>
 
@@ -945,32 +615,24 @@ tbody tr:hover{
                         <th data-key="deliveryPct">Delivery %</th>
                         <th data-key="rto">RTO</th>
                         <th data-key="rtoPct">RTO %</th>
-                        <th data-key="pending">Ready</th>
-                        
+                        <th data-key="ready">Ready</th>
                         <th data-key="avgTat">Avg TAT</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
         </div>
-
     </section>
 
     <!-- RIDER TABLE -->
     <section class="panel table-panel">
-
         <div class="panel-title">
             <div>
                 <h3>Rider Performance Analytics</h3>
                 <span>Based on Rider Name and shipment status</span>
             </div>
-
             <div class="table-tools">
-                <input
-                    type="text"
-                    id="riderSearch"
-                    placeholder="Search rider..."
-                >
+                <input type="text" id="riderSearch" placeholder="Search rider...">
             </div>
         </div>
 
@@ -991,7 +653,6 @@ tbody tr:hover{
                 <tbody></tbody>
             </table>
         </div>
-
     </section>
 
 </main>
@@ -1002,18 +663,77 @@ tbody tr:hover{
 
 <script>
 /* =========================================================
+   COLUMN MAPPING
+   Each field lists the column names it may appear under.
+   The first one found in the uploaded file is used, so both the
+   new "Detailed_Report" export and the older format work.
+========================================================= */
+const COLUMN_ALIASES = {
+    awb:             ["Zippee AWB","AWB Number","Order AWB","AWB","AWB No","Shipment AWB","Tracking Number","Tracking ID"],
+    darkstore:       ["Warehouse Name","Darkstore"],
+    status:          ["Current Status"],
+    isCancelled:     ["Is Cancelled"],
+    brand:           ["Brand Name","Brand Display Name"],
+    creationDate:    ["Creation Date"],
+    creationTime:    ["Creation Time"],
+    marketplaceDate: ["Marketplace Order Date"],
+    riderName:       ["Rider Name"],
+    riderId:         ["Rider User ID","Rider ID"],
+    attempts:        ["Total Attempt Count","No. of Attempts"],
+    attemptReason:   ["Latest Attempt Reason","Attempt Reason"],
+    payment:         ["Payment Mode"]
+};
+
+// Delivery timestamp: [date column, time column or null if combined]
+const DELIVERY_SOURCES = [
+    ["Actual Delivery Date Time", null],
+    ["Actual Delivery Date", "Actual Delivery Time"],
+    ["Delivered Date", "Delivered Time"],
+    ["Shipment Delivered Time", null]
+];
+
+const REQUIRED_FIELDS = ["darkstore","status","creationDate"];
+
+// Matched against the formatted store name (lowercase, "zippee_" prefix removed)
+const EXCLUDED_DARKSTORES = new Set([
+    "partnr_bommasandra",
+    "partnr_badshapur",
+    "partnr_yeshwantpur",
+    "partnr_frazertown",
+    "ugaoo ggn warehouse",
+    "expresshub_testing",
+    "gurugram test",
+    "testprod"
+]);
+
+const DELHI_HUB_STORES = new Set([
+    "zippee_okhla_sdd",
+    "zippee_gurugram_sdd",
+    "zippee_wazirpur_sdd",
+    "zippee_dwarka_sdd",
+    "zippee_ghaziabad_sdd"
+]);
+
+/* =========================================================
    GLOBAL STATE
 ========================================================= */
+let COL = {};
+let DELIVERY_COLS = [];
+
 let rawData = [];
 let filteredData = [];
-
 let charts = {};
 
 let storeAnalytics = [];
 let brandAnalytics = [];
 let riderAnalytics = [];
 
-Chart.register(ChartDataLabels);
+const sortState = {
+    storeTable: { key:"total", dir:"desc" },
+    brandTable: { key:"total", dir:"desc" }
+};
+
+if (window.Chart && window.ChartDataLabels) Chart.register(ChartDataLabels);
 
 /* =========================================================
    DOM
@@ -1044,23 +764,23 @@ function cleanText(value){
     if(value === null || value === undefined) return "";
     return String(value).trim();
 }
+
+// Removes Excel ="..." wrappers that some exports add
+function unwrap(value){
+    return cleanText(value).replace(/^="?/, "").replace(/"$/, "").trim();
+}
+
+function get(row, field){
+    const col = COL[field];
+    return col ? unwrap(row[col]) : "";
+}
+
 function formatStoreName(value){
-
     const store = cleanText(value).toLowerCase();
-
-    const delhiHubStores = [
-        "zippee_okhla_sdd",
-        "zippee_gurugram_sdd",
-        "zippee_wazirpur_sdd",
-        "zippee_dwarka_sdd",
-        "zippee_ghaziabad_sdd"
-    ];
-
-    if(delhiHubStores.includes(store)){
-        return "Delhi_Hub";
-    }
-
-    return store.replace(/^zippee_/i, "");
+    if(!store) return "";
+    if(DELHI_HUB_STORES.has(store)) return "Delhi_Hub";
+    // also catches the "zipppee_" typo in the source data
+    return store.replace(/^zip+ee_/i, "");
 }
 
 function normalizeStatus(value){
@@ -1081,147 +801,111 @@ function safeFixed(value, digits = 1){
     return Number.isFinite(n) ? n.toFixed(digits) : "0.0";
 }
 
+function escapeHtml(value){
+    return String(value ?? "")
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+}
+
 /* =========================================================
-   DATE PARSER
-   Supports:
-   ="16/06/2026 10:00 AM"
-   16/06/2026 10:00 AM
-   DD/MM/YYYY
+   DATE PARSING
+   Supports: ="16/06/2026 10:00 AM", 16/06/2026 10:00 AM,
+   16/06/2026 22:00, 16/06/2026
 ========================================================= */
 function parseDate(value){
-
     if(!value) return null;
 
-    let s = String(value).trim();
+    const s = unwrap(value);
+    if(!s) return null;
 
-    // Remove Excel formula wrapper
-    s = s.replace(/^="/, "").replace(/"$/, "");
-
-    // Remove surrounding quotes
-    s = s.replace(/^"/, "").replace(/"$/, "");
-
-    // DD/MM/YYYY with optional time
     const match = s.match(
         /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i
     );
 
     if(match){
-        let day = Number(match[1]);
-        let month = Number(match[2]) - 1;
-        let year = Number(match[3]);
+        const day = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const year = Number(match[3]);
 
         let hour = Number(match[4] || 0);
-        let minute = Number(match[5] || 0);
-        let second = Number(match[6] || 0);
-
+        const minute = Number(match[5] || 0);
+        const second = Number(match[6] || 0);
         const ampm = (match[7] || "").toUpperCase();
 
         if(ampm === "PM" && hour < 12) hour += 12;
         if(ampm === "AM" && hour === 12) hour = 0;
 
-        const d = new Date(
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second
-        );
-
+        const d = new Date(year, month, day, hour, minute, second);
         return isNaN(d.getTime()) ? null : d;
     }
 
     const fallback = new Date(s);
-
-    return isNaN(fallback.getTime())
-        ? null
-        : fallback;
+    return isNaN(fallback.getTime()) ? null : fallback;
 }
+
+// Joins a separate date and time column ("28/09/2026" + "05:45")
+function parseDateTime(dateValue, timeValue){
+    const d = unwrap(dateValue);
+    if(!d) return null;
+    const t = unwrap(timeValue);
+    if(t && !/\d{1,2}:\d{2}/.test(d)) return parseDate(`${d} ${t}`);
+    return parseDate(d);
+}
+
 function getPerformanceDate(date){
-
     if(!date) return null;
-
     const d = new Date(date);
-
-    // 3:00 PM cutoff
-    if(d.getHours() >= 15){
-        d.setDate(d.getDate() + 1);
-    }
-
+    // 3:00 PM cutoff: later orders count towards the next day
+    if(d.getHours() >= 15) d.setDate(d.getDate() + 1);
     d.setHours(0,0,0,0);
-
     return d;
 }
 
 function dateKey(date){
     if(!date) return "";
-
     const y = date.getFullYear();
     const m = String(date.getMonth()+1).padStart(2,"0");
     const d = String(date.getDate()).padStart(2,"0");
-
     return `${y}-${m}-${d}`;
 }
 
-function formatDateDisplay(key){
-    if(!key) return "";
-
-    const [y,m,d] = key.split("-");
-
-    return `${d}/${m}/${y}`;
+function formatDateTimeDisplay(date){
+    if(!date) return "";
+    const p = n => String(n).padStart(2,"0");
+    return `${p(date.getDate())}/${p(date.getMonth()+1)}/${date.getFullYear()} ${p(date.getHours())}:${p(date.getMinutes())}`;
 }
 
 function hoursBetween(start,end){
     if(!start || !end) return null;
-
     const diff = (end - start) / 3600000;
-
-    return diff >= 0 && Number.isFinite(diff)
-        ? diff
-        : null;
+    return diff >= 0 && Number.isFinite(diff) ? diff : null;
 }
 
 /* =========================================================
-   STATUS LOGIC
+   STATUS LOGIC (uses fields prepared in prepareRows)
 ========================================================= */
-function isDelivered(row){
-    return normalizeStatus(row["Current Status"]) === "DELIVERED";
-}
+function isDelivered(row){ return row.__status === "DELIVERED"; }
 
 function isRTO(row){
-    const s = normalizeStatus(row["Current Status"]);
-    return s === "RTO" || s.includes("RETURN TO ORIGIN");
+    return row.__status.startsWith("RTO") || row.__status.includes("RETURN TO ORIGIN");
 }
 
 function isCancelled(row){
-    return normalizeStatus(row["Current Status"]) === "CANCELLED";
+    return row.__status === "CANCELLED" || row.__cancelledFlag;
 }
+
+function isReady(row){ return row.__status === "READY"; }
 
 function isAttempted(row){
-    const s = normalizeStatus(row["Current Status"]);
-
-    const attempts = Number(
-        cleanText(row["No. of Attempts"]).replace(/,/g,"")
-    ) || 0;
-
-    return (
-        s === "DELIVERY_ATTEMPTED" ||
-        s.includes("ATTEMPT") ||
-        attempts > 0
-    );
+    return row.__status.includes("ATTEMPT") || row.__attempts > 0;
 }
 
-function isNotDispatched(row){
-    return normalizeStatus(row["Current Status"]) === "READY";
-}
-
-function isPending(row){
-    return (
-        !isDelivered(row) &&
-        !isRTO(row) &&
-        !isCancelled(row) &&
-        !isNotDispatched(row)
-    );
+// Open shipments that have left READY but are not closed
+function isInTransit(row){
+    return !isDelivered(row) && !isRTO(row) && !isCancelled(row) && !isReady(row);
 }
 
 /* =========================================================
@@ -1230,6 +914,7 @@ function isPending(row){
 fileInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if(file) loadCSV(file);
+    fileInput.value = ""; // allow re-uploading the same file
 });
 
 dropZone.addEventListener("dragover", e => {
@@ -1243,127 +928,128 @@ dropZone.addEventListener("dragleave", () => {
 
 dropZone.addEventListener("drop", e => {
     e.preventDefault();
-
     dropZone.classList.remove("dragover");
-
     const file = e.dataTransfer.files[0];
-
-    if(file){
-        loadCSV(file);
-    }
+    if(file) loadCSV(file);
 });
 
 function loadCSV(file){
-
     showLoader("Reading shipment report...");
-
-    document.getElementById("fileInfo").textContent =
-        `${file.name} • Loading...`;
+    document.getElementById("fileInfo").textContent = `${file.name} • Loading...`;
 
     Papa.parse(file,{
         header:true,
         skipEmptyLines:true,
         worker:true,
-
-        complete:function(results){
-
-            const excludedDarkstores = new Set([
-    "partnr_bommasandra",
-    "partnr_badshapur",
-    "partnr_yeshwantpur",
-    "partnr_frazertown",
-    "ugaoo ggn warehouse",
-    "expresshub_testing"
-]);
-
-rawData = results.data.filter(row => {
-
-    if (!Object.values(row).some(v => cleanText(v) !== "")) {
-        return false;
-    }
-
-    const store = formatStoreName(row["Darkstore"]).toLowerCase();
-
-    return !excludedDarkstores.has(store);
-
-});
-            prepareRows();
-
-            document.getElementById("fileInfo").textContent =
-                `${file.name} • ${formatNumber(rawData.length)} records loaded`;
-
-            populateFilters();
-
-            filteredData = [...rawData];
-
-            setDateRange();
-
-            updateDashboard();
-
-            hideLoader();
-        },
-
-        error:function(error){
+        complete: results => ingestParsed(results, file.name),
+        error: error => {
             hideLoader();
             alert("CSV Error: " + error.message);
         }
     });
 }
 
+function resolveColumns(fields){
+    const byTrimmed = new Map(fields.map(f => [cleanText(f), f]));
+
+    COL = {};
+    Object.entries(COLUMN_ALIASES).forEach(([field, names]) => {
+        const hit = names.find(n => byTrimmed.has(n));
+        COL[field] = hit ? byTrimmed.get(hit) : null;
+    });
+
+    DELIVERY_COLS = DELIVERY_SOURCES
+        .filter(([d,t]) => byTrimmed.has(d) && (t === null || byTrimmed.has(t)))
+        .map(([d,t]) => [byTrimmed.get(d), t ? byTrimmed.get(t) : null]);
+
+    return REQUIRED_FIELDS.filter(f => !COL[f]);
+}
+
+function ingestParsed(results, fileName){
+    const fields = (results.meta && results.meta.fields) || Object.keys(results.data[0] || {});
+    const missing = resolveColumns(fields);
+
+    if(missing.length){
+        hideLoader();
+        const expected = missing.map(f => COLUMN_ALIASES[f].join(" / ")).join("\n• ");
+        alert("This file is missing required columns:\n• " + expected);
+        document.getElementById("fileInfo").textContent = `${fileName} • not loaded (missing columns)`;
+        return;
+    }
+
+    const warnings = [];
+    if(!COL.awb) warnings.push("no AWB column");
+    if(!COL.attempts) warnings.push("no attempt count column");
+    if(!DELIVERY_COLS.length) warnings.push("no delivery time column (TAT unavailable)");
+    if(!COL.creationTime && !/\d:\d\d/.test(unwrap((results.data[0]||{})[COL.creationDate])))
+        warnings.push("creation time missing (3 PM cutoff not applied)");
+
+    const nonEmpty = results.data.filter(row =>
+        Object.values(row).some(v => cleanText(v) !== "")
+    );
+
+    prepareRows(nonEmpty);
+
+    const before = nonEmpty.length;
+    rawData = nonEmpty.filter(row => !EXCLUDED_DARKSTORES.has(row.__darkstore.toLowerCase()));
+    const excluded = before - rawData.length;
+
+    document.getElementById("fileInfo").textContent =
+        `${fileName} • ${formatNumber(rawData.length)} records loaded` +
+        (excluded ? ` (${formatNumber(excluded)} test/excluded-store rows skipped)` : "");
+
+    document.getElementById("fileWarn").textContent =
+        warnings.length ? "Note: " + warnings.join("; ") : "";
+
+    populateFilters();
+    filteredData = [...rawData];
+    setDateRange();
+    updateDashboard();
+    hideLoader();
+}
+
 /* =========================================================
    PREPARE ROWS ONCE
-   Important for performance with 51K+ rows
 ========================================================= */
-function prepareRows(){
-
-    rawData.forEach(row => {
-
-        row.__creationDate =
-    parseDate(row["Creation Date"]);
-
-row.__performanceDate =
-    getPerformanceDate(row.__creationDate);
+function prepareRows(rows){
     const today = new Date();
-today.setHours(0,0,0,0);
+    today.setHours(0,0,0,0);
 
-row.__ageing =
-    row.__performanceDate
-        ? Math.floor((today - row.__performanceDate) / 86400000)
-        : null;
+    rows.forEach(row => {
+        row.__creationDate = parseDateTime(
+            row[COL.creationDate],
+            COL.creationTime ? row[COL.creationTime] : ""
+        );
 
-        row.__marketplaceDate =
-            parseDate(row["Marketplace Order Date"]);
+        row.__performanceDate = getPerformanceDate(row.__creationDate);
 
-        row.__deliveryDate =
-            parseDate(row["Actual Delivery Date Time"]) ||
-            parseDate(row["Shipment Delivered Time"]);
+        // Orders after today's 3 PM cutoff belong to tomorrow; count them as age 0
+        row.__ageing = row.__performanceDate
+            ? Math.max(0, Math.floor((today - row.__performanceDate) / 86400000))
+            : null;
 
-        row.__status =
-            normalizeStatus(row["Current Status"]);
+        row.__marketplaceDate = COL.marketplaceDate ? parseDate(row[COL.marketplaceDate]) : null;
 
-        row.__darkstore =
-    formatStoreName(row["Darkstore"]) || "Unknown";
+        row.__deliveryDate = null;
+        for(const [dCol, tCol] of DELIVERY_COLS){
+            const d = parseDateTime(row[dCol], tCol ? row[tCol] : "");
+            if(d){ row.__deliveryDate = d; break; }
+        }
 
-        row.__brand =
-            cleanText(row["Brand Name"]) || "Unknown";
+        row.__status = normalizeStatus(get(row,"status"));
+        row.__cancelledFlag = get(row,"isCancelled").toLowerCase() === "true";
 
-        row.__rider =
-            cleanText(row["Rider Name"]);
+        row.__darkstore = formatStoreName(get(row,"darkstore")) || "Unknown";
+        row.__brand = get(row,"brand") || "Unknown";
+        row.__rider = get(row,"riderName");
+        row.__riderId = get(row,"riderId");
+        row.__awb = get(row,"awb") || "-";
+        row.__attemptReason = get(row,"attemptReason");
+        row.__payment = get(row,"payment").toUpperCase();
 
-        row.__riderId =
-            cleanText(row["Rider ID"]);
+        row.__attempts = Number(get(row,"attempts").replace(/,/g,"")) || 0;
 
-        row.__attempts =
-            Number(
-                cleanText(row["No. of Attempts"])
-                    .replace(/,/g,"")
-            ) || 0;
-
-        row.__tat =
-            hoursBetween(
-                row.__marketplaceDate,
-                row.__deliveryDate
-            );
+        row.__tat = hoursBetween(row.__marketplaceDate, row.__deliveryDate);
     });
 }
 
@@ -1371,36 +1057,17 @@ row.__ageing =
    FILTER OPTIONS
 ========================================================= */
 function populateFilters(){
-
-    fillSelect(
-        darkstoreFilter,
-        uniqueSorted(rawData.map(r => r.__darkstore)),
-        "All Darkstores"
-    );
-
-    fillSelect(
-        brandFilter,
-        uniqueSorted(rawData.map(r => r.__brand)),
-        "All Brands"
-    );
-
-    fillSelect(
-        statusFilter,
-        uniqueSorted(rawData.map(r => r.__status)),
-        "All Statuses"
-    );
+    fillSelect(darkstoreFilter, uniqueSorted(rawData.map(r => r.__darkstore)), "All Darkstores");
+    fillSelect(brandFilter, uniqueSorted(rawData.map(r => r.__brand)), "All Brands");
+    fillSelect(statusFilter, uniqueSorted(rawData.map(r => r.__status)), "All Statuses");
 }
 
 function uniqueSorted(arr){
-    return [...new Set(arr.filter(Boolean))]
-        .sort((a,b) => a.localeCompare(b));
+    return [...new Set(arr.filter(Boolean))].sort((a,b) => a.localeCompare(b));
 }
 
 function fillSelect(select, values, firstLabel){
-
-    select.innerHTML =
-        `<option value="">${firstLabel}</option>`;
-
+    select.innerHTML = `<option value="">${firstLabel}</option>`;
     values.forEach(value => {
         const option = document.createElement("option");
         option.value = value;
@@ -1410,96 +1077,73 @@ function fillSelect(select, values, firstLabel){
 }
 
 function setDateRange(){
-
-    const dates = rawData
-        .map(r => r.__performanceDate)
-        .filter(Boolean)
-        .sort((a,b) => a-b);
-
-    if(!dates.length) return;
-
-    fromDate.value = dateKey(dates[0]);
-    toDate.value = dateKey(dates[dates.length-1]);
+    let min = null, max = null;
+    rawData.forEach(r => {
+        const d = r.__performanceDate;
+        if(!d) return;
+        if(!min || d < min) min = d;
+        if(!max || d > max) max = d;
+    });
+    if(!min) return;
+    fromDate.value = dateKey(min);
+    toDate.value = dateKey(max);
 }
 
 /* =========================================================
    FILTER EVENTS
 ========================================================= */
-[
-    specificDate,
-    fromDate,
-    toDate,
-    darkstoreFilter,
-    brandFilter,
-    statusFilter
-].forEach(el => {
-    el.addEventListener("change", applyFilters);
-});
+[specificDate, fromDate, toDate, darkstoreFilter, brandFilter, statusFilter]
+    .forEach(el => el.addEventListener("change", applyFilters));
 
 function applyFilters(){
-
     if(!rawData.length) return;
 
     showLoader("Applying dashboard filters...");
 
     setTimeout(() => {
+        const specific = specificDate.value;
 
-        const specific = specificDate.value
-    ? specificDate.value
-    : "";
+        // A specific date overrides the From/To range
+        const from = !specific && fromDate.value ? new Date(fromDate.value + "T00:00:00") : null;
+        const to = !specific && toDate.value ? new Date(toDate.value + "T23:59:59") : null;
 
-const from = fromDate.value
-    ? new Date(fromDate.value + "T00:00:00")
-    : null;
+        fromDate.disabled = !!specific;
+        toDate.disabled = !!specific;
 
-const to = toDate.value
-    ? new Date(toDate.value + "T23:59:59")
-    : null;
         const store = darkstoreFilter.value;
         const brand = brandFilter.value;
         const status = statusFilter.value;
 
         filteredData = rawData.filter(row => {
-
             const d = row.__performanceDate;
 
-        if(specific && dateKey(d) !== specific)
-    return false;
-
+            if(specific && dateKey(d) !== specific) return false;
             if(from && (!d || d < from)) return false;
             if(to && (!d || d > to)) return false;
-
-            if(store && row.__darkstore !== store)
-                return false;
-
-            if(brand && row.__brand !== brand)
-                return false;
-
-            if(status && row.__status !== status)
-                return false;
+            if(store && row.__darkstore !== store) return false;
+            if(brand && row.__brand !== brand) return false;
+            if(status && row.__status !== status) return false;
 
             return true;
         });
 
         updateDashboard();
-
         hideLoader();
-
-    },50);
+    }, 50);
 }
 
 function resetFilters(){
-
     if(!rawData.length) return;
 
     specificDate.value = "";
-darkstoreFilter.value = "";
-brandFilter.value = "";
-statusFilter.value = "";
+    darkstoreFilter.value = "";
+    brandFilter.value = "";
+    statusFilter.value = "";
+    fromDate.disabled = false;
+    toDate.disabled = false;
     setDateRange();
 
     filteredData = [...rawData];
-
     updateDashboard();
 }
 
@@ -1507,26 +1151,21 @@ statusFilter.value = "";
    MAIN DASHBOARD UPDATE
 ========================================================= */
 function updateDashboard(){
-
     updateKPIs();
 
-    storeAnalytics =
-        buildGroupAnalytics(filteredData, "__darkstore");
-
-    brandAnalytics =
-        buildGroupAnalytics(filteredData, "__brand");
-
-    riderAnalytics =
-        buildRiderAnalytics(filteredData);
+    storeAnalytics = buildGroupAnalytics(filteredData, "__darkstore");
+    brandAnalytics = buildGroupAnalytics(filteredData, "__brand");
+    riderAnalytics = buildRiderAnalytics(filteredData);
 
     updateInsights();
 
-    renderDailyTrend();
-renderStatusChart();
-renderStoreChart();
-renderBrandChart();
-renderReadyBifurcationTable();
-renderOrderAgeingTable();
+    renderPaymentChart();
+    renderStatusChart();
+    renderStoreChart();
+    renderBrandChart();
+
+    renderReadyBifurcationTable();
+    renderOrderAgeingTable();
 
     renderStoreTable();
     renderBrandTable();
@@ -1534,105 +1173,54 @@ renderOrderAgeingTable();
 }
 
 /* =========================================================
-   KPI
+   KPI (single pass)
 ========================================================= */
 function updateKPIs(){
+    let total = 0, delivered = 0, rto = 0, cancelled = 0, ready = 0, firstAttempt = 0;
 
-    const total = filteredData.length;
+    filteredData.forEach(row => {
+        total++;
+        if(isDelivered(row)){
+            delivered++;
+            if(row.__attempts === 1) firstAttempt++;
+        }
+        if(isRTO(row)) rto++;
+        if(isCancelled(row)) cancelled++;
+        if(isReady(row)) ready++;
+    });
 
-    const delivered =
-        filteredData.filter(isDelivered).length;
-
-    const rto =
-        filteredData.filter(isRTO).length;
-
-    const cancelled =
-        filteredData.filter(isCancelled).length;
-
-    const ready =
-        filteredData.filter(isNotDispatched).length;
-
-    const fasrDelivered = filteredData.filter(row =>
-        isDelivered(row) &&
-        Number(row.__attempts) === 0
-    ).length;    const tats = filteredData
-        .filter(isDelivered)
-        .map(r => r.__tat)
-        .filter(v => v !== null);
-
-    const avgTat = tats.length
-        ? tats.reduce((a,b) => a+b,0) / tats.length
-        : 0;
-
-    document.getElementById("kpiTotal").textContent =
-        formatNumber(total);
-
-    document.getElementById("kpiDelivered").textContent =
-        formatNumber(delivered);
-
-    document.getElementById("kpiDeliveryPct").textContent =
-        safeFixed(pct(delivered,total),1) + "%";
-
-    document.getElementById("kpiRTO").textContent =
-        formatNumber(rto);
-
-    document.getElementById("kpiRTOPct").textContent =
-        safeFixed(pct(rto,total),1) + "%";
-
-    document.getElementById("kpiCancelled").textContent =
-        formatNumber(cancelled);
-
-    document.getElementById("kpiPending").textContent =
-        formatNumber(ready);
-
-    document.getElementById("kpiFASR").textContent =
-        safeFixed(pct(fasrDelivered, delivered), 1) + "%";
-
+    document.getElementById("kpiTotal").textContent = formatNumber(total);
+    document.getElementById("kpiDelivered").textContent = formatNumber(delivered);
+    document.getElementById("kpiDeliveryPct").textContent = safeFixed(pct(delivered,total),1) + "%";
+    document.getElementById("kpiRTO").textContent = formatNumber(rto);
+    document.getElementById("kpiRTOPct").textContent = safeFixed(pct(rto,total),1) + "%";
+    document.getElementById("kpiCancelled").textContent = formatNumber(cancelled);
+    document.getElementById("kpiPending").textContent = formatNumber(ready);
+    document.getElementById("kpiFASR").textContent = safeFixed(pct(firstAttempt, delivered),1) + "%";
 }
 
 /* =========================================================
    GROUP ANALYTICS
 ========================================================= */
 function buildGroupAnalytics(data, key){
-
     const map = new Map();
 
     data.forEach(row => {
-
         const name = row[key] || "Unknown";
 
         if(!map.has(name)){
-            map.set(name,{
-    name,
-    total:0,
-    delivered:0,
-    rto:0,
-    ready:0,
-    attempted:0,
-    tatSum:0,
-    tatCount:0
-});
+            map.set(name,{ name, total:0, delivered:0, rto:0, ready:0, attempted:0, tatSum:0, tatCount:0 });
         }
 
         const item = map.get(name);
-
         item.total++;
 
-        if(isDelivered(row))
-            item.delivered++;
+        if(isDelivered(row)) item.delivered++;
+        if(isRTO(row)) item.rto++;
+        if(isReady(row)) item.ready++;
+        if(isAttempted(row)) item.attempted++;
 
-        if(isRTO(row))
-            item.rto++;
-
-        if(isNotDispatched(row))
-    item.ready++;
-        if(isAttempted(row))
-            item.attempted++;
-
-        if(
-            isDelivered(row) &&
-            row.__tat !== null
-        ){
+        if(isDelivered(row) && row.__tat !== null){
             item.tatSum += row.__tat;
             item.tatCount++;
         }
@@ -1640,17 +1228,9 @@ function buildGroupAnalytics(data, key){
 
     return [...map.values()].map(item => ({
         ...item,
-
-        deliveryPct:
-            pct(item.delivered,item.total),
-
-        rtoPct:
-            pct(item.rto,item.total),
-
-        avgTat:
-            item.tatCount
-                ? item.tatSum / item.tatCount
-                : 0
+        deliveryPct: pct(item.delivered,item.total),
+        rtoPct: pct(item.rto,item.total),
+        avgTat: item.tatCount ? item.tatSum / item.tatCount : 0
     }));
 }
 
@@ -1658,54 +1238,35 @@ function buildGroupAnalytics(data, key){
    RIDER ANALYTICS
 ========================================================= */
 function buildRiderAnalytics(data){
-
     const map = new Map();
 
     data.forEach(row => {
-
         if(!row.__rider) return;
 
-        const key =
-            `${row.__rider}|||${row.__riderId}`;
+        const key = `${row.__rider}|||${row.__riderId}`;
 
         if(!map.has(key)){
             map.set(key,{
                 name:row.__rider,
                 riderId:row.__riderId,
-                total:0,
-                delivered:0,
-                rto:0,
-                attempted:0,
-                attemptSum:0
+                total:0, delivered:0, rto:0, attempted:0, attemptSum:0
             });
         }
 
         const item = map.get(key);
-
         item.total++;
         item.attemptSum += row.__attempts;
 
-        if(isDelivered(row))
-            item.delivered++;
-
-        if(isRTO(row))
-            item.rto++;
-
-        if(isAttempted(row))
-            item.attempted++;
+        if(isDelivered(row)) item.delivered++;
+        if(isRTO(row)) item.rto++;
+        if(isAttempted(row)) item.attempted++;
     });
 
     return [...map.values()]
         .map(item => ({
             ...item,
-
-            deliveryPct:
-                pct(item.delivered,item.total),
-
-            avgAttempts:
-                item.total
-                    ? item.attemptSum/item.total
-                    : 0
+            deliveryPct: pct(item.delivered,item.total),
+            avgAttempts: item.total ? item.attemptSum/item.total : 0
         }))
         .sort((a,b) => b.total-a.total);
 }
@@ -1714,60 +1275,37 @@ function buildRiderAnalytics(data){
    INSIGHTS
 ========================================================= */
 function updateInsights(){
+    const eligibleStores = storeAnalytics.filter(x => x.total >= 10);
 
-    const eligibleStores =
-        storeAnalytics.filter(x => x.total >= 10);
+    const bestStore = [...eligibleStores]
+        .sort((a,b) => b.deliveryPct - a.deliveryPct || b.total - a.total)[0];
 
-    const bestStore =
-        [...eligibleStores]
-        .sort((a,b) =>
-            b.deliveryPct - a.deliveryPct ||
-            b.total - a.total
-        )[0];
+    const worstRto = [...eligibleStores]
+        .sort((a,b) => b.rtoPct - a.rtoPct || b.total - a.total)[0];
 
-    const worstRto =
-        [...eligibleStores]
-        .sort((a,b) =>
-            b.rtoPct - a.rtoPct ||
-            b.total - a.total
-        )[0];
+    const topBrand = [...brandAnalytics].sort((a,b) => b.total-a.total)[0];
 
-    const topBrand =
-        [...brandAnalytics]
-        .sort((a,b) => b.total-a.total)[0];
-
-    const pendingRows =
-        filteredData
-        .filter(isPending)
-        .filter(r => r.__performanceDate)
-.sort((a,b)=>
-    a.__performanceDate-b.__performanceDate
-);
-    const oldest = pendingRows[0];
+    let oldest = null;
+    filteredData.forEach(r => {
+        if(!isInTransit(r) || !r.__performanceDate) return;
+        if(!oldest || r.__performanceDate < oldest.__performanceDate) oldest = r;
+    });
 
     document.getElementById("bestStore").textContent =
-        bestStore
-            ? `${bestStore.name} • ${safeFixed(bestStore.deliveryPct,1)}%`
-            : "-";
+        bestStore ? `${bestStore.name} • ${safeFixed(bestStore.deliveryPct,1)}%` : "-";
 
     document.getElementById("worstRtoStore").textContent =
-        worstRto
-            ? `${worstRto.name} • ${safeFixed(worstRto.rtoPct,1)}%`
-            : "-";
+        worstRto ? `${worstRto.name} • ${safeFixed(worstRto.rtoPct,1)}%` : "-";
 
     document.getElementById("topBrand").textContent =
-        topBrand
-            ? `${topBrand.name} • ${formatNumber(topBrand.total)} orders`
-            : "-";
+        topBrand ? `${topBrand.name} • ${formatNumber(topBrand.total)} orders` : "-";
 
     document.getElementById("oldestPending").textContent =
-        oldest
-            ? `${oldest.__darkstore} • ${dateKey(oldest.__performanceDate)}`
-            : "-";
+        oldest ? `${oldest.__darkstore} • ${dateKey(oldest.__performanceDate)} • ${oldest.__status}` : "-";
 }
 
 /* =========================================================
-   CHART COMMON
+   CHARTS
 ========================================================= */
 function destroyChart(name){
     if(charts[name]){
@@ -1776,1705 +1314,491 @@ function destroyChart(name){
     }
 }
 
-const commonScales = {
-    x:{
-        ticks:{
-            color:"#6B7280",
-            maxRotation:45,
-            minRotation:0
-        },
-        grid:{
-            color:"#E5E7EB"
-        }
-    },
-    y:{
-        beginAtZero:true,
-        ticks:{
-            color:"#6B7280"
-        },
-        grid:{
-            color:"#E5E7EB"
-        }
+function makeChart(name, canvasId, config){
+    destroyChart(name);
+    try{
+        charts[name] = new Chart(document.getElementById(canvasId), config);
+    }catch(err){
+        console.error(`Chart "${name}" failed:`, err);
     }
+}
+
+const commonScales = {
+    x:{ ticks:{ color:"#6B7280", maxRotation:45, minRotation:0 }, grid:{ color:"#E5E7EB" } },
+    y:{ beginAtZero:true, ticks:{ color:"#6B7280" }, grid:{ color:"#E5E7EB" } }
 };
 
-/* =========================================================
-   DAILY TREND
-========================================================= */
-function renderDailyTrend(){
+const legendOnly = {
+    legend:{ labels:{ color:"#374151" } },
+    datalabels:{ display:false }
+};
 
-    destroyChart("daily");
-
+function renderPaymentChart(){
     const map = new Map();
 
     filteredData.forEach(row => {
-
-        const store = row.__darkstore || "Unknown";
-        const payment = cleanText(row["Payment Mode"]).toUpperCase();
-
-        if(!map.has(store)){
-            map.set(store,{
-                cod:0,
-                prepaid:0
-            });
-        }
-
+        const store = row.__darkstore;
+        if(!map.has(store)) map.set(store,{ cod:0, prepaid:0 });
         const item = map.get(store);
-
-        if(payment === "COD"){
-            item.cod++;
-        }
-        else if(payment === "PREPAID"){
-            item.prepaid++;
-        }
-
+        if(row.__payment === "COD") item.cod++;
+        else if(row.__payment === "PREPAID") item.prepaid++;
     });
 
-    const labels = [...map.keys()];
-
-    charts.daily = new Chart(
-        document.getElementById("dailyTrendChart"),
-        {
-            type:"bar",
-
-            data:{
-                labels:labels,
-
-                datasets:[
-                    {
-                        label:"COD",
-                        data:labels.map(x => map.get(x).cod),
-                        backgroundColor:"#22c55e"
-                    },
-                    {
-                        label:"PREPAID",
-                        data:labels.map(x => map.get(x).prepaid),
-                        backgroundColor:"#3b82f6"
-                    }
-                ]
-            },
-
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-
-                plugins:{
-                    legend:{
-                        labels:{
-                            color:"#374151"
-                        }
-                    },
-                    datalabels:{
-                        display:false
-                    }
-                },
-
-                scales:commonScales
-            }
-        }
+    const labels = [...map.keys()].sort((a,b) =>
+        (map.get(b).cod + map.get(b).prepaid) - (map.get(a).cod + map.get(a).prepaid)
     );
+
+    makeChart("payment","paymentChart",{
+        type:"bar",
+        data:{
+            labels,
+            datasets:[
+                { label:"COD", data:labels.map(x => map.get(x).cod), backgroundColor:"#22c55e" },
+                { label:"PREPAID", data:labels.map(x => map.get(x).prepaid), backgroundColor:"#3b82f6" }
+            ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:legendOnly, scales:commonScales }
+    });
 }
 
-/* =========================================================
-   STATUS CHART
-========================================================= */
 function renderStatusChart(){
-
-    destroyChart("status");
-
     const map = new Map();
-
     filteredData.forEach(row => {
         const s = row.__status || "UNKNOWN";
         map.set(s,(map.get(s)||0)+1);
     });
 
-    const items =
-        [...map.entries()]
-        .sort((a,b) => b[1]-a[1]);
+    const items = [...map.entries()].sort((a,b) => b[1]-a[1]);
 
-    charts.status = new Chart(
-        document.getElementById("statusChart"),
-        {
-            type:"doughnut",
-
-            data:{
-                labels:items.map(x => x[0]),
-
-                datasets:[{
-                    data:items.map(x => x[1]),
-
-                    backgroundColor:[
-                        "#22c55e",
-                        "#ef4444",
-                        "#f59e0b",
-                        "#38bdf8",
-                        "#a855f7",
-                        "#06b6d4",
-                        "#ec4899",
-                        "#84cc16",
-                        "#f97316",
-                        "#64748b"
-                    ],
-
-                    borderWidth:0
-                }]
-            },
-
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-
-                plugins:{
-                    legend:{
-                        position:"bottom",
-                        labels:{
-                            color:"#374151",
-                            boxWidth:10
-                        }
-                    },
-
-                    datalabels:{
-                        color:"#fff",
-                        font:{
-                            weight:"bold",
-                            size:10
-                        },
-
-                        formatter:(value,ctx) => {
-                            const total =
-                                ctx.chart.data.datasets[0].data
-                                .reduce((a,b)=>a+b,0);
-
-                            const p =
-                                total ? value/total*100 : 0;
-
-                            return p >= 3
-                                ? p.toFixed(1)+"%"
-                                : "";
-                        }
+    makeChart("status","statusChart",{
+        type:"doughnut",
+        data:{
+            labels:items.map(x => x[0]),
+            datasets:[{
+                data:items.map(x => x[1]),
+                backgroundColor:["#22c55e","#ef4444","#f59e0b","#38bdf8","#a855f7","#06b6d4","#ec4899","#84cc16","#f97316","#64748b"],
+                borderWidth:0
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{
+                legend:{ position:"bottom", labels:{ color:"#374151", boxWidth:10 } },
+                datalabels:{
+                    color:"#fff",
+                    font:{ weight:"bold", size:10 },
+                    formatter:(value,ctx) => {
+                        const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+                        const p = total ? value/total*100 : 0;
+                        return p >= 3 ? p.toFixed(1)+"%" : "";
                     }
                 }
             }
         }
-    );
+    });
 }
 
-/* =========================================================
-   STORE CHART
-========================================================= */
 function renderStoreChart(){
+    const items = [...storeAnalytics].sort((a,b) => b.total-a.total).slice(0,12);
 
-    destroyChart("store");
-
-    const items =
-        [...storeAnalytics]
-        .sort((a,b) => b.total-a.total)
-        .slice(0,12);
-
-    charts.store = new Chart(
-        document.getElementById("storeChart"),
-        {
-            type:"bar",
-
-            data:{
-                labels:items.map(x => x.name),
-
-                datasets:[
-                    {
-                        label:"Total Orders",
-                        data:items.map(x => x.total),
-                        backgroundColor:"#38bdf8"
-                    },
-                    {
-                        label:"Delivered",
-                        data:items.map(x => x.delivered),
-                        backgroundColor:"#22c55e"
-                    },
-                    {
-                        label:"RTO",
-                        data:items.map(x => x.rto),
-                        backgroundColor:"#ef4444"
-                    }
-                ]
-            },
-
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-
-                plugins:{
-                    legend:{
-                        labels:{
-                            color:"#374151"
-                        }
-                    },
-
-                    datalabels:{
-                        display:false
-                    }
-                },
-
-                scales:commonScales
-            }
-        }
-    );
+    makeChart("store","storeChart",{
+        type:"bar",
+        data:{
+            labels:items.map(x => x.name),
+            datasets:[
+                { label:"Total Orders", data:items.map(x => x.total), backgroundColor:"#38bdf8" },
+                { label:"Delivered", data:items.map(x => x.delivered), backgroundColor:"#22c55e" },
+                { label:"RTO", data:items.map(x => x.rto), backgroundColor:"#ef4444" }
+            ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:legendOnly, scales:commonScales }
+    });
 }
 
-/* =========================================================
-   BRAND CHART
-========================================================= */
 function renderBrandChart(){
+    const items = [...brandAnalytics].sort((a,b) => b.total-a.total).slice(0,12);
 
-    destroyChart("brand");
-
-    const items =
-        [...brandAnalytics]
-        .sort((a,b) => b.total-a.total)
-        .slice(0,12);
-
-    charts.brand = new Chart(
-        document.getElementById("brandChart"),
-        {
-            type:"bar",
-
-            data:{
-                labels:items.map(x => x.name),
-
-                datasets:[
-                    {
-                        label:"Total Orders",
-                        data:items.map(x => x.total),
-                        backgroundColor:"#a855f7"
-                    },
-                    {
-                        label:"Delivered",
-                        data:items.map(x => x.delivered),
-                        backgroundColor:"#22c55e"
-                    }
-                ]
-            },
-
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-                indexAxis:"y",
-
-                plugins:{
-                    legend:{
-                        labels:{
-                            color:"#374151"
-                        }
-                    },
-
-                    datalabels:{
-                        display:false
-                    }
-                },
-
-                scales:commonScales
-            }
-        }
-    );
+    makeChart("brand","brandChart",{
+        type:"bar",
+        data:{
+            labels:items.map(x => x.name),
+            datasets:[
+                { label:"Total Orders", data:items.map(x => x.total), backgroundColor:"#a855f7" },
+                { label:"Delivered", data:items.map(x => x.delivered), backgroundColor:"#22c55e" }
+            ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, indexAxis:"y", plugins:legendOnly, scales:commonScales }
+    });
 }
 
 /* =========================================================
-   READY PENDENCY BIFURCATION TABLE
-
-   ROWS:
-   Darkstore
-
-   COLUMNS:
-   No. of Attempts = 0, 1, 2, 3, 4
-
-   VALUES:
-   Count of READY Orders
+   READY PENDENCY BIFURCATION
+   Columns: darkstores • Rows: attempt buckets 0,1,2,3,4,5+
 ========================================================= */
-function renderReadyBifurcationTable(){
+const ATTEMPT_BUCKETS = ["0","1","2","3","4","5+"];
 
+function attemptBucket(n){
+    return n >= 5 ? "5+" : String(n);
+}
+
+function renderReadyBifurcationTable(){
     const map = new Map();
 
-    // =========================================
-    // STEP 1: COUNT READY ORDERS
-    // Store -> Attempt -> Count
-    // =========================================
     filteredData.forEach(row => {
-
-        // Only READY orders
-        if(row.__status !== "READY"){
-            return;
-        }
-
-        const store =
-            row.__darkstore ||
-            cleanText(row["Darkstore"]) ||
-            "Unknown";
-
-        const attempts = Number(row.__attempts);
-
-        // Only attempt buckets 0 to 4
-        if(
-            !Number.isInteger(attempts) ||
-            attempts < 0 ||
-            attempts > 4
-        ){
-            return;
-        }
-
-        if(!map.has(store)){
-            map.set(store,{
-                0:0,
-                1:0,
-                2:0,
-                3:0,
-                4:0
-            });
-        }
-
-        map.get(store)[attempts]++;
+        if(!isReady(row)) return;
+        const store = row.__darkstore;
+        if(!map.has(store)) map.set(store, Object.fromEntries(ATTEMPT_BUCKETS.map(b => [b,0])));
+        map.get(store)[attemptBucket(row.__attempts)]++;
     });
 
-    // =========================================
-    // STEP 2: SORT STORES
-    // Highest READY pendency first
-    // =========================================
-    const stores = [...map.keys()]
-        .sort((a,b) => {
+    const totalOf = s => ATTEMPT_BUCKETS.reduce((sum,b) => sum + map.get(s)[b], 0);
+    const stores = [...map.keys()].sort((a,b) => totalOf(b) - totalOf(a));
 
-            const totalA =
-                map.get(a)[0] +
-                map.get(a)[1] +
-                map.get(a)[2] +
-                map.get(a)[3] +
-                map.get(a)[4];
+    const thead = document.querySelector("#readyBifurcationTable thead");
+    const tbody = document.querySelector("#readyBifurcationTable tbody");
 
-            const totalB =
-                map.get(b)[0] +
-                map.get(b)[1] +
-                map.get(b)[2] +
-                map.get(b)[3] +
-                map.get(b)[4];
-
-            return totalB - totalA;
-        });
-
-    const thead = document.querySelector(
-        "#readyBifurcationTable thead"
-    );
-
-    const tbody = document.querySelector(
-        "#readyBifurcationTable tbody"
-    );
-
-    // =========================================
-    // STEP 3: NO DATA
-    // =========================================
     if(!stores.length){
-
-        thead.innerHTML = `
-            <tr>
-                <th>No. of Attempts</th>
-            </tr>
-        `;
-
-        tbody.innerHTML = `
-            <tr>
-                <td class="empty">
-                    No READY orders found
-                </td>
-            </tr>
-        `;
-
+        thead.innerHTML = `<tr><th>No. of Attempts</th></tr>`;
+        tbody.innerHTML = `<tr><td class="empty">No READY orders found</td></tr>`;
         return;
     }
 
-    // =========================================
-    // STEP 4: CREATE COLUMN HEADERS
-    // Darkstores become columns
-    // =========================================
     thead.innerHTML = `
         <tr>
             <th>No. of Attempts</th>
-
             ${stores.map(store => `
-                <th style="text-align:center;">
-                    <button
-                        type="button"
-                        class="ready-store-btn"
+                <th>
+                    <button type="button" class="cell-btn ready-store-btn"
                         data-store="${escapeHtml(store)}"
-                        title="Click to view all READY orders"
-                    >
-                        ${escapeHtml(store)}
-                    </button>
-                </th>
-            `).join("")}
-        </tr>
-    `;
+                        title="View all READY orders for this store">${escapeHtml(store)}</button>
+                </th>`).join("")}
+        </tr>`;
 
-    // =========================================
-    // STEP 5: CREATE ATTEMPT ROWS
-    // 0, 1, 2, 3, 4 become rows
-    // =========================================
-    tbody.innerHTML = [0,1,2,3,4]
-    .filter(attempt =>
-        stores.some(store => map.get(store)[attempt] > 0)
-    )
-    .map(attempt => `
-
+    const bucketRows = ATTEMPT_BUCKETS
+        .filter(b => stores.some(store => map.get(store)[b] > 0))
+        .map(b => `
             <tr>
-
-                <td>
-                    <strong>${attempt}</strong>
-                </td>
-
+                <td><strong>${b}</strong></td>
                 ${stores.map(store => {
-
-                    const count =
-                        map.get(store)[attempt];
-
-                    if(count > 0){
-
-                        return `
-                            <td style="text-align:center;">
-                                <button
-                                    type="button"
-                                    class="ready-drilldown-btn"
-                                    data-store="${escapeHtml(store)}"
-                                    data-attempt="${attempt}"
-                                    title="Click to view Order AWBs"
-                                >
-                                    ${formatNumber(count)}
-                                </button>
-                            </td>
-                        `;
-                    }
-
-                    return `
-                        <td style="text-align:center;">
-                            0
-                        </td>
-                    `;
-
+                    const count = map.get(store)[b];
+                    return count > 0
+                        ? `<td><button type="button" class="cell-btn ready-drilldown-btn"
+                                data-store="${escapeHtml(store)}" data-bucket="${b}"
+                                title="View AWBs">${formatNumber(count)}</button></td>`
+                        : `<td>0</td>`;
                 }).join("")}
+            </tr>`).join("");
 
-            </tr>
+    const totalRow = `
+        <tr class="total-row">
+            <td>Total</td>
+            ${stores.map(store => `<td>${formatNumber(totalOf(store))}</td>`).join("")}
+        </tr>`;
 
-        `).join("");
+    tbody.innerHTML = bucketRows + totalRow;
 
-    // =========================================
-    // STEP 6: ADD CLICK EVENTS
-    // =========================================
-    tbody.querySelectorAll(
-        ".ready-drilldown-btn"
-    ).forEach(button => {
-
-        button.addEventListener("click", () => {
-
-            const store =
-                button.dataset.store;
-
-            const attempt =
-                Number(button.dataset.attempt);
-
-            openReadyAWBDetails(
-                store,
-                attempt
-            );
-        });
+    tbody.querySelectorAll(".ready-drilldown-btn").forEach(button => {
+        button.addEventListener("click", () =>
+            openReadyAWBDetails(button.dataset.store, button.dataset.bucket));
     });
 
-    thead.querySelectorAll(
-        ".ready-store-btn"
-    ).forEach(button => {
-
-        button.addEventListener("click", () => {
-
-            const store =
-                button.dataset.store;
-
-            openReadyStoreDetails(store);
-        });
+    thead.querySelectorAll(".ready-store-btn").forEach(button => {
+        button.addEventListener("click", () => openReadyStoreDetails(button.dataset.store));
     });
 }
-function renderOrderAgeingTable(){
 
+/* =========================================================
+   ORDER AGEING (READY, 0 attempts)
+========================================================= */
+function isAgeingRow(row){
+    return isReady(row) && row.__attempts === 0 && row.__ageing !== null;
+}
+
+function renderOrderAgeingTable(){
     const map = new Map();
     const ageingSet = new Set();
 
-    filteredData.forEach(row=>{
-
-        // Only READY orders
-        if(row.__status !== "READY") return;
-
-        // Only 0 Attempt orders
-        if(row.__attempts !== 0) return;
-
-        const store = row.__darkstore;
-        const ageing = row.__ageing;
-
-        if(ageing === null || ageing < 0) return;
-
-        ageingSet.add(ageing);
-
-        if(!map.has(store)){
-            map.set(store,{});
-        }
-
-        const obj = map.get(store);
-
-        obj[ageing] = (obj[ageing] || 0) + 1;
-
+    filteredData.forEach(row => {
+        if(!isAgeingRow(row)) return;
+        ageingSet.add(row.__ageing);
+        if(!map.has(row.__darkstore)) map.set(row.__darkstore,{});
+        const obj = map.get(row.__darkstore);
+        obj[row.__ageing] = (obj[row.__ageing] || 0) + 1;
     });
 
-    const ageings = [...ageingSet].sort((a,b)=>a-b);
-
-    const stores = [...map.keys()].sort();
+    const ageings = [...ageingSet].sort((a,b) => a-b);
+    const stores = [...map.keys()].sort((a,b) => a.localeCompare(b));
 
     const thead = document.querySelector("#orderAgeingTable thead");
     const tbody = document.querySelector("#orderAgeingTable tbody");
 
     if(!stores.length){
-
         thead.innerHTML = "<tr><th>Darkstore</th></tr>";
-
-        tbody.innerHTML =
-        `<tr>
-            <td class="empty">
-                No READY Orders Found
-            </td>
-        </tr>`;
-
+        tbody.innerHTML = `<tr><td class="empty">No READY orders with 0 attempts found</td></tr>`;
         return;
     }
 
     thead.innerHTML = `
         <tr>
             <th>Darkstore</th>
-            ${ageings.map(a=>`<th>${a}</th>`).join("")}
+            ${ageings.map(a => `<th>${a}</th>`).join("")}
             <th>Grand Total</th>
-        </tr>
-    `;
+        </tr>`;
 
-    tbody.innerHTML = stores.map(store=>{
+    const colTotals = {};
+    let grand = 0;
 
+    const bodyRows = stores.map(store => {
         const obj = map.get(store);
-
         let total = 0;
 
-        const cols = ageings.map(age=>{
-
+        const cols = ageings.map(age => {
             const count = obj[age] || 0;
-
             total += count;
-
-            if(count > 0){
-
-    return `
-        <td style="text-align:center;">
-            <button
-                type="button"
-                class="ageing-drilldown-btn"
-                data-store="${escapeHtml(store)}"
-                data-ageing="${age}"
-                title="Click to view AWBs"
-            >
-                ${formatNumber(count)}
-            </button>
-        </td>
-    `;
-}
-
-return `
-    <td style="text-align:center;">0</td>
-`;
-
+            colTotals[age] = (colTotals[age] || 0) + count;
+            return count > 0
+                ? `<td><button type="button" class="cell-btn ageing-drilldown-btn"
+                        data-store="${escapeHtml(store)}" data-ageing="${age}"
+                        title="View AWBs">${formatNumber(count)}</button></td>`
+                : `<td>0</td>`;
         }).join("");
 
-        return `
-            <tr>
+        grand += total;
 
-                <td><strong>${store}</strong></td>
-
-                ${cols}
-
-                <td><strong>${total}</strong></td>
-
-            </tr>
-        `;
-
+        return `<tr><td><strong>${escapeHtml(store)}</strong></td>${cols}<td><strong>${formatNumber(total)}</strong></td></tr>`;
     }).join("");
-tbody.querySelectorAll(".ageing-drilldown-btn").forEach(button => {
 
-    button.addEventListener("click", () => {
+    const totalRow = `
+        <tr class="total-row">
+            <td>Grand Total</td>
+            ${ageings.map(a => `<td>${formatNumber(colTotals[a])}</td>`).join("")}
+            <td>${formatNumber(grand)}</td>
+        </tr>`;
 
-        openOrderAgeingDetails(
-            button.dataset.store,
-            Number(button.dataset.ageing)
-        );
+    tbody.innerHTML = bodyRows + totalRow;
 
+    tbody.querySelectorAll(".ageing-drilldown-btn").forEach(button => {
+        button.addEventListener("click", () =>
+            openOrderAgeingDetails(button.dataset.store, Number(button.dataset.ageing)));
     });
-
-});
 }
 
 /* =========================================================
-   READY PENDENCY AWB DRILLDOWN
+   DRILLDOWN TABS (shared)
 ========================================================= */
-function openReadyAWBDetails(store, attempt){
-
-    const orders = filteredData.filter(row => {
-        return (
-            row.__status === "READY" &&
-            row.__darkstore === store &&
-            Number(row.__attempts) === Number(attempt)
-        );
-    });
-
-    if(!orders.length){
-        alert("No matching READY orders found.");
-        return;
-    }
-
-    const awbList = orders.map(row => {
-        return (
-            cleanText(row["Order AWB"]) ||
-            cleanText(row["AWB"]) ||
-            cleanText(row["AWB Number"]) ||
-            cleanText(row["AWB No"]) ||
-            cleanText(row["Shipment AWB"]) ||
-            cleanText(row["Tracking Number"]) ||
-            cleanText(row["Tracking ID"]) ||
-            "-"
-        );
-    });
-
-    const newTab = window.open("", "_blank");
-
-    if(!newTab){
-        alert("Popup blocked. Please allow popups for this page.");
-        return;
-    }
-
-    newTab.document.title = "READY Order AWBs";
-
-    const style = newTab.document.createElement("style");
-
-    style.textContent = `
-        *{
-            box-sizing:border-box;
-            margin:0;
-            padding:0;
-        }
-
-        body{
-            font-family:Inter,Segoe UI,Arial,sans-serif;
-            background:#07111f;
-            color:#eef6ff;
-            min-height:100vh;
-            padding:30px;
-        }
-
-        .container{
-            max-width:1100px;
-            margin:auto;
-        }
-
-        .header{
-            background:#0d1b2a;
-            border:1px solid rgba(255,255,255,.10);
-            border-radius:18px;
-            padding:24px;
-            margin-bottom:20px;
-        }
-
-        .header h1{
-            font-size:24px;
-            margin-bottom:8px;
-        }
-
-        .header h1 span{
-            color:#38bdf8;
-        }
-
-        .meta{
-            color:#91a4b7;
-            font-size:14px;
-        }
-
-        .summary{
-            display:grid;
-            grid-template-columns:repeat(3,1fr);
-            gap:14px;
-            margin-bottom:20px;
-        }
-
-        .card{
-            background:#0d1b2a;
-            border:1px solid rgba(255,255,255,.10);
-            border-radius:14px;
-            padding:18px;
-        }
-
-        .label{
-            color:#91a4b7;
-            font-size:11px;
-            text-transform:uppercase;
-            font-weight:800;
-        }
-
-        .value{
-            font-size:20px;
-            font-weight:900;
-            margin-top:8px;
-        }
-
-        .table-panel{
-            background:#0d1b2a;
-            border:1px solid rgba(255,255,255,.10);
-            border-radius:18px;
-            padding:18px;
-        }
-
-        .table-actions{
-            display:flex;
-            justify-content:flex-end;
-            margin-bottom:16px;
-        }
-
-        .download-btn{
-            border:none;
-            border-radius:10px;
-            padding:11px 18px;
-            background:linear-gradient(135deg,#16a34a,#22c55e);
-            color:#ffffff;
-            font-size:13px;
-            font-weight:800;
-            cursor:pointer;
-            transition:.2s ease;
-        }
-
-        .download-btn:hover{
-            transform:translateY(-1px);
-            box-shadow:0 8px 20px rgba(34,197,94,.20);
-        }
-
-        table{
-            width:100%;
-            border-collapse:collapse;
-        }
-
-        th{
-            background:#10263a;
-            color:#cdefff;
-            text-align:left;
-            padding:12px;
-            font-size:11px;
-            text-transform:uppercase;
-        }
-
-        td{
-            padding:12px;
-            border-bottom:1px solid rgba(255,255,255,.06);
-            font-size:13px;
-        }
-
-        tbody tr:hover{
-            background:rgba(56,189,248,.06);
-        }
-
-        .footer{
-            text-align:center;
-            color:#91a4b7;
-            padding:25px 10px;
-            font-size:12px;
-        }
-
-        @media(max-width:700px){
-            .summary{
-                grid-template-columns:1fr;
-            }
-
-            body{
-                padding:14px;
-            }
-        }
-    `;
-
-    newTab.document.head.appendChild(style);
-
-    const container = newTab.document.createElement("div");
-    container.className = "container";
-
-    const header = newTab.document.createElement("div");
-    header.className = "header";
-
-    const title = newTab.document.createElement("h1");
-
-    const sasaSpan = newTab.document.createElement("span");
-    sasaSpan.textContent = "SASA";
-
-    title.appendChild(sasaSpan);
-    title.appendChild(
-        newTab.document.createTextNode(" READY Order Details")
-    );
-
-    const meta = newTab.document.createElement("div");
-    meta.className = "meta";
-    meta.textContent =
-        "Click result from READY Pendency Bifurcation";
-
-    header.appendChild(title);
-    header.appendChild(meta);
-
-    container.appendChild(header);
-
-    const summary = newTab.document.createElement("div");
-    summary.className = "summary";
-
-    const summaryData = [
-        ["Darkstore", store],
-        ["No. of Attempts", attempt],
-        ["READY Orders", orders.length]
-    ];
-
-    summaryData.forEach(item => {
-
-        const card = newTab.document.createElement("div");
-        card.className = "card";
-
-        const label = newTab.document.createElement("div");
-        label.className = "label";
-        label.textContent = item[0];
-
-        const value = newTab.document.createElement("div");
-        value.className = "value";
-        value.textContent = item[1];
-
-        card.appendChild(label);
-        card.appendChild(value);
-
-        summary.appendChild(card);
-    });
-
-    container.appendChild(summary);
-
-    const tablePanel = newTab.document.createElement("div");
-    tablePanel.className = "table-panel";
-
-    const table = newTab.document.createElement("table");
-
-    const thead = newTab.document.createElement("thead");
-    const headRow = newTab.document.createElement("tr");
-
-    ["#", "Order AWB"].forEach(text => {
-
-        const th = newTab.document.createElement("th");
-        th.textContent = text;
-
-        headRow.appendChild(th);
-    });
-
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    const tbody = newTab.document.createElement("tbody");
-
-    awbList.forEach((awb, index) => {
-
-        const tr = newTab.document.createElement("tr");
-
-        const tdIndex = newTab.document.createElement("td");
-        tdIndex.textContent = index + 1;
-
-        const tdAwb = newTab.document.createElement("td");
-        tdAwb.textContent = awb;
-
-        tr.appendChild(tdIndex);
-        tr.appendChild(tdAwb);
-
-        tbody.appendChild(tr);
-    });
-
-    table.appendChild(tbody);
-    tablePanel.appendChild(table);
-    container.appendChild(tablePanel);
-
-    const footer = newTab.document.createElement("div");
-    footer.className = "footer";
-    footer.textContent =
-        "Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee";
-
-    container.appendChild(footer);
-
-    newTab.document.body.appendChild(container);
-    }
-function openOrderAgeingDetails(store,ageing){
-
-    const orders = filteredData.filter(row=>{
-
-        return (
-    row.__status === "READY" &&
-    Number(row.__attempts) === 0 &&
-    row.__darkstore === store &&
-    Number(row.__ageing) === Number(ageing)
-);
-
-    });
-
+const DRILLDOWN_COLUMNS = [
+    ["Order AWB",       r => r.__awb],
+    ["Darkstore",       r => r.__darkstore],
+    ["Brand",           r => r.__brand],
+    ["No. of Attempts", r => r.__attempts],
+    ["Ageing (days)",   r => r.__ageing ?? ""],
+    ["Created",         r => formatDateTimeDisplay(r.__creationDate)],
+    ["Payment",         r => r.__payment],
+    ["Latest Attempt Reason", r => r.__attemptReason]
+];
+
+function downloadCSVFromRows(header, rows, filename, doc = document){
+    const csv = "\uFEFF" + [header, ...rows]
+        .map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(","))
+        .join("\n");
+
+    const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = doc.createElement("a");
+    link.href = url;
+    link.download = filename;
+    doc.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function openOrdersTab({ title, subtitle, cards, orders, fileName }){
     if(!orders.length){
         alert("No matching orders found.");
         return;
     }
 
-    const awbList = orders.map(row => {
-
-    return (
-        cleanText(row["Order AWB"]) ||
-        cleanText(row["AWB"]) ||
-        cleanText(row["AWB Number"]) ||
-        cleanText(row["AWB No"]) ||
-        cleanText(row["Shipment AWB"]) ||
-        cleanText(row["Tracking Number"]) ||
-        cleanText(row["Tracking ID"]) ||
-        "-"
-    );
-
-});
-    const newTab = window.open("","_blank");
-
-    newTab.document.write(`
-        <html>
-        <head>
-            <title>Order Ageing Details</title>
-            <style>
-                body{
-                    font-family:Arial;
-                    padding:20px;
-                }
-
-                table{
-                    border-collapse:collapse;
-                    width:100%;
-                }
-
-                th,td{
-                    border:1px solid #ddd;
-                    padding:8px;
-                }
-
-                th{
-                    background:#f3f4f6;
-                }
-            </style>
-        </head>
-
-        <body>
-
-            <h2>${store}</h2>
-
-            <p>
-                Ageing : ${ageing}
-            </p>
-
-            <table>
-
-                <tr>
-
-                    <th>#</th>
-
-                    <th>AWB Number</th>
-
-                </tr>
-
-                ${awbList.map((awb,index)=>`
-
-                    <tr>
-
-                        <td>${index+1}</td>
-
-                        <td>${awb}</td>
-
-                    </tr>
-
-                `).join("")}
-
-            </table>
-
-        </body>
-
-        </html>
-    `);
-
-    newTab.document.close();
-
-}
-/* =========================================================
-   READY STORE ALL ATTEMPTS DRILLDOWN
-========================================================= */
-function openReadyStoreDetails(store){
-
-    const orders = filteredData
-        .filter(row => {
-            return (
-                row.__status === "READY" &&
-                row.__darkstore === store
-            );
-        })
-        .sort((a,b) =>
-            Number(a.__attempts) -
-            Number(b.__attempts)
-        );
-
-    if(!orders.length){
-        alert("No READY orders found for this darkstore.");
-        return;
-    }
-
-    function getOrderAWB(row){
-        return (
-            cleanText(row["Order AWB"]) ||
-            cleanText(row["AWB"]) ||
-            cleanText(row["AWB Number"]) ||
-            cleanText(row["AWB No"]) ||
-            cleanText(row["Shipment AWB"]) ||
-            cleanText(row["Tracking Number"]) ||
-            cleanText(row["Tracking ID"]) ||
-            "-"
-        );
-    }
-
-    const attemptCounts = {
-        0:0,
-        1:0,
-        2:0,
-        3:0,
-        4:0
-    };
-
-    orders.forEach(row => {
-
-        const attempt = Number(row.__attempts);
-
-        if(
-            Number.isInteger(attempt) &&
-            attempt >= 0 &&
-            attempt <= 4
-        ){
-            attemptCounts[attempt]++;
-        }
-    });
-
-    const newTab = window.open("", "_blank");
-
-    if(!newTab){
+    const tab = window.open("", "_blank");
+    if(!tab){
         alert("Popup blocked. Please allow popups for this page.");
         return;
     }
 
-    newTab.document.title =
-        store + " - READY Orders";
+    const doc = tab.document;
+    doc.title = title;
 
-    const style =
-        newTab.document.createElement("style");
-
+    const style = doc.createElement("style");
     style.textContent = `
-        *{
-            box-sizing:border-box;
-            margin:0;
-            padding:0;
-        }
-
-        body{
-            font-family:Inter,Segoe UI,Arial,sans-serif;
-            background:#07111f;
-            color:#eef6ff;
-            min-height:100vh;
-            padding:30px;
-        }
-
-        .container{
-            max-width:1200px;
-            margin:auto;
-        }
-
-        .header{
-            background:#0d1b2a;
-            border:1px solid rgba(255,255,255,.10);
-            border-radius:18px;
-            padding:24px;
-            margin-bottom:20px;
-        }
-
-        .header h1{
-            font-size:24px;
-            margin-bottom:8px;
-        }
-
-        .header h1 span{
-            color:#38bdf8;
-        }
-
-        .meta{
-            color:#91a4b7;
-            font-size:14px;
-        }
-
-        .summary{
-            display:grid;
-            grid-template-columns:repeat(6,1fr);
-            gap:12px;
-            margin-bottom:20px;
-        }
-
-        .card{
-            background:#0d1b2a;
-            border:1px solid rgba(255,255,255,.10);
-            border-radius:14px;
-            padding:16px;
-        }
-
-        .label{
-            color:#91a4b7;
-            font-size:10px;
-            text-transform:uppercase;
-            font-weight:800;
-        }
-
-        .value{
-            font-size:20px;
-            font-weight:900;
-            margin-top:8px;
-        }
-
-        .table-panel{
-            background:#0d1b2a;
-            border:1px solid rgba(255,255,255,.10);
-            border-radius:18px;
-            padding:18px;
-        }
-
-        table{
-            width:100%;
-            border-collapse:collapse;
-        }
-
-        th{
-            background:#10263a;
-            color:#cdefff;
-            text-align:left;
-            padding:12px;
-            font-size:11px;
-            text-transform:uppercase;
-        }
-
-        td{
-            padding:12px;
-            border-bottom:1px solid rgba(255,255,255,.06);
-            font-size:13px;
-        }
-
-        tbody tr:hover{
-            background:rgba(56,189,248,.06);
-        }
-
-        .attempt-badge{
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            min-width:34px;
-            padding:5px 9px;
-            background:rgba(56,189,248,.14);
-            color:#7dd3fc;
-            border:1px solid rgba(56,189,248,.25);
-            border-radius:20px;
-            font-size:11px;
-            font-weight:900;
-        }
-
-        .footer{
-            text-align:center;
-            color:#91a4b7;
-            padding:25px 10px;
-            font-size:12px;
-        }
-
-        @media(max-width:900px){
-            .summary{
-                grid-template-columns:repeat(2,1fr);
-            }
-        }
-
-        @media(max-width:600px){
-            body{
-                padding:14px;
-            }
-
-            .summary{
-                grid-template-columns:1fr;
-            }
-        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#F4F6F1;color:#1F2937;padding:28px}
+        .wrap{max-width:1300px;margin:auto}
+        .head{background:#fff;border:1px solid #E5E7EB;border-radius:16px;padding:22px;margin-bottom:16px}
+        .head h1{font-size:22px} .head h1 span{color:#2563EB}
+        .meta{color:#64748B;font-size:13px;margin-top:6px}
+        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+        .card{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:14px}
+        .label{color:#64748B;font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:.4px}
+        .value{font-size:20px;font-weight:900;margin-top:6px;word-break:break-word}
+        .panel{background:#fff;border:1px solid #E5E7EB;border-radius:16px;padding:16px}
+        .actions{display:flex;justify-content:flex-end;margin-bottom:12px}
+        .dl{border:none;border-radius:10px;padding:10px 16px;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-weight:800;cursor:pointer}
+        .tw{overflow:auto}
+        table{width:100%;border-collapse:collapse}
+        th{background:#F3F4F6;color:#374151;text-align:left;padding:10px;font-size:11px;text-transform:uppercase;white-space:nowrap;position:sticky;top:0}
+        td{padding:9px 10px;border-bottom:1px solid #E5E7EB;font-size:12.5px;white-space:nowrap}
+        tbody tr:hover{background:#F8FAFC}
+        .foot{text-align:center;color:#64748B;padding:22px 10px;font-size:12px}
     `;
+    doc.head.appendChild(style);
 
-    newTab.document.head.appendChild(style);
+    const el = (tag, cls, text) => {
+        const n = doc.createElement(tag);
+        if(cls) n.className = cls;
+        if(text !== undefined) n.textContent = text;
+        return n;
+    };
 
-    const container =
-        newTab.document.createElement("div");
+    const wrap = el("div","wrap");
 
-    container.className = "container";
+    const head = el("div","head");
+    const h1 = el("h1");
+    h1.appendChild(el("span","", "SASA"));
+    h1.appendChild(doc.createTextNode(" " + title));
+    head.appendChild(h1);
+    head.appendChild(el("div","meta", subtitle));
+    wrap.appendChild(head);
 
-    const header =
-        newTab.document.createElement("div");
-
-    header.className = "header";
-
-    const title =
-        newTab.document.createElement("h1");
-
-    const sasaSpan =
-        newTab.document.createElement("span");
-
-    sasaSpan.textContent = "SASA";
-
-    title.appendChild(sasaSpan);
-
-    title.appendChild(
-        newTab.document.createTextNode(
-            " READY Store Order Details"
-        )
-    );
-
-    const meta =
-        newTab.document.createElement("div");
-
-    meta.className = "meta";
-
-    meta.textContent =
-        "All READY orders for " + store;
-
-    header.appendChild(title);
-    header.appendChild(meta);
-
-    container.appendChild(header);
-
-    const summary =
-        newTab.document.createElement("div");
-
-    summary.className = "summary";
-
-    const summaryData = [
-        ["Total READY", orders.length],
-        ["0 Attempts", attemptCounts[0]],
-        ["1 Attempt", attemptCounts[1]],
-        ["2 Attempts", attemptCounts[2]],
-        ["3 Attempts", attemptCounts[3]],
-        ["4 Attempts", attemptCounts[4]]
-    ];
-
-    summaryData.forEach(item => {
-
-        const card =
-            newTab.document.createElement("div");
-
-        card.className = "card";
-
-        const label =
-            newTab.document.createElement("div");
-
-        label.className = "label";
-        label.textContent = item[0];
-
-        const value =
-            newTab.document.createElement("div");
-
-        value.className = "value";
-        value.textContent = item[1];
-
-        card.appendChild(label);
-        card.appendChild(value);
-
-        summary.appendChild(card);
+    const cardBox = el("div","cards");
+    cards.forEach(([label, value]) => {
+        const c = el("div","card");
+        c.appendChild(el("div","label", label));
+        c.appendChild(el("div","value", String(value)));
+        cardBox.appendChild(c);
     });
+    wrap.appendChild(cardBox);
 
-    container.appendChild(summary);
+    const panel = el("div","panel");
+    const actions = el("div","actions");
+    const dl = el("button","dl","Download CSV");
+    dl.type = "button";
+    actions.appendChild(dl);
+    panel.appendChild(actions);
 
-    const tablePanel =
-        newTab.document.createElement("div");
+    const header = ["#", ...DRILLDOWN_COLUMNS.map(c => c[0])];
+    const rows = orders.map((r,i) => [i+1, ...DRILLDOWN_COLUMNS.map(c => c[1](r))]);
 
-    tablePanel.className = "table-panel";
-
-    const tableActions =
-        newTab.document.createElement("div");
-
-    tableActions.className = "table-actions";
-
-    const downloadButton =
-        newTab.document.createElement("button");
-
-    downloadButton.type = "button";
-    downloadButton.className = "download-btn";
-    downloadButton.textContent = "Download Excel";
-
-    tableActions.appendChild(downloadButton);
-    tablePanel.appendChild(tableActions);
-
-    const table =
-        newTab.document.createElement("table");
-
-    const thead =
-        newTab.document.createElement("thead");
-
-    const headRow =
-        newTab.document.createElement("tr");
-
-    [
-        "#",
-        "Order AWB",
-        "No. of Attempts"
-    ].forEach(text => {
-
-        const th =
-            newTab.document.createElement("th");
-
-        th.textContent = text;
-
-        headRow.appendChild(th);
-    });
-
-    thead.appendChild(headRow);
+    const table = el("table");
+    const thead = el("thead");
+    const htr = el("tr");
+    header.forEach(h => htr.appendChild(el("th","", h)));
+    thead.appendChild(htr);
     table.appendChild(thead);
 
-    const tbody =
-        newTab.document.createElement("tbody");
-
-    orders.forEach((row,index) => {
-
-        const tr =
-            newTab.document.createElement("tr");
-
-        const tdIndex =
-            newTab.document.createElement("td");
-
-        tdIndex.textContent = index + 1;
-
-        const tdAwb =
-            newTab.document.createElement("td");
-
-        tdAwb.textContent =
-            getOrderAWB(row);
-
-        const tdAttempt =
-            newTab.document.createElement("td");
-
-        const badge =
-            newTab.document.createElement("span");
-
-        badge.className = "attempt-badge";
-
-        badge.textContent =
-            Number(row.__attempts);
-
-        tdAttempt.appendChild(badge);
-
-        tr.appendChild(tdIndex);
-        tr.appendChild(tdAwb);
-        tr.appendChild(tdAttempt);
-
+    const tbody = el("tbody");
+    rows.forEach(r => {
+        const tr = el("tr");
+        r.forEach(v => tr.appendChild(el("td","", String(v ?? ""))));
         tbody.appendChild(tr);
     });
-
     table.appendChild(tbody);
-    tablePanel.appendChild(table);
-    container.appendChild(tablePanel);
 
-    downloadButton.addEventListener("click", () => {
+    const tw = el("div","tw");
+    tw.appendChild(table);
+    panel.appendChild(tw);
+    wrap.appendChild(panel);
 
-        const excelRows = orders.map((row,index) => ({
-            "S.No.": index + 1,
-            "Darkstore": store,
-            "Order AWB": getOrderAWB(row),
-            "No. of Attempts": Number(row.__attempts)
-        }));
+    wrap.appendChild(el("div","foot","Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee"));
+    doc.body.appendChild(wrap);
 
-        let csvContent =
-            "\uFEFF" +
-            [
-                [
-                    "S.No.",
-                    "Darkstore",
-                    "Order AWB",
-                    "No. of Attempts"
-                ],
+    dl.addEventListener("click", () => downloadCSVFromRows(header, rows, fileName, doc));
+}
 
-                ...excelRows.map(item => [
-                    item["S.No."],
-                    item["Darkstore"],
-                    item["Order AWB"],
-                    item["No. of Attempts"]
-                ])
+function safeFileName(s){
+    return String(s).replace(/[^\w.-]+/g,"_");
+}
 
-            ]
-            .map(row =>
-                row.map(value =>
-                    `"${String(value ?? "")
-                        .replace(/"/g,'""')}"`
-                ).join(",")
-            )
-            .join("\n");
+function openReadyAWBDetails(store, bucket){
+    const orders = filteredData.filter(r =>
+        isReady(r) && r.__darkstore === store && attemptBucket(r.__attempts) === bucket);
 
-        const blob = new Blob(
-            [csvContent],
-            {
-                type:"text/csv;charset=utf-8;"
-            }
-        );
-
-        const url =
-            URL.createObjectURL(blob);
-
-        const link =
-            newTab.document.createElement("a");
-
-        link.href = url;
-
-        link.download =
-            `${store}_READY_Orders.csv`;
-
-        newTab.document.body.appendChild(link);
-
-        link.click();
-
-        link.remove();
-
-        URL.revokeObjectURL(url);
+    openOrdersTab({
+        title:"READY Order Details",
+        subtitle:"From READY Pendency Bifurcation",
+        cards:[["Darkstore", store], ["No. of Attempts", bucket], ["READY Orders", formatNumber(orders.length)]],
+        orders,
+        fileName:`${safeFileName(store)}_READY_${bucket}_attempts.csv`
     });
-
-    const footer =
-        newTab.document.createElement("div");
-
-    footer.className = "footer";
-
-    footer.textContent =
-        "Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee";
-
-    container.appendChild(footer);
-
-    newTab.document.body.appendChild(container);
 }
 
-/* =========================================================
-   PENDING AGING CHART
-========================================================= */
-function renderAgingChart(){
+function openReadyStoreDetails(store){
+    const orders = filteredData
+        .filter(r => isReady(r) && r.__darkstore === store)
+        .sort((a,b) => a.__attempts - b.__attempts);
 
-    destroyChart("aging");
+    const counts = Object.fromEntries(ATTEMPT_BUCKETS.map(b => [b,0]));
+    orders.forEach(r => counts[attemptBucket(r.__attempts)]++);
 
-    const buckets = {
-        "0-1 Day":0,
-        "1-2 Days":0,
-        "2-3 Days":0,
-        "3-5 Days":0,
-        "5+ Days":0
-    };
-
-    const now = new Date();
-
-    filteredData
-        .filter(isPending)
-        .forEach(row => {
-
-            if(!row.__creationDate) return;
-
-            const days =
-                (now-row.__creationDate)/86400000;
-
-            if(days < 1)
-                buckets["0-1 Day"]++;
-
-            else if(days < 2)
-                buckets["1-2 Days"]++;
-
-            else if(days < 3)
-                buckets["2-3 Days"]++;
-
-            else if(days < 5)
-                buckets["3-5 Days"]++;
-
-            else
-                buckets["5+ Days"]++;
-        });
-
-    charts.aging = new Chart(
-        document.getElementById("agingChart"),
-        {
-            type:"bar",
-
-            data:{
-                labels:Object.keys(buckets),
-
-                datasets:[{
-                    label:"Pending Orders",
-                    data:Object.values(buckets),
-
-                    backgroundColor:[
-                        "#22c55e",
-                        "#84cc16",
-                        "#f59e0b",
-                        "#f97316",
-                        "#ef4444"
-                    ]
-                }]
-            },
-
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-
-                plugins:{
-                    legend:{
-                        display:false
-                    },
-
-                    datalabels:{
-                        color:"#fff",
-                        anchor:"end",
-                        align:"top",
-                        font:{
-                            weight:"bold"
-                        }
-                    }
-                },
-
-                scales:commonScales
-            }
-        }
-    );
+    openOrdersTab({
+        title:"READY Store Order Details",
+        subtitle:`All READY orders for ${store}`,
+        cards:[["Total READY", formatNumber(orders.length)], ...ATTEMPT_BUCKETS.map(b => [`${b} Attempts`, counts[b]])],
+        orders,
+        fileName:`${safeFileName(store)}_READY_Orders.csv`
+    });
 }
 
-/* =========================================================
-   TAT CHART
-========================================================= */
-function renderTatChart(){
+function openOrderAgeingDetails(store, ageing){
+    const orders = filteredData.filter(r =>
+        isAgeingRow(r) && r.__darkstore === store && r.__ageing === ageing);
 
-    destroyChart("tat");
-
-    const buckets = {
-        "0-6h":0,
-        "6-12h":0,
-        "12-24h":0,
-        "1-2 Days":0,
-        "2-3 Days":0,
-        "3+ Days":0
-    };
-
-    filteredData
-        .filter(isDelivered)
-        .forEach(row => {
-
-            const h = row.__tat;
-
-            if(h === null) return;
-
-            if(h < 6)
-                buckets["0-6h"]++;
-
-            else if(h < 12)
-                buckets["6-12h"]++;
-
-            else if(h < 24)
-                buckets["12-24h"]++;
-
-            else if(h < 48)
-                buckets["1-2 Days"]++;
-
-            else if(h < 72)
-                buckets["2-3 Days"]++;
-
-            else
-                buckets["3+ Days"]++;
-        });
-
-    charts.tat = new Chart(
-        document.getElementById("tatChart"),
-        {
-            type:"bar",
-
-            data:{
-                labels:Object.keys(buckets),
-
-                datasets:[{
-                    label:"Delivered Orders",
-                    data:Object.values(buckets),
-                    backgroundColor:"#06b6d4"
-                }]
-            },
-
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-
-                plugins:{
-                    legend:{
-                        display:false
-                    },
-
-                    datalabels:{
-                        color:"#fff",
-                        anchor:"end",
-                        align:"top",
-                        font:{
-                            weight:"bold"
-                        }
-                    }
-                },
-
-                scales:commonScales
-            }
-        }
-    );
+    openOrdersTab({
+        title:"Order Ageing Details",
+        subtitle:"READY orders with 0 attempts",
+        cards:[["Darkstore", store], ["Ageing (days)", ageing], ["Orders", formatNumber(orders.length)]],
+        orders,
+        fileName:`${safeFileName(store)}_Ageing_${ageing}d.csv`
+    });
 }
 
 /* =========================================================
    TABLE RENDERING
 ========================================================= */
 function performanceBadge(value){
-
-    if(value >= 90)
-        return `<span class="badge badge-green">${safeFixed(value,1)}%</span>`;
-
-    if(value >= 75)
-        return `<span class="badge badge-orange">${safeFixed(value,1)}%</span>`;
-
-    return `<span class="badge badge-red">${safeFixed(value,1)}%</span>`;
+    const cls = value >= 90 ? "badge-green" : value >= 75 ? "badge-orange" : "badge-red";
+    return `<span class="badge ${cls}">${safeFixed(value,1)}%</span>`;
 }
 
 function rtoBadge(value){
-
-    if(value <= 5)
-        return `<span class="badge badge-green">${safeFixed(value,1)}%</span>`;
-
-    if(value <= 10)
-        return `<span class="badge badge-orange">${safeFixed(value,1)}%</span>`;
-
-    return `<span class="badge badge-red">${safeFixed(value,1)}%</span>`;
+    const cls = value <= 5 ? "badge-green" : value <= 10 ? "badge-orange" : "badge-red";
+    return `<span class="badge ${cls}">${safeFixed(value,1)}%</span>`;
 }
 
-function renderStoreTable(){
+function sortRows(data, { key, dir }){
+    const m = dir === "asc" ? 1 : -1;
+    return data.sort((a,b) => {
+        if(typeof a[key] === "number") return (a[key] - b[key]) * m;
+        return String(a[key]).localeCompare(String(b[key])) * m;
+    });
+}
 
-    const query =
-        document.getElementById("storeSearch")
-        .value.toLowerCase();
+function updateSortArrows(tableId){
+    const { key, dir } = sortState[tableId];
+    document.querySelectorAll(`#${tableId} th[data-key]`).forEach(th => {
+        const old = th.querySelector(".sort-arrow");
+        if(old) old.remove();
+        if(th.dataset.key === key){
+            const s = document.createElement("span");
+            s.className = "sort-arrow";
+            s.textContent = dir === "asc" ? "▲" : "▼";
+            th.appendChild(s);
+        }
+    });
+}
 
-    const data =
-        [...storeAnalytics]
-        .filter(x =>
-            x.name.toLowerCase().includes(query)
-        )
-        .sort((a,b) => b.total-a.total);
-
-    const tbody =
-        document.querySelector("#storeTable tbody");
-
-    tbody.innerHTML = data.map(x => `
+function groupRowHtml(x){
+    return `
         <tr>
             <td><strong>${escapeHtml(x.name)}</strong></td>
             <td>${formatNumber(x.total)}</td>
@@ -3483,59 +1807,32 @@ function renderStoreTable(){
             <td>${formatNumber(x.rto)}</td>
             <td>${rtoBadge(x.rtoPct)}</td>
             <td>${formatNumber(x.ready)}</td>
-            
             <td>${safeFixed(x.avgTat,1)}h</td>
-        </tr>
-    `).join("");
+        </tr>`;
 }
 
-function renderBrandTable(){
-
-    const query =
-        document.getElementById("brandSearch")
-        .value.toLowerCase();
-
-    const data =
-        [...brandAnalytics]
-        .filter(x =>
-            x.name.toLowerCase().includes(query)
-        )
-        .sort((a,b) => b.total-a.total);
-
-    const tbody =
-        document.querySelector("#brandTable tbody");
-
-    tbody.innerHTML = data.map(x => `
-        <tr>
-            <td><strong>${escapeHtml(x.name)}</strong></td>
-            <td>${formatNumber(x.total)}</td>
-            <td>${formatNumber(x.delivered)}</td>
-            <td>${performanceBadge(x.deliveryPct)}</td>
-            <td>${formatNumber(x.rto)}</td>
-            <td>${rtoBadge(x.rtoPct)}</td>
-            <td>${formatNumber(x.ready)}</td>
-            
-            <td>${safeFixed(x.avgTat,1)}h</td>
-        </tr>
-    `).join("");
+function renderGroupTable(tableId, searchId, source){
+    const query = document.getElementById(searchId).value.toLowerCase();
+    const data = sortRows(
+        source.filter(x => x.name.toLowerCase().includes(query)),
+        sortState[tableId]
+    );
+    document.querySelector(`#${tableId} tbody`).innerHTML = data.map(groupRowHtml).join("");
+    updateSortArrows(tableId);
 }
+
+function renderStoreTable(){ renderGroupTable("storeTable","storeSearch",storeAnalytics); }
+function renderBrandTable(){ renderGroupTable("brandTable","brandSearch",brandAnalytics); }
 
 function renderRiderTable(){
+    const query = document.getElementById("riderSearch").value.toLowerCase();
 
-    const query =
-        document.getElementById("riderSearch")
-        .value.toLowerCase();
+    const data = riderAnalytics.filter(x =>
+        x.name.toLowerCase().includes(query) ||
+        x.riderId.toLowerCase().includes(query)
+    );
 
-    const data =
-        riderAnalytics.filter(x =>
-            x.name.toLowerCase().includes(query) ||
-            x.riderId.toLowerCase().includes(query)
-        );
-
-    const tbody =
-        document.querySelector("#riderTable tbody");
-
-    tbody.innerHTML = data.map(x => `
+    document.querySelector("#riderTable tbody").innerHTML = data.map(x => `
         <tr>
             <td><strong>${escapeHtml(x.name)}</strong></td>
             <td>${escapeHtml(x.riderId)}</td>
@@ -3543,194 +1840,93 @@ function renderRiderTable(){
             <td>${formatNumber(x.delivered)}</td>
             <td>${performanceBadge(x.deliveryPct)}</td>
             <td>${formatNumber(x.rto)}</td>
-            
+            <td>${formatNumber(x.attempted)}</td>
             <td>${safeFixed(x.avgAttempts,2)}</td>
         </tr>
     `).join("");
 }
 
-function escapeHtml(value){
-
-    return String(value ?? "")
-        .replace(/&/g,"&amp;")
-        .replace(/</g,"&lt;")
-        .replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;")
-        .replace(/'/g,"&#039;");
-}
-
 /* =========================================================
-   SEARCH
+   SEARCH + SORTING
 ========================================================= */
-document.getElementById("storeSearch")
-.addEventListener("input",renderStoreTable);
+document.getElementById("storeSearch").addEventListener("input",renderStoreTable);
+document.getElementById("brandSearch").addEventListener("input",renderBrandTable);
+document.getElementById("riderSearch").addEventListener("input",renderRiderTable);
 
-document.getElementById("brandSearch")
-.addEventListener("input",renderBrandTable);
-
-document.getElementById("riderSearch")
-.addEventListener("input",renderRiderTable);
-
-/* =========================================================
-   TABLE SORTING
-========================================================= */
-document.querySelectorAll(
-    "#storeTable th[data-key], #brandTable th[data-key]"
-).forEach(th => {
-
+document.querySelectorAll("#storeTable th[data-key], #brandTable th[data-key]").forEach(th => {
     th.addEventListener("click", () => {
+        const tableId = th.closest("table").id;
+        const key = th.dataset.key;
+        const state = sortState[tableId];
 
-        const tableId =
-            th.closest("table").id;
+        if(state.key === key){
+            state.dir = state.dir === "desc" ? "asc" : "desc";
+        }else{
+            state.key = key;
+            state.dir = key === "name" ? "asc" : "desc";
+        }
 
-        const key =
-            th.dataset.key;
-
-        const source =
-            tableId === "storeTable"
-                ? storeAnalytics
-                : brandAnalytics;
-
-        source.sort((a,b) => {
-
-            if(typeof a[key] === "number")
-                return b[key]-a[key];
-
-            return String(a[key])
-                .localeCompare(String(b[key]));
-        });
-
-        if(tableId === "storeTable")
-            renderStoreTable();
-
-        else
-            renderBrandTable();
+        tableId === "storeTable" ? renderStoreTable() : renderBrandTable();
     });
 });
 
 /* =========================================================
-   DOWNLOAD FILTERED CSV
+   DOWNLOADS
 ========================================================= */
-function downloadFilteredCSV(){
+function stripHelpers(row){
+    const obj = {};
+    Object.keys(row).forEach(key => {
+        if(!key.startsWith("__")) obj[key] = row[key];
+    });
+    return obj;
+}
 
+function downloadFilteredCSV(){
     if(!filteredData.length){
         alert("No filtered data available.");
         return;
     }
 
-    const cleaned = filteredData.map(row => {
-
-        const obj = {};
-
-        Object.keys(row).forEach(key => {
-            if(!key.startsWith("__")){
-                obj[key] = row[key];
-            }
-        });
-
-        return obj;
-    });
-
-    const csv = Papa.unparse(cleaned);
-
-    const blob = new Blob(
-        [csv],
-        {type:"text/csv;charset=utf-8;"}
-    );
-
+    const csv = Papa.unparse(filteredData.map(stripHelpers));
+    const blob = new Blob(["\uFEFF" + csv], { type:"text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
-
     a.href = url;
-    a.download =
-        `SASA_Filtered_Shipments_${Date.now()}.csv`;
-
+    a.download = `SASA_Filtered_Shipments_${Date.now()}.csv`;
+    document.body.appendChild(a);
     a.click();
-
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
+
+function downloadXLSX(rows, sheetName, fileName){
+    const ws = XLSX.utils.json_to_sheet(rows.map(stripHelpers));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, fileName);
+}
+
 function downloadReadyOrdersExcel(){
-
-    const readyRows = filteredData.filter(row =>
-        row.__status === "READY"
-    );
-
-    if(!readyRows.length){
+    const rows = filteredData.filter(isReady);
+    if(!rows.length){
         alert("No READY orders found.");
         return;
     }
-
-    // Remove helper (__...) columns
-    const exportRows = readyRows.map(row => {
-
-        const obj = {};
-
-        Object.keys(row).forEach(key => {
-
-            if(!key.startsWith("__")){
-                obj[key] = row[key];
-            }
-
-        });
-
-        return obj;
-    });
-
-    const ws = XLSX.utils.json_to_sheet(exportRows);
-    const wb = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        "READY Orders"
-    );
-
-    XLSX.writeFile(
-        wb,
-        "READY_Orders.xlsx"
-    );
+    downloadXLSX(rows, "READY Orders", "READY_Orders.xlsx");
 }
+
 function downloadOrderAgeingExcel(){
-
-    const exportRows = filteredData
-        .filter(row =>
-            row.__status === "READY" &&
-            row.__ageing !== null
-        )
-        .map(row => {
-
-            const obj = {};
-
-            Object.keys(row).forEach(key => {
-                if(!key.startsWith("__")){
-                    obj[key] = row[key];
-                }
-            });
-
-            return obj;
-        });
-
-    if(!exportRows.length){
-        alert("No READY ageing orders found.");
+    // Same population as the Order Ageing table: READY with 0 attempts
+    const rows = filteredData.filter(isAgeingRow);
+    if(!rows.length){
+        alert("No READY orders with 0 attempts found.");
         return;
     }
-
-    const ws = XLSX.utils.json_to_sheet(exportRows);
-    const wb = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(wb, ws, "Order Ageing Raw");
-
-    XLSX.writeFile(
-        wb,
-        "Order_Ageing_Raw.xlsx"
-    );
+    downloadXLSX(rows, "Order Ageing Raw", "Order_Ageing_Raw.xlsx");
 }
-/* =========================================================
-   DOWNLOAD PNG
-========================================================= */
-async function downloadDashboardPNG(){
 
+async function downloadDashboardPNG(){
     if(!rawData.length){
         alert("Please upload a CSV file first.");
         return;
@@ -3739,33 +1935,22 @@ async function downloadDashboardPNG(){
     showLoader("Creating dashboard PNG...");
 
     try{
-
-        const canvas = await html2canvas(
-            document.getElementById("dashboard"),
-            {
-                scale:1.5,
-                backgroundColor:"#07111f",
-                useCORS:true
-            }
-        );
+        const canvas = await html2canvas(document.getElementById("dashboard"), {
+            scale:1.5,
+            backgroundColor:"#EEF1E8",
+            useCORS:true
+        });
 
         const link = document.createElement("a");
-
-        link.download =
-            `SASA_Shipment_Dashboard_${Date.now()}.png`;
-
+        link.download = `SASA_Shipment_Dashboard_${Date.now()}.png`;
         link.href = canvas.toDataURL("image/png");
-
+        document.body.appendChild(link);
         link.click();
-
+        link.remove();
     }catch(error){
-
         console.error(error);
-
         alert("PNG generation failed.");
-
     }finally{
-
         hideLoader();
     }
 }
