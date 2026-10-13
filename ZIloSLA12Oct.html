@@ -540,10 +540,16 @@ function computeStore(store, rawRows, reportDate){
             });
         }
 
-        // Forward riders (not in Excel – manual there)
-        const mv = String(row["Movement Type"] ?? "").trim().toUpperCase();
+    // Forward riders: zilo + completed + FORWARD + Rider ID, by CREATION DATE (includes Omni riders)
+    rawRows.forEach(row => {
+        const channel = String(row["Channel"] ?? "").trim().toUpperCase();
+        const status  = String(row["Status"] ?? "").trim().toUpperCase();
+        if (channel !== "ZILO" || status !== "COMPLETED") return;
+        if (!sameDay(toDate(row["Creation Date"]), reportDate)) return;
+        const mv  = String(row["Movement Type"] ?? "").trim().toUpperCase();
         const rid = String(row["Rider ID"] ?? "").trim();
         if (mv === "FORWARD" && rid !== "") res.riders.add(rid);
+    });
 
         // "<Store> B" sheet: FILTER(BC="Breach", AX="NONE", CDR ID not blank) – any fulfillment status
         if (d.BC === "Breach" && isNone && d.hasCDR) {
