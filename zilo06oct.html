@@ -953,7 +953,8 @@ function fillHourlyTable(results){
         return `<td>${d.total}</td><td>${d.delivered}</td><td>${d.breach}</td><td>${pct(d.breach, d.delivered)}</td>`;
     }
 
-    for (let h = 7; h <= lastHour; h++){
+    // Start from bucket 8 so the first row is labelled 07:00–08:00
+    for (let h = 8; h <= lastHour; h++){
         const tr = document.createElement("tr");
         // CHANGED: numbers stay in bucket h (h:00–h+1:00, same as Excel),
         // but the row is LABELLED one hour earlier: bucket 08:00–09:00 shows as 07:00–08:00
