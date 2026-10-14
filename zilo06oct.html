@@ -233,8 +233,8 @@ input[data-dirty="1"]{
 <!-- NEW: riders bucketed by orders-to-rider (OTR). Labels are filled from OTR_BANDS in the script. -->
 <tr class="row-yellow"><td>12.2</td><td class="left" id="otrLabelHigh">Rider &gt;= 10 OTR</td><td id="gOtrHigh">--</td><td id="mOtrHigh">--</td><td id="vOtrHigh">--</td></tr>
 <tr class="row-yellow"><td>12.3</td><td class="left" id="otrLabelMid">Rider 5 &lt;= OTR &lt; 10</td><td id="gOtrMid">--</td><td id="mOtrMid">--</td><td id="vOtrMid">--</td></tr>
-<tr class="row-yellow"><td>12.4</td><td class="left" id="otrLabelLow">Rider &lt; 5 OTR</td><td id="gOtrLow">--</td><td id="mOtrLow">--</td><td id="vOtrLow">--</td></tr>
-<tr class="row-yellow"><td>12.5</td><td class="left" id="otrLabelVeryLow">Rider &lt;= 3 OTR</td><td id="gOtrVeryLow">--</td><td id="mOtrVeryLow">--</td><td id="vOtrVeryLow">--</td></tr>
+<tr class="row-yellow"><td>12.4</td><td class="left" id="otrLabelLow">Rider 3 &lt;= OTR &lt; 5</td><td id="gOtrLow">--</td><td id="mOtrLow">--</td><td id="vOtrLow">--</td></tr>
+<tr class="row-yellow"><td>12.5</td><td class="left" id="otrLabelVeryLow">Rider &lt; 3 OTR</td><td id="gOtrVeryLow">--</td><td id="mOtrVeryLow">--</td><td id="vOtrVeryLow">--</td></tr>
 
 <tr class="row-yellow">
     <td>12.6</td><td class="left">Projected Pickup Rider</td>
@@ -353,8 +353,9 @@ const HOURS  = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];   // Report rows 
    any order type incl. RTO legs). Change the numbers here to move a boundary.
      12.2  OTR >= high
      12.3  low <= OTR < high
-     12.4  OTR <  low
-     12.5  OTR <= veryLow   (a subset of 12.4)                                  */
+     12.4  veryLow <= OTR < low
+     12.5  OTR <  veryLow
+   Each rider lands in exactly one row, so 12.2 + 12.3 + 12.4 + 12.5 = riders counted.                                  */
 const OTR_BANDS = { high: 10, low: 5, veryLow: 3 };
 
 /* AV – Service Duration: pincode lists copied from each store sheet's formula.
@@ -563,8 +564,8 @@ function bucketOTR(otr){
     otr.forEach(n => {
         if (n >= OTR_BANDS.high)     out.high++;
         else if (n >= OTR_BANDS.low) out.mid++;
-        else                         out.low++;
-        if (n <= OTR_BANDS.veryLow)  out.veryLow++;
+        else if (n >= OTR_BANDS.veryLow) out.low++;
+        else                         out.veryLow++;
     });
     return out;
 }
@@ -947,11 +948,11 @@ function renderKPITable(results){
         const riderCount = r.riders.size;
         set(p+"Riders", riderCount);
 
-        // Rows 12.2–12.5: riders per OTR band, % of riders in the OTR pivot
-        set(p+"OtrHigh",    withPct(r.otr.high,    r.otr.riders));
-        set(p+"OtrMid",     withPct(r.otr.mid,     r.otr.riders));
-        set(p+"OtrLow",     withPct(r.otr.low,     r.otr.riders));
-        set(p+"OtrVeryLow", withPct(r.otr.veryLow, r.otr.riders));
+        // Rows 12.2–12.5: riders per OTR band (count only)
+        set(p+"OtrHigh",    r.otr.high);
+        set(p+"OtrMid",     r.otr.mid);
+        set(p+"OtrLow",     r.otr.low);
+        set(p+"OtrVeryLow", r.otr.veryLow);
 
         const projOrder = parseFloat(document.getElementById(p+"ProjOrder").innerText);
         set(p+"Attain", (isNaN(projOrder) || projOrder === 0) ? "--" : (r.actual / projOrder * 100).toFixed(0) + "%");
@@ -1191,8 +1192,8 @@ async function copyStore(store, button){
     const b = OTR_BANDS;
     document.getElementById("otrLabelHigh").innerText    = `Rider >= ${b.high} OTR`;
     document.getElementById("otrLabelMid").innerText     = `Rider ${b.low} <= OTR < ${b.high}`;
-    document.getElementById("otrLabelLow").innerText     = `Rider < ${b.low} OTR`;
-    document.getElementById("otrLabelVeryLow").innerText = `Rider <= ${b.veryLow} OTR`;
+    document.getElementById("otrLabelLow").innerText     = `Rider ${b.veryLow} <= OTR < ${b.low}`;
+    document.getElementById("otrLabelVeryLow").innerText = `Rider < ${b.veryLow} OTR`;
 })();
 
 /* Mark 12.7 / 12.9 as user-edited so Generate stops overwriting them */
