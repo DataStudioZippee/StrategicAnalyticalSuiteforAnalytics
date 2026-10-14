@@ -697,7 +697,7 @@ function updateDateTime(){
     let h = now.getHours();
     const ampm = h >= 12 ? "PM" : "AM";
     h = h % 12 || 12;
-    const timeStr = h + " " + ampm;
+    const timeStr = h + ":" + String(now.getMinutes()).padStart(2,"0") + " " + ampm;
 
     document.getElementById("date").innerText = dateStr;
     document.getElementById("time").innerText = timeStr;
