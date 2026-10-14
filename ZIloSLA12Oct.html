@@ -421,8 +421,8 @@ function timeValue(text){
 }
 
 function sameDay(a, b){
-    return a && b && a.getFullYear() === b.getFullYear() &&
-           a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    return !!(a && b && a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() && a.getDate() === b.getDate());
 }
 
 /* One raw row -> the mastersheet helper columns */
@@ -496,6 +496,28 @@ const fmtHM = secs => {
 // Excel MOD(later − earlier, 1) * 1440
 const modMins = (later, earlier) => (((later - earlier) % 86400) + 86400) % 86400 / 60;
 
+/* Unique forward riders – MERGED on Creation Date OR Delivery Date.
+   Row qualifies if: Channel = ZILO, Status = COMPLETED, Movement Type = FORWARD,
+   Rider ID not blank, and (Creation Date = report date OR Delivery Date = report date).
+   A Set keeps each Rider ID once, so a rider found on both dates counts once. */
+function collectForwardRiders(rawRows, reportDate){
+    const riders = new Set();
+    rawRows.forEach(row => {
+        const channel = String(row["Channel"] ?? "").trim().toUpperCase();
+        const status  = String(row["Status"] ?? "").trim().toUpperCase();
+        if (channel !== "ZILO" || status !== "COMPLETED") return;
+
+        const byCreation = sameDay(toDate(row["Creation Date"]), reportDate);
+        const byDelivery = sameDay(toDate(row["Delivery Date"]), reportDate);
+        if (!byCreation && !byDelivery) return;
+
+        const mv  = String(row["Movement Type"] ?? "").trim().toUpperCase();
+        const rid = String(row["Rider ID"] ?? "").trim();
+        if (mv === "FORWARD" && rid !== "") riders.add(rid);
+    });
+    return riders;
+}
+
 /* Report-sheet aggregation for one store */
 function computeStore(store, rawRows, reportDate){
     const rows = rawRows.filter(r => inScope(r, reportDate));
@@ -540,17 +562,6 @@ function computeStore(store, rawRows, reportDate){
             });
         }
 
-    // Forward riders: zilo + completed + FORWARD + Rider ID, by CREATION DATE (includes Omni riders)
-    rawRows.forEach(row => {
-        const channel = String(row["Channel"] ?? "").trim().toUpperCase();
-        const status  = String(row["Status"] ?? "").trim().toUpperCase();
-        if (channel !== "ZILO" || status !== "COMPLETED") return;
-        if (!sameDay(toDate(row["Creation Date"]), reportDate)) return;
-        const mv  = String(row["Movement Type"] ?? "").trim().toUpperCase();
-        const rid = String(row["Rider ID"] ?? "").trim();
-        if (mv === "FORWARD" && rid !== "") res.riders.add(rid);
-    });
-
         // "<Store> B" sheet: FILTER(BC="Breach", AX="NONE", CDR ID not blank) – any fulfillment status
         if (d.BC === "Breach" && isNone && d.hasCDR) {
             const X = secsOfDay(row["Manifested Time"]);       // D  Manifest Time
@@ -578,6 +589,9 @@ function computeStore(store, rawRows, reportDate){
             });
         }
     });
+
+    // Forward riders – runs once per store, Creation Date OR Delivery Date (merged)
+    res.riders = collectForwardRiders(rawRows, reportDate);
 
     res.sla15 = res.buckets[60] + res.buckets[90] + res.buckets[120] + res.buckets.Others;
     return res;
@@ -877,6 +891,7 @@ function renderKPITable(results){
         set(p+"DelayOrder", withPct(r.delay, r.actual));
         set(p+"DeepPain",   r.deepPain);
 
+        // Row 12: unique forward riders (Creation Date OR Delivery Date)
         set(p+"Riders", r.riders.size);
 
         const projOrder = parseFloat(document.getElementById(p+"ProjOrder").innerText);
