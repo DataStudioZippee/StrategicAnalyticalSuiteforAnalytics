@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zippee KPI Report</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<style>
+:root{
+    --glass-bg:rgba(255,255,255,0.55);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.18);
+}
+body{
+    margin:0;
+    font-family:"Segoe UI",Arial;
+    background:linear-gradient(135deg,#e8f0fb,#dce9fb 40%,#eef4fc);
+    min-height:100vh;
+}
+.header{
+    background:linear-gradient(90deg,rgba(0,63,140,.95),rgba(0,89,179,.95));
+    color:white;
+    padding:18px;
+    text-align:center;
+}
+.header h1{margin:0;font-size:22px;}
+.header .sub{font-size:13px;opacity:.85;margin-top:4px;}
+.card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(10px);
+    width:fit-content;
+    max-width:96vw;
+    margin:30px auto;
+    padding:26px;
+    border-radius:18px;
+    box-shadow:var(--card-shadow);
+}
+.card h2{text-align:center;margin-top:0;}
+.store-upload-container{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:24px;
+    flex-wrap:wrap;
+}
+.store-upload{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+}
+.store-upload label{font-weight:700;}
+.controls{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:22px 0 4px;
+}
+button{
+    padding:9px 18px;
+    background:#0078ff;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+}
+button:hover{background:#0063d1;}
+button:disabled{background:#9db8d9;cursor:default;}
+.status-line{
+    text-align:center;
+    font-size:13px;
+    color:#333;
+    min-height:18px;
+    margin-top:4px;
+}
+table{
+    width:auto;
+    border-collapse:collapse;
+    background:white;
+    margin:auto;
+}
+th,td{
+    border:1px solid #ddd;
+    padding:8px 12px;
+    font-size:13px;
+    text-align:center;
+    white-space:nowrap;
+}
+th{background:#e6e6e6;}
+.left{
+    text-align:left;
+    white-space:normal;
+    font-weight:600;
+    width:220px;
+    min-width:220px;
+}
+.footer{
+    text-align:center;
+    margin-top:12px;
+    font-weight:700;
+    font-size:13px;
+}
+.overflow-x{overflow-x:auto;max-width:96vw;}
+/* KPI Row Colours */
+.row-yellow td{background:#fff59d !important;}
+.row-green td{background:#c6efce !important;}
+.row-violet td{background:#d9c2f0 !important;}
+.row-brown td{background:#d2b48c !important;}
+.row-skin td{background:#f4d7c3 !important;}
+.row-orange td{background:#f8cbad !important;}
+.placeholder-msg{
+    text-align:center;
+    color:#666;
+    font-style:italic;
+    padding:12px;
+}
+/* Manually overridden rider inputs (12.7 / 12.9) */
+input[data-dirty="1"]{
+    background:#ffffff;
+    border:1px solid #c9a800;
+    box-shadow:0 0 0 2px rgba(201,168,0,.25);
+}
+.download-value.manual-edit{font-weight:700;}
+
+/* Outputs stay hidden until a report is generated, then show on the page */
+#outputs{display:none;}
+#outputs.show{display:block;}
+#downloadAllBtn{background:#16a34a;}
+#downloadAllBtn:hover{background:#15803d;}
+
+/* Hourly Pickup table */
+#pickupTable td.num{font-variant-numeric:tabular-nums;font-weight:600;}
+#pickupTable td.hl-green{background:#c6efce;}
+#pickupTable td.hl-yellow{background:#ffeb9c;}
+#pickupTable tr.total-row td{font-weight:800;background:#e6e6e6;}
+#hourlyTable tr.total-row td{font-weight:800;background:#e6e6e6;}
+.date-pick{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.date-pick label{font-weight:700;}
+
+/* Rider OTR (<5) table — matches the Excel template */
+#otrRiderTable th,#otrRiderTable td{border:1px solid #333;font-size:14px;}
+#otrRiderTable th.otr-title{background:#5ccbf3;font-size:22px;font-weight:800;padding:10px 12px;}
+#otrRiderTable th.otr-band{background:#9ddcf7;font-weight:700;}
+#otrRiderTable th.otr-store{font-weight:800;}
+#otrRiderTable td{min-width:110px;}
+#otrRiderTable td.sno{min-width:70px;}
+#otrRiderTable td.empty-note{color:#666;font-style:italic;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Zippee &lt;&gt; Zilo Report</h1>
+    <div class="sub">Combined KPI + Breach Detail + Hourly Breach + Hourly Pickup + Rider OTR view</div>
+</div>
+
+<!-- ============ CONTROLS ============ -->
+<div class="card">
+
+    <div class="store-upload-container">
+        <div class="date-pick">
+            <label for="reportDate">Report date</label>
+            <input type="date" id="reportDate">
+        </div>
+        <div class="store-upload">
+            <label for="ghatkoparFile">Ghatkopar</label>
+            <input type="file" id="ghatkoparFile" accept=".csv,.xlsx">
+        </div>
+        <div class="store-upload">
+            <label for="maladFile">Malad</label>
+            <input type="file" id="maladFile" accept=".csv,.xlsx">
+        </div>
+        <div class="store-upload">
+            <label for="vashiFile">Vashi</label>
+            <input type="file" id="vashiFile" accept=".csv,.xlsx">
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="genBtn" onclick="generateReport()">Generate Report</button>
+        <button onclick="downloadCard('reportCard','Zippee_KPI_Report.png')">Download KPI Report</button>
+        <button onclick="downloadCard('breachCard','Zippee_Breach_Details.png')">Download Breach Details</button>
+        <button onclick="downloadCard('reportCard2','Zippee_Hourly_Report.png')">Download Hourly Report</button>
+        <button onclick="downloadCard('pickupCard','Zippee_Hourly_Pickup.png')">Download Hourly Pickup</button>
+        <button onclick="downloadCard('otrRiderCard','Zippee_Rider_OTR_Report.png')">Download Rider OTR Report</button>
+        <button id="downloadAllBtn" onclick="downloadAll()">Download All</button>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+
+</div>
+
+<!-- ============ OUTPUTS (shown after Generate Report) ============ -->
+<div id="outputs">
+
+<!-- ============ MAIN KPI CARD ============ -->
+<div class="card overflow-x">
+<div id="reportCard">
+
+    <div style="text-align:center;font-weight:800;margin-bottom:10px;">
+        Zippee &lt;&gt; Zilo SLA Report
+    </div>
+
+    <div style="text-align:center;margin-bottom:10px;">
+        Date: <span id="date"></span> |
+        Time: <span id="time"></span>
+    </div>
+
+<table>
+<tr><th>S. No.</th><th>Key Parameters</th><th>Ghatkopar</th><th>Malad</th><th>Vashi</th></tr>
+
+<tr class="row-yellow"><td>1</td><td class="left">SLA Target</td><td id="gSLA">--</td><td id="mSLA">--</td><td id="vSLA">--</td></tr>
+<tr class="row-yellow"><td>2</td><td class="left">Delay Target</td><td id="gDelay">--</td><td id="mDelay">--</td><td id="vDelay">--</td></tr>
+<tr class="row-yellow"><td>3</td><td class="left">Projected Order</td><td id="gProjOrder">--</td><td id="mProjOrder">--</td><td id="vProjOrder">--</td></tr>
+
+<tr><td>4</td><td class="left">Actual Order</td><td id="gOrders">--</td><td id="mOrders">--</td><td id="vOrders">--</td></tr>
+<tr><td>4.1</td><td class="left">Attainment%</td><td id="gAttain">--</td><td id="mAttain">--</td><td id="vAttain">--</td></tr>
+
+<tr class="row-green"><td>5</td><td class="left">Delivered Order</td><td id="gDelivered">--</td><td id="mDelivered">--</td><td id="vDelivered">--</td></tr>
+
+<tr class="row-violet"><td>6</td><td class="left">RTO Orders</td><td id="gRTO">--</td><td id="mRTO">--</td><td id="vRTO">--</td></tr>
+
+<tr class="row-brown"><td>7</td><td class="left">SLA + 15 min</td><td id="gSLA15">--</td><td id="mSLA15">--</td><td id="vSLA15">--</td></tr>
+<tr class="row-skin"><td>7.1</td><td class="left">SLA %</td><td id="gSLAPct">--</td><td id="mSLAPct">--</td><td id="vSLAPct">--</td></tr>
+<tr class="row-orange"><td>7.2</td><td class="left">60 Min</td><td id="gB60">--</td><td id="mB60">--</td><td id="vB60">--</td></tr>
+<tr class="row-orange"><td>7.3</td><td class="left">90 Min</td><td id="gB90">--</td><td id="mB90">--</td><td id="vB90">--</td></tr>
+<tr class="row-orange"><td>7.4</td><td class="left">120 Min</td><td id="gB120">--</td><td id="mB120">--</td><td id="vB120">--</td></tr>
+<tr class="row-orange"><td>7.5</td><td class="left">Others</td><td id="gBOthers">--</td><td id="mBOthers">--</td><td id="vBOthers">--</td></tr>
+
+<tr class="row-violet"><td>8</td><td class="left">Breach order / %</td><td id="gBreach">--</td><td id="mBreach">--</td><td id="vBreach">--</td></tr>
+<tr class="row-violet"><td>9</td><td class="left">Delay order / %</td><td id="gDelayOrder">--</td><td id="mDelayOrder">--</td><td id="vDelayOrder">--</td></tr>
+<tr class="row-violet"><td>10</td><td class="left">Deep Pain Order</td><td id="gDeepPain">--</td><td id="mDeepPain">--</td><td id="vDeepPain">--</td></tr>
+
+<tr class="row-yellow"><td>11</td><td class="left">Projected Forward Rider</td><td id="gProjRider">--</td><td id="mProjRider">--</td><td id="vProjRider">--</td></tr>
+<tr class="row-yellow"><td>12</td><td class="left">Actual Forward Rider</td><td id="gRiders">--</td><td id="mRiders">--</td><td id="vRiders">--</td></tr>
+<tr class="row-yellow"><td>12.1</td><td class="left">Rider attainment</td><td id="gRiderAttain">--</td><td id="mRiderAttain">--</td><td id="vRiderAttain">--</td></tr>
+
+<!-- NEW: riders bucketed by orders-to-rider (OTR). Labels are filled from OTR_BANDS in the script. -->
+<tr class="row-yellow"><td>12.2</td><td class="left" id="otrLabelHigh">Rider &gt;= 10 OTR</td><td id="gOtrHigh">--</td><td id="mOtrHigh">--</td><td id="vOtrHigh">--</td></tr>
+<tr class="row-yellow"><td>12.3</td><td class="left" id="otrLabelMid">Rider 5 &lt;= OTR &lt; 10</td><td id="gOtrMid">--</td><td id="mOtrMid">--</td><td id="vOtrMid">--</td></tr>
+<tr class="row-yellow"><td>12.4</td><td class="left" id="otrLabelLow">Rider 3 &lt;= OTR &lt; 5</td><td id="gOtrLow">--</td><td id="mOtrLow">--</td><td id="vOtrLow">--</td></tr>
+<tr class="row-yellow"><td>12.5</td><td class="left" id="otrLabelVeryLow">Rider &lt; 3 OTR</td><td id="gOtrVeryLow">--</td><td id="mOtrVeryLow">--</td><td id="vOtrVeryLow">--</td></tr>
+
+<tr class="row-yellow">
+    <td>12.6</td><td class="left">Projected Pickup Rider</td>
+    <td><input type="number" id="gProjPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mProjPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vProjPickupRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.7</td><td class="left">Pickup Rider</td>
+    <td><input type="number" id="gPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vPickupRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.8</td><td class="left">Projected Omni Rider</td>
+    <td><input type="number" id="gProjOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mProjOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vProjOmniRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.9</td><td class="left">Omni Rider</td>
+    <td><input type="number" id="gOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vOmniRider" style="width:60px;text-align:center;"></td>
+</tr>
+
+</table>
+
+<div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+<!-- ============ BREACH DETAIL CARD ============ -->
+<div class="card overflow-x" id="breachCard">
+    <h2>Store Wise Breach Orders</h2>
+    <div id="breachContainer">
+        <div class="placeholder-msg">Upload files and click "Generate Report" to see breach order details.</div>
+    </div>
+</div>
+
+<!-- ============ HOURLY BREACH CARD ============ -->
+<div class="card overflow-x" id="hourlyCardWrapper">
+<div id="reportCard2">
+
+    <div style="text-align:center;margin-bottom:15px;">
+        <div style="font-size:24px;font-weight:800;margin-bottom:6px;">
+            Zippee &lt;&gt; Zilo Hourly Breach Report
+        </div>
+        <div id="reportDateTime" style="font-size:14px;color:#555;font-weight:600;"></div>
+    </div>
+
+    <table id="hourlyTable">
+        <thead>
+            <tr>
+                <th rowspan="2">From</th>
+                <th rowspan="2">To</th>
+                <th colspan="4">Ghatkopar</th>
+                <th colspan="4">Malad</th>
+                <th colspan="4">Vashi</th>
+            </tr>
+            <tr>
+                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
+                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
+                <th>Total</th><th>Delivered</th><th>Breach</th><th>B%</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+<!-- ============ HOURLY PICKUP CARD ============ -->
+<div class="card overflow-x" id="pickupCardWrapper">
+<div id="pickupCard">
+
+    <div style="text-align:center;margin-bottom:15px;">
+        <div style="font-size:24px;font-weight:800;margin-bottom:6px;">
+            Zippee &lt;&gt; Zilo Hourly Pickup
+        </div>
+        <div id="pickupDateTime" style="font-size:14px;color:#555;font-weight:600;"></div>
+    </div>
+
+    <table id="pickupTable">
+        <thead>
+            <tr><th>From</th><th>To</th><th>Malad</th><th>Ghatkopar</th><th>Vashi</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+<!-- ============ RIDER OTR (<5) CARD — riders behind KPI rows 12.4 + 12.5 ============ -->
+<div class="card overflow-x" id="otrRiderCardWrapper">
+<div id="otrRiderCard">
+
+    <table id="otrRiderTable">
+        <thead>
+            <tr><th class="otr-title" colspan="7" id="otrRiderTitle">Zilo &lt;&gt; Zippee Rider OTR (&lt;5) Report</th></tr>
+            <tr>
+                <th class="otr-band">Store</th>
+                <th class="otr-band otr-store" colspan="2">Malad</th>
+                <th class="otr-band otr-store" colspan="2">Ghatkopar</th>
+                <th class="otr-band otr-store" colspan="2">Vashi</th>
+            </tr>
+            <tr>
+                <th class="otr-band">S. No</th>
+                <th class="otr-band">ID</th><th class="otr-band">Name</th>
+                <th class="otr-band">ID</th><th class="otr-band">Name</th>
+                <th class="otr-band">ID</th><th class="otr-band">Name</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="otrRiderDateTime" style="text-align:center;font-size:13px;color:#555;font-weight:600;margin-top:10px;"></div>
+    <div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+</div><!-- /outputs -->
+<script>
+// ===== EXCEL CORE START =====
+/* ------------------------------------------------------------------
+   EXCEL-LOGIC CORE
+   Each derived field below mirrors one helper column in the
+   mastersheet (store sheets, columns AU–BH), and computeStore()
+   mirrors the COUNTIFS formulas in the "Report" sheet and the
+   FILTER/VLOOKUP formulas in the "Ght B / Malad B / Vashi B" sheets.
+   ------------------------------------------------------------------ */
+
+const STORES = ["Ghatkopar","Malad","Vashi"];
+const HOURS  = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];   // Report rows R4:R19
+
+/* Rows 12.2–12.5: riders bucketed by orders-to-rider (OTR).
+   OTR = same as a pivot on the raw file: filter Delivery Date = report date,
+   Rows = Rider ID, Values = Count of CHOID. Every row counts (any status,
+   any order type incl. RTO legs). Change the numbers here to move a boundary.
+     12.2  OTR >= high
+     12.3  low <= OTR < high
+     12.4  veryLow <= OTR < low
+     12.5  OTR <  veryLow
+   Each rider lands in exactly one row, so 12.2 + 12.3 + 12.4 + 12.5 = riders counted.
+   The Rider OTR report lists every rider with OTR < low (= rows 12.4 + 12.5).       */
+const OTR_BANDS = { high: 10, low: 5, veryLow: 3 };
+
+/* AV – Service Duration: pincode lists copied from each store sheet's formula.
+   Order of checks follows the Excel IF nesting for that store.
+   Malad wraps the whole formula in VALUE(), so an unmapped pincode becomes
+   #VALUE! there (null here) instead of "Others". */
+const SERVICE_RULES = {
+    Malad: {
+        order: [120, 60, 90],
+        120: ["400068","401105","401107","401101"],
+        60:  ["400047","400053","400058","400060","400062","400063","400064","400066",
+              "400067","400069","400090","400091","400092","400093","400095","400097",
+              "400101","400102","400103","400104"],
+        90:  ["400049","400054","400056","400061","400065"],
+        others: null
+    },
+    Ghatkopar: {
+        order: [60, 90],
+        60: ["400024","400042","400043","400059","400070","400071","400072","400075",
+             "400076","400077","400078","400079","400083","400084","400086","400087",
+             "400089","400096"],
+        90: ["400051","400055","400057","400074","400085","400088","400094","400098",
+             "400099","400029"],
+        others: "Others"
+    },
+    Vashi: {
+        order: [120, 60, 90],
+        120: ["400068","401105","401107"],
+        60:  ["400047","400053","400058","400060","400062","400063","400064","400066",
+              "400067","400069","400090","400091","400092","400093","400095","400097",
+              "400101","400102","400103","400104","400614","400701","400703","400705",
+              "400706","400709","400710"],
+        90:  ["400049","400054","400056","400061","400065","400708"],
+        others: "Others"
+    }
+};
+
+/* Hourly grid, last row (22:00–23:00): the Excel formulas use "<=" on some
+   columns and "<" on others. Reproduced exactly so the numbers tie. */
+const LAST_HOUR_INCLUSIVE = {
+    Malad:     {total:false, delivered:true, breach:false},
+    Ghatkopar: {total:true,  delivered:true, breach:true},
+    Vashi:     {total:true,  delivered:true, breach:true}
+};
+
+/* Any date/time cell -> JS Date (Excel serial number or text) */
+function toDate(val){
+    if (val == null || val === "") return null;
+    if (val instanceof Date) return isNaN(val) ? null : val;
+    if (typeof val === "number") {
+        const d = XLSX.SSF.parse_date_code(val);
+        if (!d) return null;
+        return new Date(d.y, d.m - 1, d.d, d.H, d.M, Math.floor(d.S));
+    }
+    const s = String(val).trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) return new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+    m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+        const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+        return new Date(y, +m[2] - 1, +m[1], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+    }
+    return null;
+}
+
+/* Excel MOD(cell,1) in seconds. A blank cell is 0 in Excel, so it is 0 here. */
+function secsOfDay(val){
+    if (val == null || val === "") return 0;
+    if (typeof val === "number") return Math.round((val - Math.floor(val)) * 86400) % 86400;
+    const d = toDate(val);
+    return d ? d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds() : null;
+}
+
+/* Excel TIMEVALUE("HH:MM") in seconds; null = #VALUE! */
+function timeValue(text){
+    const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(text);
+    if (!m || +m[1] > 23 || +m[2] > 59) return null;
+    return +m[1]*3600 + +m[2]*60;
+}
+
+function sameDay(a, b){
+    return !!(a && b && a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() && a.getDate() === b.getDate());
+}
+
+/* AX – IS RTO ORDER OR PICKED UP (shared by deriveRow and the rider count) */
+function orderType(ref){
+    const refL = String(ref ?? "").toLowerCase();
+    return refL.startsWith("return") ? "PICKUP ORDER"
+         : refL.startsWith("f-")     ? "OMNI PICKUP"
+         : refL.endsWith("-pd")      ? "RTO ORDER"
+         : refL.startsWith("rtv-")   ? "RTV ORDER"
+         : "NONE";
+}
+
+/* One raw row -> the mastersheet helper columns */
+function deriveRow(store, row){
+    const ref  = String(row["Reference ID"] ?? "");
+
+    // AX – IS RTO ORDER OR PICKED UP
+    const AX = orderType(ref);
+
+    // AU – Pincode = RIGHT(Customer Address, 6)
+    const AU = String(row["Customer Address"] ?? "").slice(-6);
+
+    // AV – Service Duration
+    const rules = SERVICE_RULES[store];
+    let AV = rules.others;
+    for (const k of rules.order) { if (rules[k].includes(AU)) { AV = k; break; } }
+
+    // Delivery Slot text, e.g. "22:55-23:55"
+    const P = String(row["Delivery Slot"] ?? "");
+    const BH = timeValue(P.slice(0, 5));    // "Order time"  = slot START
+    const BG = timeValue(P.slice(-5));      // "Slotstart"   = slot END (bucket key for hourly grid)
+
+    // AW – Actual Promise Time (mins) = slot end − slot start
+    const AW = (BH != null && BG != null) ? (BG - BH) / 60 : null;
+
+    // AY – Instant: minutes of slot end = 00 -> SLOTTED, else INSTANT
+    let AY = null;
+    const dash = P.indexOf("-");
+    if (dash >= 0) {
+        const mm = P.substr(dash + 4, 2);
+        if (/^\s*\d+\s*$/.test(mm)) AY = (+mm === 0) ? "SLOTTED" : "INSTANT";
+    }
+
+    // BA – SLA + 15 min (NOT wrapped at midnight, same as Excel)
+    const BA = BG != null ? BG + 15*60 : null;
+    // BB – RDT Slot = MOD(Reached Delivery Time, 1)
+    const BB = secsOfDay(row["Reached Delivery Time"]);
+    // BC – Breach
+    const BC = (BA != null && BB != null) ? (BB < BA ? "No Breach" : "Breach") : null;
+    // BD / BE – Deep Pain (slot end + 1 hr, NOT wrapped at midnight)
+    const BD = BG != null ? BG + 60*60 : null;
+    const BE = (BD != null && BB != null) ? (BD < BB ? "DP Order" : "Not DP Order") : null;
+    // BF – Delay duration = AW − AV (error if AV is "Others" / missing)
+    const BF = (AW != null && typeof AV === "number") ? AW - AV : null;
+
+    return {
+        ref, AX, AU, AV, AW, AY, BA, BB, BC, BD, BE, BF, BG, BH,
+        W: String(row["Fulfillment Status"] ?? "").trim().toUpperCase(),
+        hasCDR: String(row["CDR ID"] ?? "").trim() !== ""
+    };
+}
+
+/* Rows that belong to the day's sheet: Zilo channel, completed, Delivery Date = report date */
+function inScope(row, reportDate){
+    const channel = String(row["Channel"] ?? "").trim().toUpperCase();
+    const status  = String(row["Status"] ?? "").trim().toUpperCase();
+    return channel === "ZILO" && status === "COMPLETED" &&
+           sameDay(toDate(row["Delivery Date"]), reportDate);
+}
+
+const fmtHM = secs => {
+    if (secs == null) return "";
+    const s = ((Math.floor(secs) % 86400) + 86400) % 86400;
+    return String(Math.floor(s/3600)).padStart(2,"0") + ":" + String(Math.floor(s%3600/60)).padStart(2,"0");
+};
+// Excel MOD(later − earlier, 1) * 1440
+const modMins = (later, earlier) => (((later - earlier) % 86400) + 86400) % 86400 / 60;
+
+/* Unique forward riders – MERGED on Creation Date OR Delivery Date.
+   Row qualifies if: Channel = ZILO, Status = COMPLETED, Movement Type = FORWARD,
+   Rider ID not blank, and (Creation Date = report date OR Delivery Date = report date).
+   Returns Map<Rider ID, Set<Reference ID>>: each rider appears once (row 12 = map.size). */
+function collectForwardRiders(rawRows, reportDate){
+    const riders = new Map();
+    rawRows.forEach(row => {
+        const channel = String(row["Channel"] ?? "").trim().toUpperCase();
+        const status  = String(row["Status"] ?? "").trim().toUpperCase();
+        if (channel !== "ZILO" || status !== "COMPLETED") return;
+
+        const byCreation = sameDay(toDate(row["Creation Date"]), reportDate);
+        const byDelivery = sameDay(toDate(row["Delivery Date"]), reportDate);
+        if (!byCreation && !byDelivery) return;
+
+        const mv  = String(row["Movement Type"] ?? "").trim().toUpperCase();
+        const rid = String(row["Rider ID"] ?? "").trim();
+        if (mv !== "FORWARD" || rid === "") return;
+
+        if (!riders.has(rid)) riders.set(rid, new Set());
+        const ref = String(row["Reference ID"] ?? "").trim();
+        if (ref !== "" && orderType(ref) === "NONE") riders.get(rid).add(ref);
+    });
+    return riders;
+}
+
+/* OTR per rider = pivot "Count of CHOID" by Rider ID, Delivery Date = report date.
+   Returns Map<Rider ID, {n: order count, name: Rider Name}>.
+   The name is the first non-blank "Rider Name" seen for that rider. */
+function collectOTR(rawRows, reportDate){
+    const otr = new Map();
+    rawRows.forEach(row => {
+        if (!sameDay(toDate(row["Delivery Date"]), reportDate)) return;
+        const rid   = String(row["Rider ID"] ?? "").trim();
+        const choid = String(row["CHOID"] ?? "").trim();
+        if (rid === "" || choid === "") return;
+        const name  = String(row["Rider Name"] ?? "").trim();
+        const cur = otr.get(rid);
+        if (cur) {
+            cur.n++;
+            if (!cur.name && name) cur.name = name;
+        } else {
+            otr.set(rid, {n:1, name});
+        }
+    });
+    return otr;
+}
+
+/* Rows 12.2–12.5: count riders per OTR band.
+   Also builds `under`: every rider with OTR < low (rows 12.4 + 12.5),
+   sorted lowest OTR first, then by Rider ID — feeds the Rider OTR report. */
+function bucketOTR(otr){
+    const out = {high:0, mid:0, low:0, veryLow:0, riders:otr.size, under:[]};
+    otr.forEach((r, rid) => {
+        const n = r.n;
+        if (n >= OTR_BANDS.high)         out.high++;
+        else if (n >= OTR_BANDS.low)     out.mid++;
+        else if (n >= OTR_BANDS.veryLow) out.low++;
+        else                             out.veryLow++;
+        if (n < OTR_BANDS.low) out.under.push({id:rid, name:r.name, n});
+    });
+    out.under.sort((a, b) => a.n - b.n || a.id.localeCompare(b.id, undefined, {numeric:true}));
+    return out;
+}
+
+/* Report-sheet aggregation for one store */
+function computeStore(store, rawRows, reportDate){
+    const rows = rawRows.filter(r => inScope(r, reportDate));
+
+    const res = {
+        actual:0, delivered:0, rto:0,
+        buckets:{60:0, 90:0, 120:0, Others:0},
+        breach:0, delay:0, deepPain:0,
+        hourly:{}, breachRows:[], riders:new Map(), scopedRows: rows.length
+    };
+    HOURS.forEach(h => res.hourly[h] = {total:0, delivered:0, breach:0});
+
+    rows.forEach(row => {
+        const d = deriveRow(store, row);
+        const isNone = d.AX === "NONE";
+        const isDel  = d.W === "DELIVERED";
+
+        // Row 4  Actual Order   = COUNTIFS(AX,"NONE", C,"<>")
+        if (isNone && d.ref !== "") res.actual++;
+        // Row 5  Delivered      = COUNTIFS(AX,"NONE", W,"DELIVERED")
+        if (isNone && isDel) res.delivered++;
+        // Row 6  RTO Order      = COUNTIFS(W,"RTO_DELIVERED")   (all order types, as in Excel)
+        if (d.W === "RTO_DELIVERED") res.rto++;
+        // Rows 7.2–7.5 buckets  = COUNTIFS(W,"DELIVERED", BC,"No Breach", AV,"60"/"90"/"120"/"Others")
+        if (isDel && d.BC === "No Breach" && d.AV != null) res.buckets[d.AV]++;
+        // Row 8  Breach         = COUNTIFS(W,"DELIVERED", BC,"Breach", AX,"NONE")
+        if (isDel && d.BC === "Breach" && isNone) res.breach++;
+        // Row 9  Delay          = COUNTIFS(W,"DELIVERED", AY,"INSTANT", BF,">0")
+        if (isDel && d.AY === "INSTANT" && d.BF != null && d.BF > 0) res.delay++;
+        // Row 10 Deep Pain      = COUNTIFS(W,"DELIVERED", BE,"DP Order")
+        if (isDel && d.BE === "DP Order") res.deepPain++;
+
+        // Hourly grid, bucketed on BG (slot END time)
+        if (d.BG != null) {
+            HOURS.forEach(h => {
+                const from = h*3600, to = (h+1)*3600;
+                const inc = (h === 22) ? LAST_HOUR_INCLUSIVE[store] : {total:false, delivered:false, breach:false};
+                const inRange = incl => d.BG >= from && (incl ? d.BG <= to : d.BG < to);
+                if (isNone && d.ref !== "" && inRange(inc.total))     res.hourly[h].total++;
+                if (isNone && isDel        && inRange(inc.delivered)) res.hourly[h].delivered++;
+                if (isDel && d.BC === "Breach" && inRange(inc.breach)) res.hourly[h].breach++;
+            });
+        }
+
+        // "<Store> B" sheet: FILTER(BC="Breach", AX="NONE", CDR ID not blank) – any fulfillment status
+        if (d.BC === "Breach" && isNone && d.hasCDR) {
+            const X = secsOfDay(row["Manifested Time"]);       // D  Manifest Time
+            const Z = secsOfDay(row["Reached Pickup Time"]);   // F  Reach Pickup Time
+            const orderToPack = modMins(X, d.BH);              // E = MOD(D-C,1)*1440
+            const packToPick  = modMins(Z, X);                 // G = MOD(F-D,1)*1440
+            const totalUTR    = modMins(Z, d.BH);              // H = MOD(F-C,1)*1440
+            const breachMins  = modMins(d.BB, d.BA);           // K = MOD(J-I,1)*1440
+            res.breachRows.push({
+                referenceId: d.ref,
+                fulfillmentStatus: row["Fulfillment Status"] ?? "",
+                orderTime: fmtHM(d.BH),
+                manifestedTime: fmtHM(X),
+                orderToPackTAT: orderToPack.toFixed(2),
+                reachedPickupTime: fmtHM(Z),
+                packingToPickTAT: packToPick.toFixed(2),
+                totalUTR: totalUTR.toFixed(2),
+                promise: fmtHM(d.BA),
+                reachDeliveryTime: fmtHM(d.BB),
+                breach: breachMins.toFixed(2),
+                utrBreach: totalUTR > 20 ? "YES" : "No",        // L = IF(H>20,"YES","No")
+                deepPain: breachMins >= 60 ? "YES" : "No",      // M = IF(K>=60,"YES","No")
+                riderName: row["Rider Name"] ?? "",
+                riderId: row["Rider ID"] ?? ""
+            });
+        }
+    });
+
+    // Forward riders – runs once per store, Creation Date OR Delivery Date (merged)
+    res.riders = collectForwardRiders(rawRows, reportDate);
+    res.otr = bucketOTR(collectOTR(rawRows, reportDate));
+
+    res.sla15 = res.buckets[60] + res.buckets[90] + res.buckets[120] + res.buckets.Others;
+    return res;
+}
+// ===== EXCEL CORE END =====
+
+/* =================== PAGE / UI =================== */
+const ORDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=0&single=true&output=csv";
+const RIDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=775811107&single=true&output=csv";
+const SLA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=1169651333&single=true&output=csv";
+const DELAY_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=319008300&single=true&output=csv";
+/* Rider2 tab: Store | Omni Rider | Pickup Rider  → feeds rows 12.9 and 12.7 */
+const RIDER2_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=157776774&single=true&output=csv";
+
+const PREFIX = {Ghatkopar:"g", Malad:"m", Vashi:"v"};
+
+/* Hourly Pickup: column order Malad | Ghatkopar | Vashi */
+const PICKUP_STORES = ["Malad","Ghatkopar","Vashi"];
+/* Rider OTR (<5) report: column order Malad | Ghatkopar | Vashi (same as the Excel template) */
+const OTR_REPORT_STORES = ["Malad","Ghatkopar","Vashi"];
+const PICKUP_SLOTS = [];
+for (let h = 7; h <= 23; h++){
+    PICKUP_SLOTS.push({
+        from: String(h).padStart(2,"0") + ":00",
+        to:   String((h + 1) % 24).padStart(2,"0") + ":00",
+        s: h, e: h + 1
+    });
+}
+const PICKED_STATUSES = ["PICKED_UP", "DELIVERED", "REACHED_DELIVERY", "OUT_FOR_DELIVERY"];
+
+const MANUAL_RIDER_IDS = [
+    "gPickupRider","mPickupRider","vPickupRider",
+    "gOmniRider","mOmniRider","vOmniRider"
+];
+
+let breachOrders = {Ghatkopar:[], Malad:[], Vashi:[]};
+let reportReady = false;
+
+function setStatus(msg){ document.getElementById("statusLine").innerText = msg; }
+
+/* Escape file values before putting them into innerHTML */
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* Selected report date (defaults to today) */
+function getReportDate(){
+    const v = document.getElementById("reportDate").value;
+    if (!v) return new Date();
+    const [y, m, d] = v.split("-").map(Number);
+    return new Date(y, m - 1, d);
+}
+function isReportDateToday(){ return sameDay(getReportDate(), new Date()); }
+
+function updateDateTime(){
+    const now = new Date();
+    const dateStr = getReportDate().toLocaleDateString('en-GB',{day:"2-digit",month:"short",year:"numeric"});
+    let h = now.getHours();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    const timeStr = h + ":" + String(now.getMinutes()).padStart(2,"0") + " " + ampm;
+
+    document.getElementById("date").innerText = dateStr;
+    document.getElementById("time").innerText = timeStr;
+    const dtHTML = `<b>Date:</b> ${dateStr} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Time:</b> ${timeStr}`;
+    document.getElementById("reportDateTime").innerHTML = dtHTML;
+    document.getElementById("pickupDateTime").innerHTML = dtHTML;
+    document.getElementById("otrRiderDateTime").innerHTML = dtHTML;
+}
+
+function findDateRow(data){
+    const target = getReportDate();
+    return data.find(r => {
+        const sheetDate = String(r.Date || "").trim();
+        if (!sheetDate) return false;
+
+        const shortMatch = sheetDate.match(/^(\d{1,2})-([A-Za-z]{3})$/);
+        if (shortMatch) {
+            const day = parseInt(shortMatch[1], 10);
+            const month = new Date(`${shortMatch[2]} 1, 2000`).getMonth();
+            return day === target.getDate() && month === target.getMonth();
+        }
+
+        const dateMatch = sheetDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dateMatch) {
+            const month = parseInt(dateMatch[1], 10) - 1;
+            const day = parseInt(dateMatch[2], 10);
+            const year = parseInt(dateMatch[3], 10);
+            return day === target.getDate() && month === target.getMonth() && year === target.getFullYear();
+        }
+        return false;
+    }) || {};
+}
+
+function findStoreRow(data, store){
+    const want = store.trim().toLowerCase();
+    return data.find(r => String(r.Store || "").trim().toLowerCase() === want) || {};
+}
+
+function parseCSV(text){
+    const rows = text.trim().split("\n").map(r=>r.split(","));
+    const headers = rows[0];
+    return rows.slice(1).map(r=>{
+        let obj={};
+        headers.forEach((h,i)=>obj[h.trim()]=r[i]);
+        return obj;
+    });
+}
+
+async function fetchSheet(url){
+    const res = await fetch(url);
+    const text = await res.text();
+    return parseCSV(text);
+}
+
+/* Hourly Pickup counts for one store (report date only) */
+function countPickups(rows, headers){
+    const counts = PICKUP_SLOTS.map(() => 0);
+
+    const colCHOID  = headers.find(h => h.toLowerCase().trim() === "choid") ||
+                      headers.find(h => /choid|order.?id/i.test(h));
+    const colFS     = headers.find(h => h.toLowerCase().trim() === "fulfillment status") ||
+                      headers.find(h => /fulfillment.?status/i.test(h));
+    const colPickup = headers.find(h => h.toLowerCase().trim() === "pickup time") ||
+                      headers.find(h => /pickup.?time/i.test(h));
+    const colStatus = headers.find(h => h.toLowerCase().trim() === "status");
+
+    if (!colFS || !colPickup) return { counts, missing: true };
+
+    const target = getReportDate();
+
+    rows.forEach(row => {
+        const choid  = String(row[colCHOID] ?? "").trim();
+        const fs     = String(row[colFS] ?? "").trim().toUpperCase();
+        const status = colStatus ? String(row[colStatus] ?? "").trim().toLowerCase() : "";
+
+        if (!choid.toLowerCase().startsWith("return_")) return;
+        if (status === "cancelled") return;
+        if (!PICKED_STATUSES.includes(fs)) return;
+
+        const dt = toDate(row[colPickup]);
+        if (!dt || !sameDay(dt, target)) return;
+
+        const hour = dt.getHours() + dt.getMinutes() / 60;
+        // Anything picked up up to 07:00 (incl. early morning) goes into the first slot, 07:00–08:00
+        if (hour <= PICKUP_SLOTS[0].s) { counts[0]++; return; }
+        PICKUP_SLOTS.forEach((slot, i) => {
+            if (hour > slot.s && hour <= slot.e) counts[i]++;
+        });
+    });
+
+    return { counts, missing: false };
+}
+
+async function generateReport(){
+
+    const genBtn = document.getElementById("genBtn");
+    genBtn.disabled = true;
+    setStatus("Fetching targets & processing files…");
+
+    updateDateTime();
+
+    const rider2Promise = fetchSheet(RIDER2_URL).catch(e => {
+        console.error("Rider2 sheet fetch failed:", e);
+        return [];
+    });
+
+    // 1. TARGETS FROM GOOGLE SHEETS
+    try {
+        const [orderData, riderData, slaData, delayData] = await Promise.all([
+            fetchSheet(ORDER_URL), fetchSheet(RIDER_URL), fetchSheet(SLA_URL), fetchSheet(DELAY_URL)
+        ]);
+
+        const orderRow = findDateRow(orderData);
+        document.getElementById("gProjOrder").innerText = orderRow["GHATKOPAR"] || "--";
+        document.getElementById("mProjOrder").innerText = orderRow["MALAD"] || "--";
+        document.getElementById("vProjOrder").innerText = orderRow["VASHI"] || "--";
+
+        const riderRow = findDateRow(riderData);
+        document.getElementById("gProjRider").innerText = riderRow["Ghatkopar"] || "--";
+        document.getElementById("mProjRider").innerText = riderRow["Malad"] || "--";
+        document.getElementById("vProjRider").innerText = riderRow["Vashi"] || "--";
+
+        const slaRow = findDateRow(slaData);
+        ["gSLA","mSLA","vSLA"].forEach(id => document.getElementById(id).innerText = slaRow["Target"] || "--");
+
+        const delayRow = findDateRow(delayData);
+        ["gDelay","mDelay","vDelay"].forEach(id => document.getElementById(id).innerText = delayRow["Target"] || "--");
+    } catch (e) {
+        console.error("Target sheet fetch failed:", e);
+        setStatus("Could not fetch target sheet (check your internet connection) — continuing with uploaded files only.");
+    }
+
+    // Constant projected values
+    document.getElementById("gProjPickupRider").value = 3;
+    document.getElementById("mProjPickupRider").value = 5;
+    document.getElementById("vProjPickupRider").value = 0;
+    document.getElementById("gProjOmniRider").value = 2;
+    document.getElementById("mProjOmniRider").value = 6;
+    document.getElementById("vProjOmniRider").value = 1;
+
+    // 1b. 12.7 PICKUP RIDER & 12.9 OMNI RIDER (Rider2 sheet) — user edits win
+    const rider2Data = await rider2Promise;
+    STORES.forEach(store => {
+        const p = PREFIX[store];
+        const row = findStoreRow(rider2Data, store);
+        const apply = (id, raw) => {
+            const el = document.getElementById(id);
+            if (el.dataset.dirty === "1") return;
+            const val = String(raw ?? "").trim();
+            if (val !== "") el.value = val;
+        };
+        apply(p + "OmniRider",   row["Omni Rider"]);
+        apply(p + "PickupRider", row["Pickup Rider"]);
+    });
+
+    // 2. STORE FILES
+    const storeFiles = {
+        Ghatkopar: document.getElementById("ghatkoparFile").files[0],
+        Malad: document.getElementById("maladFile").files[0],
+        Vashi: document.getElementById("vashiFile").files[0]
+    };
+
+    if (!storeFiles.Ghatkopar && !storeFiles.Malad && !storeFiles.Vashi) {
+        setStatus("Upload at least one store file before generating.");
+        genBtn.disabled = false;
+        return;
+    }
+
+    const results = {};
+    const pickupCounts = {
+        Ghatkopar: PICKUP_SLOTS.map(() => 0),
+        Malad:     PICKUP_SLOTS.map(() => 0),
+        Vashi:     PICKUP_SLOTS.map(() => 0)
+    };
+    const pickupMissing = [];
+    const emptyStores = [];
+    const reportDate = getReportDate();
+
+    breachOrders = {Ghatkopar:[], Malad:[], Vashi:[]};
+
+    for (const store of STORES){
+        const file = storeFiles[store];
+        if (!file) continue;
+
+        const wb = XLSX.read(await file.arrayBuffer());
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        const headerRow = (XLSX.utils.sheet_to_json(sheet, {header:1})[0] || []).map(h => String(h ?? ""));
+        const pickupResult = countPickups(json, headerRow);
+        pickupCounts[store] = pickupResult.counts;
+        if (pickupResult.missing) pickupMissing.push(store);
+
+        results[store] = computeStore(store, json, reportDate);   // Excel logic
+        breachOrders[store] = results[store].breachRows;
+        if (results[store].scopedRows === 0) emptyStores.push(store);
+    }
+
+    renderKPITable(results);
+    renderBreachTables();
+    fillHourlyTable(results);
+    fillPickupTable(pickupCounts);
+    fillOtrRiderTable(results);
+
+    reportReady = true;
+    document.getElementById("outputs").classList.add("show");
+    let doneMsg = "Report generated at " + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ".";
+    if (emptyStores.length) {
+        doneMsg += " No orders with Delivery Date " + reportDate.toLocaleDateString('en-GB') +
+                   " found for " + emptyStores.join(", ") + " — check the report date.";
+    }
+    if (pickupMissing.length) {
+        doneMsg += " Hourly Pickup: missing Fulfillment Status or Pickup Time column for " + pickupMissing.join(", ") + ".";
+    }
+    setStatus(doneMsg);
+    genBtn.disabled = false;
+}
+
+const pct = (num, den) => den ? (num / den * 100).toFixed(1) + "%" : "--";
+const withPct = (num, den) => den ? `${num} (${pct(num, den)})` : String(num);
+
+function renderKPITable(results){
+    const set = (id, v) => document.getElementById(id).innerText = v;
+
+    STORES.forEach(store=>{
+        const p = PREFIX[store];
+        const r = results[store];
+        if (!r) return;
+
+        set(p+"Orders",    r.actual);
+        set(p+"Delivered", r.delivered);
+        set(p+"RTO",       r.rto);
+
+        // Rows 7–7.5: SLA + 15 min, SLA %, and bucket share of Delivered (Report E14:E17 = count / Delivered)
+        set(p+"SLA15",   r.sla15);
+        set(p+"SLAPct",  pct(r.sla15, r.delivered));
+        set(p+"B60",     withPct(r.buckets[60],  r.delivered));
+        set(p+"B90",     withPct(r.buckets[90],  r.delivered));
+        set(p+"B120",    withPct(r.buckets[120], r.delivered));
+        set(p+"BOthers", withPct(r.buckets.Others, r.delivered));
+
+        // Row 8: Breach % = Breach / Delivered     (Report E18 = D18/D10)
+        set(p+"Breach",     withPct(r.breach, r.delivered));
+        // Row 9: Delay %  = Delay / Actual Order    (Report E19 = D19/D8)
+        set(p+"DelayOrder", withPct(r.delay, r.actual));
+        set(p+"DeepPain",   r.deepPain);
+
+        // Row 12: unique forward riders (Creation Date OR Delivery Date)
+        const riderCount = r.riders.size;
+        set(p+"Riders", riderCount);
+
+        // Rows 12.2–12.5: riders per OTR band (count only)
+        set(p+"OtrHigh",    r.otr.high);
+        set(p+"OtrMid",     r.otr.mid);
+        set(p+"OtrLow",     r.otr.low);
+        set(p+"OtrVeryLow", r.otr.veryLow);
+
+        const projOrder = parseFloat(document.getElementById(p+"ProjOrder").innerText);
+        set(p+"Attain", (isNaN(projOrder) || projOrder === 0) ? "--" : (r.actual / projOrder * 100).toFixed(0) + "%");
+
+        const projRider = parseFloat(document.getElementById(p+"ProjRider").innerText);
+        set(p+"RiderAttain", (isNaN(projRider) || projRider === 0) ? "--" : (riderCount / projRider * 100).toFixed(0) + "%");
+    });
+}
+
+function renderBreachTables(){
+    const container = document.getElementById("breachContainer");
+    container.innerHTML = "";
+
+    STORES.forEach(store=>{
+        container.innerHTML += `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:25px;margin-bottom:8px;">
+            <h3 style="margin:0;">${store}</h3>
+            <button onclick="copyStore('${store}', this)">📋 Copy</button>
+        </div>
+        <table style="margin-bottom:25px;">
+            <tr>
+                <th>Reference ID</th><th>Fulfillment Status</th><th>Order Time</th>
+                <th>Manifested Time</th><th>Order to Pack TAT (mins)</th>
+                <th>Reached Pickup Time</th><th>Packing to Pick TAT (mins)</th>
+                <th>Total UTR (mins)</th><th>Promise</th><th>Reach Delivery Time</th>
+                <th>Breach (mins)</th><th>UTR Breach</th><th>DEEP PAIN</th>
+                <th>Rider Name</th><th>Rider ID</th>
+            </tr>
+            ${
+                breachOrders[store].length
+                ? breachOrders[store].map(o => `
+                    <tr>
+                        <td>${o.referenceId}</td><td>${o.fulfillmentStatus}</td><td>${o.orderTime}</td>
+                        <td>${o.manifestedTime}</td><td>${o.orderToPackTAT}</td>
+                        <td>${o.reachedPickupTime}</td><td>${o.packingToPickTAT}</td>
+                        <td>${o.totalUTR}</td><td>${o.promise}</td><td>${o.reachDeliveryTime}</td>
+                        <td>${o.breach}</td><td>${o.utrBreach}</td><td>${o.deepPain}</td>
+                        <td>${o.riderName}</td><td>${o.riderId}</td>
+                    </tr>`).join("")
+                : `<tr><td colspan="15">No Breach Orders</td></tr>`
+            }
+        </table>`;
+    });
+}
+
+function fillHourlyTable(results){
+    const tbody = document.querySelector("#hourlyTable tbody");
+    tbody.innerHTML = "";
+
+    // Today: show hours up to now. Past date: show the full day.
+    const lastHour = isReportDateToday() ? Math.min(new Date().getHours(), 22) : 22;
+    const order = ["Ghatkopar","Malad","Vashi"];
+
+    function cells(store, h){
+        const r = results[store];
+        if (!r) return `<td>--</td><td>--</td><td>--</td><td>--</td>`;
+        const d = r.hourly[h];
+        return `<td>${d.total}</td><td>${d.delivered}</td><td>${d.breach}</td><td>${pct(d.breach, d.delivered)}</td>`;
+    }
+
+    // Start from bucket 8 so the first row is labelled 07:00–08:00
+    for (let h = 8; h <= lastHour; h++){
+        const tr = document.createElement("tr");
+        // CHANGED: numbers stay in bucket h (h:00–h+1:00, same as Excel),
+        // but the row is LABELLED one hour earlier: bucket 08:00–09:00 shows as 07:00–08:00
+        const labelFrom = String(h - 1).padStart(2,"0") + ":00";
+        const labelTo   = String(h).padStart(2,"0") + ":00";
+        tr.innerHTML = `<td>${labelFrom}</td><td>${labelTo}</td>` +
+                       order.map(s => cells(s, h)).join("");
+        tbody.appendChild(tr);
+    }
+
+    // Total row = Report row 20: Actual Order, Delivered, Breach (row 8), Breach / Delivered
+    const total = document.createElement("tr");
+    total.className = "total-row";
+    total.innerHTML = `<td colspan="2">Total</td>` + order.map(s => {
+        const r = results[s];
+        if (!r) return `<td>--</td><td>--</td><td>--</td><td>--</td>`;
+        return `<td>${r.actual}</td><td>${r.delivered}</td><td>${r.breach}</td><td>${pct(r.breach, r.delivered)}</td>`;
+    }).join("");
+    tbody.appendChild(total);
+}
+
+function fillPickupTable(pickupCounts){
+    const tbody = document.querySelector("#pickupTable tbody");
+    const cls = n => n > 0 ? (n >= 10 ? "hl-green" : "hl-yellow") : "";
+    let html = "";
+
+    PICKUP_SLOTS.forEach((slot, i) => {
+        html += `<tr><td>${slot.from}</td><td>${slot.to}</td>` +
+            PICKUP_STORES.map(store => {
+                const n = pickupCounts[store][i];
+                return `<td class="num ${cls(n)}">${n}</td>`;
+            }).join("") + `</tr>`;
+    });
+
+    html += `<tr class="total-row"><td colspan="2">Total</td>` +
+        PICKUP_STORES.map(store =>
+            `<td class="num">${pickupCounts[store].reduce((a, b) => a + b, 0)}</td>`
+        ).join("") + `</tr>`;
+
+    tbody.innerHTML = html;
+}
+
+/* Rider OTR (<5) report: one ID + Name pair per rider in KPI rows 12.4 + 12.5.
+   Number of rows = the longest store list, so every rider fits.
+   Store with no uploaded file → "--"; store with no such riders → "None". */
+function fillOtrRiderTable(results){
+    document.getElementById("otrRiderTitle").innerText =
+        `Zilo <> Zippee Rider OTR (<${OTR_BANDS.low}) Report`;
+
+    const tbody = document.querySelector("#otrRiderTable tbody");
+    const lists = OTR_REPORT_STORES.map(s => results[s] ? results[s].otr.under : null);
+    const rowCount = Math.max(1, ...lists.map(l => l ? l.length : 0));
+    let html = "";
+
+    for (let i = 0; i < rowCount; i++){
+        html += `<tr><td class="sno">${i + 1}</td>` + lists.map(list => {
+            if (!list) return i === 0 ? `<td class="empty-note">--</td><td class="empty-note">--</td>` : `<td></td><td></td>`;
+            if (!list.length) return i === 0 ? `<td class="empty-note" colspan="2">None</td>` : `<td></td><td></td>`;
+            const r = list[i];
+            return r ? `<td>${esc(r.id)}</td><td>${esc(r.name)}</td>` : `<td></td><td></td>`;
+        }).join("") + `</tr>`;
+    }
+
+    tbody.innerHTML = html;
+}
+
+function captureCard(card){
+    return html2canvas(card, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: Math.max(document.documentElement.clientWidth, card.scrollWidth + 100),
+        onclone: doc => {
+            doc.querySelectorAll(".overflow-x").forEach(el => {
+                el.style.overflow = "visible";
+                el.style.maxWidth = "none";
+            });
+        }
+    });
+}
+
+async function renderCard(elementId){
+    const card = document.getElementById(elementId);
+    if (elementId !== "reportCard") return captureCard(card);
+
+    const inputs = document.querySelectorAll(
+        "#gProjPickupRider,#mProjPickupRider,#vProjPickupRider," +
+        "#gPickupRider,#mPickupRider,#vPickupRider," +
+        "#gProjOmniRider,#mProjOmniRider,#vProjOmniRider," +
+        "#gOmniRider,#mOmniRider,#vOmniRider"
+    );
+    inputs.forEach(input => {
+        const span = document.createElement("span");
+        span.className = "download-value";
+        if (input.dataset.dirty === "1") span.classList.add("manual-edit");
+        span.innerText = input.value || "--";
+        input.style.display = "none";
+        input.parentNode.appendChild(span);
+    });
+    try {
+        return await captureCard(card);
+    } finally {
+        document.querySelectorAll(".download-value").forEach(span => span.remove());
+        inputs.forEach(input => input.style.display = "");
+    }
+}
+
+async function downloadCard(elementId, filename){
+    if (!reportReady) { setStatus("Generate the report first."); return; }
+    try {
+        triggerDownload(await renderCard(elementId), filename);
+    } catch (e) {
+        console.error("Download failed:", e);
+        setStatus("Download failed — please try again.");
+    }
+}
+
+async function downloadAll(){
+    if (!reportReady) { setStatus("Generate the report first."); return; }
+    const btn = document.getElementById("downloadAllBtn");
+    btn.disabled = true;
+    const jobs = [
+        ["reportCard",   "Zippee_KPI_Report.png"],
+        ["pickupCard",   "Zippee_Hourly_Pickup.png"],
+        ["reportCard2",  "Zippee_Hourly_Report.png"],
+        ["breachCard",   "Zippee_Breach_Details.png"],
+        ["otrRiderCard", "Zippee_Rider_OTR_Report.png"]
+    ];
+    try {
+        for (const [id, name] of jobs) {
+            setStatus("Downloading " + name + "…");
+            triggerDownload(await renderCard(id), name);
+            await new Promise(r => setTimeout(r, 400));
+        }
+        setStatus("All " + jobs.length + " reports downloaded.");
+    } catch (e) {
+        console.error("Download All failed:", e);
+        setStatus("Download failed — please try again.");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function triggerDownload(canvas, filename){
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
+async function copyStore(store, button){
+    const orders = breachOrders[store];
+    if (!orders || !orders.length) {
+        alert("No Breach Orders found for " + store);
+        return;
+    }
+
+    let text = "";
+    orders.forEach(o=>{
+        text += [
+            o.referenceId, o.fulfillmentStatus, o.orderTime, o.manifestedTime,
+            o.orderToPackTAT, o.reachedPickupTime, o.packingToPickTAT, o.totalUTR,
+            o.promise, o.reachDeliveryTime, o.breach, o.utrBreach, o.deepPain,
+            o.riderName, o.riderId
+        ].join("\t") + "\n";
+    });
+
+    let copied = false;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            copied = document.execCommand("copy");
+            document.body.removeChild(textarea);
+        }
+    } catch (error) {
+        console.error("Copy failed:", error);
+    }
+
+    if (copied) {
+        const original = button.innerHTML;
+        button.innerHTML = "✓ Copied";
+        button.disabled = true;
+        setTimeout(()=>{ button.innerHTML = original; button.disabled = false; }, 2000);
+    } else {
+        alert("Copy failed. Please try again.");
+    }
+}
+
+/* Row labels 12.2–12.5 follow OTR_BANDS so they never disagree with the counts */
+(function initOtrLabels(){
+    const b = OTR_BANDS;
+    document.getElementById("otrLabelHigh").innerText    = `Rider >= ${b.high} OTR`;
+    document.getElementById("otrLabelMid").innerText     = `Rider ${b.low} <= OTR < ${b.high}`;
+    document.getElementById("otrLabelLow").innerText     = `Rider ${b.veryLow} <= OTR < ${b.low}`;
+    document.getElementById("otrLabelVeryLow").innerText = `Rider < ${b.veryLow} OTR`;
+})();
+
+/* Mark 12.7 / 12.9 as user-edited so Generate stops overwriting them */
+MANUAL_RIDER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+        el.dataset.dirty = el.value.trim() === "" ? "" : "1";
+    });
+});
+
+/* Report date defaults to today */
+(function initDate(){
+    const t = new Date();
+    document.getElementById("reportDate").value =
+        `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+    document.getElementById("reportDate").addEventListener("change", updateDateTime);
+})();
+
+updateDateTime();
+</script>
+
+</body>
+</html>
