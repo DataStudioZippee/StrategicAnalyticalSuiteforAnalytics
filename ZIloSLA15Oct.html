@@ -1006,8 +1006,9 @@ function renderKPITable(results){
         set(p+"DelayOrder", withPct(r.delay, r.actual));
         set(p+"DeepPain",   r.deepPain);
 
-        // Row 12: unique forward riders (Creation Date OR Delivery Date)
-        const riderCount = r.riders.size;
+        // Row 12 = 12.2 + 12.3 + 12.4 + 12.5 (riders in the OTR pivot: Delivery Date = report date).
+        // Rider attainment (12.1) uses this same number.
+        const riderCount = r.otr.high + r.otr.mid + r.otr.low + r.otr.veryLow;
         set(p+"Riders", riderCount);
 
         // Rows 12.2–12.5: riders per OTR band (count only)
