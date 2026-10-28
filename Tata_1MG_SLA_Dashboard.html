@@ -234,7 +234,7 @@ function hourlyModel(orders,meta){
   return{id:"hourly",file:"Hourly",label:"Hourly",sheet:"Hourly Order Report",title:"ZIPPEE <> TATA 1MG HOURLY ORDER WISE REPORT | "+meta.dateLabel+" | "+meta.timeLabel,subtitle:"By order creation hour",
     groups:[{label:"",span:5},{label:"Order Distance (km)",span:3},{label:"Riders",span:2}],
     head:["Hour","Orders","Breach","Non Breach","DP Pain","<3","3–5",">5","Riders","Idle Riders"],
-    align:["l","c","c","c","c","c","c","c","c","c"],colW:[84,76,76,98,82,64,64,64,72,96],rows};
+    align:["c","c","c","c","c","c","c","c","c","c"],colW:[84,76,76,98,82,64,64,64,72,96],rows};
 }
 function pinModel(orders,meta){
   const[h0,h1]=hourRange(orders,meta);
@@ -252,7 +252,7 @@ function pinModel(orders,meta){
   return{id:"pin",file:"Pincode_Breach",label:"Pincode",sheet:"Pincode Breach Report",title:"ZIPPEE <> TATA 1MG HOURLY BREACH PINCODE WISE REPORT | "+meta.dateLabel+" | "+meta.timeLabel,
     subtitle:"Breached orders by creation hour and delivery pincode",newPins:extra,
     groups:[{label:"",span:1},{label:"West",span:west.length},{label:"East",span:EAST.length},{label:"",span:1}],
-    head:["Hour",...pins,"Total"],align:["l"].concat(pins.map(()=>"c"),["c"]),colW:[84,...pins.map(()=>74),70],rows};
+    head:["Hour",...pins,"Total"],align:["c"].concat(pins.map(()=>"c"),["c"]),colW:[84,...pins.map(()=>74),70],rows};
 }
 function ordersModel(orders){
   const head=["Zippee AWB","Order Number","Current Status","Creation Date","Creation Time","Hour","SLA Window (min)","Order Type","SLA Time","DP Time","Actual Delivery Time","Breach/Met","DP","Distance (km)","D. Slot","Delivery Pincode","Rider User ID","Rider Name"];
