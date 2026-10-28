@@ -83,7 +83,7 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
     <div class="window-note">Upload the <b>Detailed Report</b> export (Current Status, Creation Time, Marketplace Order Date, Ideal Delivery End,
       Actual Delivery Time, Delivery Pincode, Delivery Lat/Lng, Rider User ID). The file is read in this browser and is not uploaded anywhere.</div>
 
-    <div class="status warn" id="dataStatus">Showing example data (made-up orders) so you can see the layout. Upload your CSV to see real numbers.</div>
+    <div class="status" id="dataStatus">No file loaded yet. Upload the Detailed Report CSV to build the reports.</div>
     <div class="status" id="pinStatus" hidden></div>
     <div class="status err" id="errStatus" hidden></div>
 
@@ -98,7 +98,7 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
       <b>Hours shown</b> = for today's file, from 07:00 up to the hour the report is made (the time is in each report heading). For an older file, the full day up to 22:00.
     </div>
 
-    <div class="all-actions">
+    <div class="all-actions" id="allActions" hidden>
       <button class="btn" id="allPng" type="button">Download All PNG (.zip)</button>
       <button class="btn btn-secondary" id="allXlsx" type="button">Download All Excel</button>
     </div>
@@ -427,6 +427,7 @@ function load(text,source,isExample){
   state.meta={source,store:storeName(orders),dateLabel:di.label,fileDate:di.file,timeLabel,endHour};
   state.models={kpi:kpiModel(orders,state.meta),hourly:hourlyModel(orders,state.meta),pin:pinModel(orders,state.meta)};
   ["kpi","hourly","pin"].forEach(id=>renderReport(state.models[id]));
+  $("allActions").hidden=false;
 
   let msg,cls="ok";
   if(isExample) {msg="Showing <b>example data</b> (made-up orders) so you can see the layout. Upload your CSV to see real numbers.";cls="warn";}
@@ -453,29 +454,6 @@ fi.addEventListener("change",e=>readFile(e.target.files[0]));
 ["dragenter","dragover"].forEach(t=>fi.addEventListener(t,()=>fi.classList.add("over")));
 ["dragleave","drop"].forEach(t=>fi.addEventListener(t,()=>fi.classList.remove("over")));
 
-/* ---------- made-up example day so the page isn't empty before an upload ---------- */
-function exampleCSV(){
-  let s=20261028;const rnd=()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
-  const d=new Date(),ds=pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+d.getFullYear();
-  const pins=["400064","400064","400067","400067","400097","400097","400104","400104","400095","400092","400101","400063","400091"];
-  const riders=[["3101","Rider A"],["3102","Rider B"],["3103","Rider C"],["3104","Rider D"],["3105","Rider E"]];
-  const H=["Zippee AWB","Order Number","Shipment Type","Current Status","Warehouse Name","Creation Date","Creation Time","Marketplace Order Date","Ideal Delivery End","Actual Delivery Time","Delivery Pincode","Delivery Lat","Delivery Lng","Rider User ID","Rider Name"];
-  const lines=[H.join(",")],n=46;
-  const times=Array.from({length:n},()=>Math.floor(7*60+rnd()*12.8*60)).sort((a,b)=>a-b);
-  times.forEach((t,i)=>{
-    const win=rnd()<0.2?30:45,mk=t-Math.floor(rnd()*3),late=i>=n-5;
-    const st=late?(i===n-1?"PICKUP_COMPLETED":"READY"):(i===12?"RTO":i===27?"DELIVERY_ATTEMPTED":"DELIVERED");
-    const act=st==="DELIVERED"?hhmm(t+12+Math.floor(rnd()*(win+28))):"";
-    const pin=i===20?"400066":pins[Math.floor(rnd()*pins.length)];
-    const ang=rnd()*Math.PI*2,km=0.5+rnd()*4.6;
-    const lat=(STORE.lat+Math.sin(ang)*km/111).toFixed(6),lng=(STORE.lng+Math.cos(ang)*km/105).toFixed(6);
-    const r=late&&st==="READY"?["",""]:riders[(Math.floor(t/60)+i)%riders.length];
-    const awb="EX"+String(100000+i);
-    lines.push([awb,awb,"FORWARD",st,"Tata 1MG - MALAD - MUMBAI",ds,hhmm(t),ds+" "+hhmm(mk),ds+" "+hhmm(mk+win),act,pin,lat,lng,r[0],r[1]].map(v=>'"'+v+'"').join(","));
-  });
-  return lines.join("\n");
-}
-load(exampleCSV(),"Example data",true);
 })();
 </script>
 
