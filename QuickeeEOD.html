@@ -254,6 +254,11 @@
           </tr>
           <tr class="sub-row">
             <td class="sno"></td>
+            <td class="param">Try &amp; Buy RTO</td>
+            <td class="total" data-kpi="tabRto">0</td>
+          </tr>
+          <tr class="sub-row">
+            <td class="sno"></td>
             <td class="param">Try &amp; Buy Breach (90 min)</td>
             <td class="total" data-kpi="tabBreach">0</td>
           </tr>
@@ -313,7 +318,7 @@
 
   function norm(s) {
     return String(s ?? '')
-      .replace(/^\uFEFF/, '')
+      .replace(/^﻿/, '')
       .trim()
       .toLowerCase()
       .replace(/\s+/g, ' ');
@@ -332,7 +337,7 @@
   }
 
   function parseCSV(text) {
-    text = text.replace(/^\uFEFF/, '');
+    text = text.replace(/^﻿/, '');
     const rows = [];
     let row = [], field = '', quoted = false;
 
@@ -379,7 +384,7 @@
   }
 
   function clearKpis() {
-    ['total', 'delivered', 'breach', 'rto', 'cancelled', 'tabTotal', 'tabDelivered', 'tabBreach']
+    ['total', 'delivered', 'breach', 'rto', 'cancelled', 'tabTotal', 'tabDelivered', 'tabRto', 'tabBreach']
       .forEach(k => setKpi(k, '0'));
     ['deliveredPct', 'breachPct', 'rtoPct', 'cancelledPct', 'tabBreachPct']
       .forEach(k => setKpi(k, '0.00%'));
@@ -436,7 +441,11 @@
 
       const total = filteredData.length;
       const delivered = filteredData.filter(o => norm(o['fulfillment status']) === 'delivered').length;
-      const rto = filteredData.filter(o => norm(o['fulfillment status']) === 'rto_delivered').length;
+      /* KPI 4 = RTO on non-Try & Buy orders only (T&B RTOs are shown under KPI 6) */
+      const rto = filteredData.filter(o =>
+        norm(o['fulfillment status']) === 'rto_delivered' &&
+        orderType(o['notes']) !== 'TRY_AND_BUY'
+      ).length;
       const cancelled = filteredData.filter(o => norm(o['status']) === 'cancelled').length;
       const breach = filteredData.filter(isBreached).length;
 
@@ -444,6 +453,7 @@
       const tab = filteredData.filter(o => orderType(o['notes']) === 'TRY_AND_BUY');
       const tabTotal = tab.length;
       const tabDelivered = tab.filter(o => norm(o['fulfillment status']) === 'delivered').length;
+      const tabRto = tab.filter(o => norm(o['fulfillment status']) === 'rto_delivered').length;
       const tabBreach = tab.filter(isBreached).length;
 
       setKpi('total', total.toLocaleString());
@@ -457,6 +467,7 @@
       setKpi('cancelledPct', percent(cancelled, total));
       setKpi('tabTotal', tabTotal.toLocaleString());
       setKpi('tabDelivered', tabDelivered.toLocaleString());
+      setKpi('tabRto', tabRto.toLocaleString());
       setKpi('tabBreach', tabBreach.toLocaleString());
       setKpi('tabBreachPct', percent(tabBreach, tabDelivered));
 
