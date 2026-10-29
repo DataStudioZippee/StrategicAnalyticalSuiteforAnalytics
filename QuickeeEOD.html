@@ -458,7 +458,8 @@
 
       setKpi('total', total.toLocaleString());
       setKpi('delivered', delivered.toLocaleString());
-      setKpi('deliveredPct', percent(delivered, total));
+      /* Delivery % = Delivered / (Total - all RTO, incl. Try & Buy RTO) */
+      setKpi('deliveredPct', percent(delivered, total - (rto + tabRto)));
       setKpi('breach', breach.toLocaleString());
       setKpi('breachPct', percent(breach, delivered));
       setKpi('rto', rto.toLocaleString());
