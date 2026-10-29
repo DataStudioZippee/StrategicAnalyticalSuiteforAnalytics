@@ -92,7 +92,7 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
       <b>SLA Window</b> = Ideal Delivery End − Marketplace Order Date. 38 minutes or less is a <b>30 Min</b> order, anything longer is a <b>45 Min</b> order.<br>
       <b>SLA Time</b> = Creation Time + SLA Window. <b>Breach</b> = delivered after the SLA Time.<br>
       <b>Deep Pain (DP)</b> = delivered more than 15 minutes after the SLA Time. Breach counts in the KPI report leave DP orders out.<br>
-      <b>Hour</b> = hour of Creation Time. <b>Order Distance</b> = straight-line km from the Malad store, grouped &lt;3, 3–5 and &gt;5.<br>
+      <b>Hour</b> = hour of Creation Time. <b>Order Distance</b> = straight-line km from the Malad store, grouped &lt;3, 3–5 and &gt;5. In the hourly report, &lt;3 turns <b>green</b> when it is higher than 3–5, and 3–5 turns <b>yellow</b> when it is higher than &lt;3.<br>
       <b>Riders</b> = unique Rider User IDs in the hour. <b>Idle Riders</b> = riders who took orders before and after that hour but none in it.<br>
       <b>Pincode Report</b> = breached orders by hour and Delivery Pincode. Any pincode not in the usual list is added to <b>West</b> automatically.<br>
       <b>Hours shown</b> = for today's file, from 07:00 up to the hour the report is made (the time is in each report heading). For an older file, the full day up to 22:00.
@@ -228,7 +228,7 @@ function hourlyModel(orders,meta){
     v.forEach((x,i)=>tot[i]+=x);
     const act=byHour[h]?byHour[h].size:0;
     const idle=riders.filter(r=>first[r]<=h&&last[r]>=h&&!(byHour[h]&&byHour[h].has(r))).length;
-    rows.push({kind:"row",cells:[C(pad2(h)+":00"),C(v[0]),C(v[1],{tone:v[1]?"warn":null}),C(v[2]),C(v[3],{tone:v[3]?"bad":null}),C(v[4]),C(v[5]),C(v[6]),C(act),C(idle,{tone:idle?"warn":null})]});
+    rows.push({kind:"row",cells:[C(pad2(h)+":00"),C(v[0]),C(v[1],{tone:v[1]?"warn":null}),C(v[2]),C(v[3],{tone:v[3]?"bad":null}),C(v[4],{tone:v[4]>v[5]?"good":null}),C(v[5],{tone:v[5]>v[4]?"warn":null}),C(v[6]),C(act),C(idle,{tone:idle?"warn":null})]});
   }
   rows.push({kind:"total",cells:[C("Total"),...tot.map(x=>C(x)),C(riders.length),C("–")]});
   return{id:"hourly",file:"Hourly",label:"Hourly",sheet:"Hourly Order Report",title:"ZIPPEE <> TATA 1MG HOURLY ORDER WISE REPORT | "+meta.dateLabel+" | "+meta.timeLabel,subtitle:"By order creation hour",
