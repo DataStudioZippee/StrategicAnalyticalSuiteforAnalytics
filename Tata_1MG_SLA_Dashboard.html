@@ -81,7 +81,7 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
     <div class="upload-title">Upload Detailed Report CSV</div>
     <input type="file" id="fileInput" accept=".csv,text/csv" aria-label="Upload Detailed Report CSV">
     <div class="window-note">Upload the <b>Detailed Report</b> export (Current Status, Creation Time, Marketplace Order Date, Ideal Delivery End,
-      Actual Delivery Time, Delivery Pincode, Delivery Lat/Lng, Rider User ID). The file is read in this browser and is not uploaded anywhere.</div>
+      Reached Delivery At, Delivery Pincode, Delivery Lat/Lng, Rider User ID). The file is read in this browser and is not uploaded anywhere.</div>
 
     <div class="status" id="dataStatus">No file loaded yet. Upload the Detailed Report CSV to build the reports.</div>
     <div class="status" id="pinStatus" hidden></div>
@@ -89,23 +89,25 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
 
     <div class="formula">
       <b>Metrics Logic:</b><br>
-      <b>SLA Window</b> = Ideal Delivery End − Marketplace Order Date. 38 minutes or less is a <b>30 Min</b> order, anything longer is a <b>45 Min</b> order.<br>
-      <b>SLA Time</b> = Creation Time + SLA Window. <b>Breach</b> = delivered after the SLA Time.<br>
-      <b>Deep Pain (DP)</b> = delivered more than 15 minutes after the SLA Time. Breach counts in the KPI report leave DP orders out.<br>
+      <b>Slot</b> = Ideal Delivery End − Marketplace Order Date. 30 minutes or less is a <b>30 Min</b> order, anything longer is a <b>45 Min</b> order.<br>
+      <b>Time Taken</b> = Reached Delivery At − Marketplace Order Date. <b>Breach</b> = Time Taken is more than 30 minutes for a 30 Min order, or more than 45 minutes for a 45 Min order.<br>
+      <b>Deep Pain (DP)</b> = Time Taken is more than 45 minutes for a 30 Min order, or more than 60 minutes for a 45 Min order. Breach counts in the KPI report leave DP orders out.<br>
       <b>Hour</b> = hour of Creation Time. <b>Order Distance</b> = straight-line km from the Malad store, grouped &lt;3, 3–5 and &gt;5. In the hourly report, &lt;3 turns <b>green</b> when it is higher than 3–5, and 3–5 turns <b>yellow</b> when it is higher than &lt;3.<br>
       <b>Riders</b> = unique Rider User IDs in the hour. <b>Idle Riders</b> = riders who took orders before and after that hour but none in it.<br>
+      <b>Breach Orders Report</b> = every delivered order that breached, with its Zippee AWB, listed by creation time. DP orders are marked in red.<br>
       <b>Pincode Report</b> = breached orders by hour and Delivery Pincode. Any pincode not in the usual list is added to <b>West</b> automatically.<br>
       <b>Hours shown</b> = for today's file, from 07:00 up to the hour the report is made (the time is in each report heading). For an older file, the full day up to 22:00.
     </div>
 
     <div class="all-actions" id="allActions" hidden>
-      <button class="btn" id="allPng" type="button">Download All PNG (.zip)</button>
+      <button class="btn" id="allPng" type="button">Download All PNG</button>
       <button class="btn btn-secondary" id="allXlsx" type="button">Download All Excel</button>
     </div>
 
     <div class="report-block" id="blk-kpi"></div>
     <div class="report-block" id="blk-hourly"></div>
     <div class="report-block" id="blk-pin"></div>
+    <div class="report-block" id="blk-breach"></div>
   </div>
 
   <div class="footer">Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee</div>
@@ -119,7 +121,7 @@ const STORE={lat:19.1894167966443,lng:72.8387353346888};
 const WEST=["400067","400064","400104","400095","400062","400091"];
 const EAST=["400097","400092","400101","400063"];
 const STATUS_ROWS=["RTO","READY","DELIVERY_ATTEMPTED","PICKUP_COMPLETED","OUT_FOR_DELIVERY"];
-const REQUIRED=["Shipment Type","Current Status","Creation Date","Creation Time","Marketplace Order Date","Ideal Delivery End","Actual Delivery Time","Delivery Pincode","Delivery Lat","Delivery Lng","Rider User ID"];
+const REQUIRED=["Shipment Type","Current Status","Creation Date","Creation Time","Marketplace Order Date","Ideal Delivery End","Reached Delivery At","Delivery Pincode","Delivery Lat","Delivery Lng","Rider User ID"];
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -129,7 +131,7 @@ function setStatus(id,html,cls){const el=$(id);el.className="status"+(cls?" "+cl
 
 /* ---------- parsing ---------- */
 function parseCSV(text){
-  text=text.replace(/^﻿/,"");
+  text=text.replace(/^\uFEFF/,"");
   const rows=[];let row=[],f="",q=false;
   for(let i=0;i<text.length;i++){
     const c=text[i];
@@ -151,13 +153,23 @@ function parseTime(s){
   if(ap==="pm"&&h<12) h+=12; if(ap==="am"&&h===12) h=0;
   return h*60+ +m[2]+(m[3]?+m[3]/60:0);
 }
+/* full date-time → minutes since epoch (local time read as UTC, so % 1440 gives the local time of day) */
 function parseDT(s){
-  s=(s||"").trim(); if(!s) return null; let m;
-  if((m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/)))
-    return Date.UTC(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0))/60000;
-  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/)))
-    return Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0))/60000;
-  return null;
+  s=(s||"").trim(); if(!s) return null; let m,y,mo,d,rest;
+  if((m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/))){d=+m[1];mo=+m[2];y=+m[3];rest=m[4];}
+  else if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/))){y=+m[1];mo=+m[2];d=+m[3];rest=m[4];}
+  else return null;
+  const t=parseTime(rest.replace(/^[ T]+/,"").replace(/\.\d+/,"").replace(/Z$/i,""));
+  return Date.UTC(y,mo-1,d)/60000+(t||0);
+}
+/* Reached Delivery At: full date-time, or a bare time placed on the order's day (next day if it would land before the order) */
+function parseReached(s,mk){
+  s=(s||"").trim(); if(!s) return null;
+  if(/^(\d{1,2}[\/-]\d{1,2}[\/-]\d{4}|\d{4}-\d{2}-\d{2})/.test(s)) return parseDT(s);
+  const t=parseTime(s); if(t==null||mk==null) return null;
+  let v=Math.floor(mk/1440)*1440+t;
+  if(v<mk-60) v+=1440;
+  return v;
 }
 function distKm(lat,lng){
   if(!isFinite(lat)||!isFinite(lng)) return null;
@@ -167,26 +179,32 @@ function distKm(lat,lng){
   return Math.round(6371*Math.acos(c)*100)/100;
 }
 
-/* ---------- helper columns A–I of the mastersheet, per order ---------- */
+/* ---------- calculated columns, per order ---------- */
 function computeOrders(rows){
-  const hdr=rows[0].map(h=>h.replace(/^﻿/,"").trim());
+  const hdr=rows[0].map(h=>h.replace(/^\uFEFF/,"").trim().toLowerCase());
   const idx={}; hdr.forEach((h,i)=>{if(!(h in idx)) idx[h]=i;});
-  const missing=REQUIRED.filter(c=>!(c in idx));
+  const missing=REQUIRED.filter(c=>!(c.toLowerCase() in idx));
   if(missing.length) throw new Error("This file is missing these columns: "+missing.join(", ")+". Upload the Detailed Report CSV.");
   const out=[];
   for(let i=1;i<rows.length;i++){
-    const r=rows[i]; const g=c=>(c in idx&&r[idx[c]]!=null)?String(r[idx[c]]).trim():"";
+    const r=rows[i]; const g=c=>{const k=c.toLowerCase();return(k in idx&&r[idx[k]]!=null)?String(r[idx[k]]).trim():"";};
     const T=parseTime(g("Creation Time"));
     const mk=parseDT(g("Marketplace Order Date")),end=parseDT(g("Ideal Delivery End"));
     const win=(mk!=null&&end!=null)?Math.round((end-mk)*1000)/1000:null;
     const Y=parseTime(g("Actual Delivery Time"));
     const o={awb:g("Zippee AWB"),orderNo:g("Order Number"),ship:g("Shipment Type").toUpperCase(),status:g("Current Status").toUpperCase(),
-      date:g("Creation Date"),wh:g("Warehouse Name"),T,Y,win,hour:T==null?null:Math.floor(T/60),type:win==null?null:(win<=38?"30":"45"),
+      date:g("Creation Date"),wh:g("Warehouse Name"),T,Y,win,hour:T==null?null:Math.floor(T/60),type:win==null?null:(win<=30?"30":"45"),
       pin:(g("Delivery Pincode").match(/\d{6}/)||[g("Delivery Pincode")])[0],rider:g("Rider User ID"),riderName:g("Rider Name"),
-      sla:null,dpAt:null,breach:null,dp:null};
-    if(T!=null&&win!=null){
-      o.sla=T+win;o.dpAt=o.sla+15;
-      if(Y!=null){o.breach=(o.sla%1440)>=Y?"Not Breach":"Breach";o.dp=(o.dpAt%1440)>=Y?"Not DP":"DP";}
+      reached:null,tat:null,sla:null,dpAt:null,breach:null,dp:null};
+    if(mk!=null&&win!=null){
+      const slotMin=o.type==="30"?30:45;            // slot from Ideal Delivery End − Marketplace Order Date
+      o.sla=mk+slotMin; o.dpAt=o.sla+15;            // SLA time and DP time
+      o.reached=parseReached(g("Reached Delivery At"),mk);
+      if(o.reached!=null){
+        o.tat=Math.round((o.reached-mk)*100)/100;   // Reached Delivery At − Marketplace Order Date
+        o.breach=o.tat<=slotMin?"Not Breach":"Breach";
+        o.dp=o.tat<=slotMin+15?"Not DP":"DP";
+      }
     }
     o.dist=distKm(parseFloat(g("Delivery Lat")),parseFloat(g("Delivery Lng")));
     o.slot=o.dist==null?null:(o.dist<3?"<3":o.dist<5?">3<5":">5");
@@ -254,9 +272,19 @@ function pinModel(orders,meta){
     groups:[{label:"",span:1},{label:"West",span:west.length},{label:"East",span:EAST.length},{label:"",span:1}],
     head:["Hour",...pins,"Total"],align:["c"].concat(pins.map(()=>"c"),["c"]),colW:[84,...pins.map(()=>74),70],rows};
 }
+function breachModel(orders,meta){
+  const list=orders.filter(o=>o.status==="DELIVERED"&&o.breach==="Breach").sort((a,b)=>(a.T??1e9)-(b.T??1e9));
+  const head=["S. No","Zippee AWB","Order Type","Creation Time","Time Taken (min)","Delay","Delivery Pincode","Rider Name"];
+  const rows=list.map((o,i)=>({kind:"row",cells:[C(String(i+1)),C(o.awb||"–"),C(o.type?o.type+" Min":""),C(o.T==null?"":hhmm(o.T)),
+    C(o.tat==null?"":Math.round(o.tat)),C(o.dp==="DP"?"DP":"Breach",{tone:o.dp==="DP"?"bad":"warn"}),C(o.pin),C(o.riderName||o.rider)]}));
+  if(!rows.length) rows.push({kind:"row",cells:[C("–"),C("No breached orders"),C(""),C(""),C(""),C(""),C(""),C("")]});
+  rows.push({kind:"total",cells:[C("Total"),C(list.length+" order(s)"),C(""),C(""),C(""),C(list.filter(o=>o.dp==="DP").length+" DP"),C(""),C("")]});
+  return{id:"breach",file:"Breach_Orders",label:"Breach Orders",sheet:"Breach Orders",title:"ZIPPEE <> TATA 1MG BREACH ORDERS | "+meta.dateLabel+" | "+meta.timeLabel,
+    subtitle:"Delivered orders that breached SLA",groups:null,head,align:["c","l","c","c","c","c","c","l"],colW:[64,190,96,104,124,84,124,170],rows};
+}
 function ordersModel(orders){
-  const head=["Zippee AWB","Order Number","Current Status","Creation Date","Creation Time","Hour","SLA Window (min)","Order Type","SLA Time","DP Time","Actual Delivery Time","Breach/Met","DP","Distance (km)","D. Slot","Delivery Pincode","Rider User ID","Rider Name"];
-  const rows=orders.map(o=>({kind:"row",cells:[o.awb,o.orderNo,o.status,o.date,o.T==null?"":hhmm(o.T),o.hour,o.win,o.type?+o.type:null,o.sla==null?"":hhmm(o.sla),o.dpAt==null?"":hhmm(o.dpAt),o.Y==null?"":hhmm(o.Y),o.breach||"",o.dp||"",o.dist,o.slot||"",o.pin,o.rider,o.riderName].map(v=>C(v))}));
+  const head=["Zippee AWB","Order Number","Current Status","Creation Date","Creation Time","Hour","SLA Window (min)","Order Type","SLA Time","DP Time","Reached Delivery At","Time Taken (min)","Actual Delivery Time","Breach/Met","DP","Distance (km)","D. Slot","Delivery Pincode","Rider User ID","Rider Name"];
+  const rows=orders.map(o=>({kind:"row",cells:[o.awb,o.orderNo,o.status,o.date,o.T==null?"":hhmm(o.T),o.hour,o.win,o.type?+o.type:null,o.sla==null?"":hhmm(o.sla),o.dpAt==null?"":hhmm(o.dpAt),o.reached==null?"":hhmm(o.reached),o.tat,o.Y==null?"":hhmm(o.Y),o.breach||"",o.dp||"",o.dist,o.slot||"",o.pin,o.rider,o.riderName].map(v=>C(v))}));
   return{sheet:"Order Data",title:"Order data with calculated columns",subtitle:"",groups:null,head,rows,colW:head.map((h,i)=>i<2?150:110)};
 }
 
@@ -355,7 +383,7 @@ function makeXlsx(models){
 }
 
 
-/* ---------- PNG via html2canvas, saved through the page's download permission ---------- */
+/* ---------- PNG via html2canvas ---------- */
 async function tablePng(id){
   if(!window.html2canvas) throw new Error("the image library didn't load. Reload the page and try again");
   const el=$("tbl-"+id);
@@ -386,10 +414,14 @@ async function downloadOne(id,fmt){
   else await save(fname(m.file,"xlsx"),makeXlsx([m]));
 }
 async function downloadAllPng(){
-  const files=[];for(const id of ["kpi","hourly","pin"]) files.push({name:fname(state.models[id].file,"png"),data:await tablePng(id)});
-  await save(fname("All_Reports_PNG","zip"),makeZip(files));
+  // one PNG file per report, downloaded one after another (no zip)
+  for(const id of ["kpi","hourly","pin","breach"]){
+    await save(fname(state.models[id].file,"png"),new Blob([await tablePng(id)],{type:"image/png"}));
+    await new Promise(r=>setTimeout(r,600));
+  }
+  toast("Saved all 4 PNG reports");
 }
-async function downloadAllXlsx(){const M=state.models;await save(fname("All_Reports","xlsx"),makeXlsx([M.kpi,M.hourly,M.pin,ordersModel(state.orders)]));}
+async function downloadAllXlsx(){const M=state.models;await save(fname("All_Reports","xlsx"),makeXlsx([M.kpi,M.hourly,M.pin,M.breach,ordersModel(state.orders)]));}
 async function busy(btn,fn){if(btn.disabled)return;const t=btn.textContent;btn.disabled=true;btn.textContent="Preparing…";
   try{await fn();}catch(err){toast("Couldn't build the file: "+err.message);}finally{btn.disabled=false;btn.textContent=t;}}
 document.addEventListener("click",e=>{
@@ -425,8 +457,8 @@ function load(text,source,isExample){
   // today's file: hours run up to the current hour; an older file: the full day up to 22:00
   const endHour=di.file===todayKey?now.getHours():22;
   state.meta={source,store:storeName(orders),dateLabel:di.label,fileDate:di.file,timeLabel,endHour};
-  state.models={kpi:kpiModel(orders,state.meta),hourly:hourlyModel(orders,state.meta),pin:pinModel(orders,state.meta)};
-  ["kpi","hourly","pin"].forEach(id=>renderReport(state.models[id]));
+  state.models={kpi:kpiModel(orders,state.meta),hourly:hourlyModel(orders,state.meta),pin:pinModel(orders,state.meta),breach:breachModel(orders,state.meta)};
+  ["kpi","hourly","pin","breach"].forEach(id=>renderReport(state.models[id]));
   $("allActions").hidden=false;
 
   let msg,cls="ok";
@@ -435,7 +467,9 @@ function load(text,source,isExample){
   const other=orders.filter(o=>o.wh&&!/malad/i.test(o.wh)).length;
   if(other){msg+="<br><b>"+other+"</b> order(s) are from a store other than Malad. Distance is measured from the Malad store, so their distance groups will be off.";cls="warn";}
   const noSla=orders.filter(o=>o.sla==null).length;
-  if(noSla){msg+="<br><b>"+noSla+"</b> order(s) have no Creation Time or promised window, so they have no SLA and are left out of breach counts.";cls="warn";}
+  if(noSla){msg+="<br><b>"+noSla+"</b> order(s) have no Marketplace Order Date or Ideal Delivery End, so they have no slot and are left out of breach counts.";cls="warn";}
+  const noReach=orders.filter(o=>o.status==="DELIVERED"&&o.sla!=null&&o.tat==null).length;
+  if(noReach){msg+="<br><b>"+noReach+"</b> delivered order(s) have no Reached Delivery At, so they are left out of breach counts.";cls="warn";}
   const noLoc=orders.filter(o=>o.dist==null).length;
   if(noLoc){msg+="<br><b>"+noLoc+"</b> order(s) have no delivery location, so they have no distance group.";cls="warn";}
   setStatus("dataStatus",msg,cls);
