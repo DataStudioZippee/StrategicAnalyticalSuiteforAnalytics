@@ -299,7 +299,7 @@ Download Filtered CSV
 // Columns used: Stores (raw Warehouse Name), Rename (display name),
 // Cutoff (time of day, e.g. 16:00:00). Only stores listed there are shown.
 // If this link stops working, paste the correct one in the box on the page.
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSalB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=1217247023&single=true&output=csv";
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=1217247023&single=true&output=csv";
 
 // Used only when a store's Cutoff cell is blank or unreadable.
 const fallbackCutoffMinutes = 16 * 60;
@@ -337,7 +337,7 @@ function allRows(){
 
 function getSheetUrl(){
   try{
-    let saved = localStorage.getItem("sddSheetUrl");
+    let saved = localStorage.getItem("sddSheetUrl_v2");
     if(saved) return saved;
   } catch(e){}
   return DEFAULT_SHEET_URL;
@@ -414,7 +414,7 @@ async function loadStoreSheet(){
 
   let input = document.getElementById("sheetUrl");
   let url = str(input.value) || DEFAULT_SHEET_URL;
-  try{ localStorage.setItem("sddSheetUrl", url); } catch(e){}
+  try{ localStorage.setItem("sddSheetUrl_v2", url); } catch(e){}
 
   let statusEl = document.getElementById("sheetStatus");
   statusEl.style.color = "#0a5c36";
