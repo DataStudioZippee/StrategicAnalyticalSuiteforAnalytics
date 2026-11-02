@@ -725,6 +725,14 @@ function updateTable(){
 
 /* ========================= RENDER ========================= */
 
+// e.g. "02 Nov 2026, 03:20 PM"
+function reportTimestamp(){
+  return new Date().toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true
+  }).replace(/\b(am|pm)\b/, m => m.toUpperCase());
+}
+
 function renderTable(statuses){
 
   let deduped = getFilteredDeduped();
@@ -742,6 +750,7 @@ function renderTable(statuses){
   <div id="downloadArea">
   <div class="table-header-bar">
     Zippee &lt;&gt; PAN INDIA Pendency Report
+    <div style="font-size:13px;font-weight:600;margin-top:4px;opacity:0.9;">${reportTimestamp()}</div>
   </div>
   <table>
     <tr>
@@ -895,6 +904,7 @@ function readyToDownload(){
 
 function downloadImage(){
   if(!readyToDownload()) return;
+  updateTable(); // refresh the timestamp to the moment of download
   let area = document.getElementById("downloadArea");
   html2canvas(area, {
     scale: 3,
