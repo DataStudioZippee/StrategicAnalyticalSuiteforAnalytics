@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
 <style>
@@ -35,15 +36,15 @@ body::before{
   background:rgba(255,255,255,0.16);
   backdrop-filter:blur(10px);
   margin:40px auto;
-  width:fit-content;           /* dynamic width */
-  min-width:700px;             /* fallback */
+  width:fit-content;
+  min-width:700px;
   padding:30px;
   border-radius:18px;
   text-align:left;
   box-sizing:border-box;
 }
 
-/* UPLOAD ROW */
+/* UPLOAD */
 .upload-row{
   display:flex;
   gap:24px;
@@ -55,7 +56,7 @@ body::before{
   border:1px dashed #062e44;
   border-radius:10px;
   padding:12px 16px;
-  min-width:260px;
+  min-width:320px;
 }
 .upload-box label{
   display:block;
@@ -64,11 +65,47 @@ body::before{
   color:#062e44;
   margin-bottom:6px;
 }
+.upload-hint{
+  font-size:11px;
+  color:#333;
+  margin-top:4px;
+}
 .upload-status{
   font-size:11px;
   margin-top:6px;
   color:#0a5c36;
   font-weight:600;
+}
+.file-list{
+  list-style:none;
+  padding:0;
+  margin:6px 0 0;
+  font-size:11px;
+}
+.file-list li{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:2px 0;
+  border-bottom:1px solid rgba(0,0,0,0.08);
+}
+.file-list button{
+  border:none;
+  background:none;
+  color:#b00020;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:700;
+}
+.clear-btn{
+  margin-top:8px;
+  padding:4px 10px;
+  font-size:11px;
+  background:#b00020;
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  cursor:pointer;
 }
 
 /* FILTER */
@@ -86,14 +123,12 @@ table{
   overflow:hidden;
   box-shadow:0 8px 20px rgba(0,0,0,0.2);
 }
-
 th,td{
   border:1px solid #ddd;
-  padding:6px;
+  padding:5px 6px;
   font-size:12px;
   text-align:center;
 }
-
 th{
   background:#062e44;
   color:white;
@@ -127,27 +162,59 @@ th{
   background:#dee2e6;
   font-weight:bold;
 }
-th,td{
-  padding:5px 6px;
-  font-size:12px;
-}
 .table-header-bar{
   background:#2f3e46;
   color:white;
   padding:14px 0;
   text-align:center;
   font-weight:800;
-  font-size:18px;
   font-size:20px;
   letter-spacing:0.5px;
   width:100%;
   max-width:700px;
   margin:30px auto 0;
-
   border-radius:6px 6px 0 0;
   box-shadow:0 4px 10px rgba(0,0,0,0.2);
 }
-
+.loading-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+.loading-box{
+  background:#fff;
+  padding:24px 32px;
+  border-radius:12px;
+  text-align:center;
+  font-weight:600;
+  color:#062e44;
+  max-width:420px;
+}
+.spinner{
+  width:36px;
+  height:36px;
+  margin:0 auto 12px;
+  border:4px solid #dbe4ea;
+  border-top-color:#062e44;
+  border-radius:50%;
+  animation:spin 0.9s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+button:disabled{ opacity:0.5; cursor:not-allowed !important; }
+.diag-box{
+  max-width:700px;
+  margin:12px auto 0;
+  background:#fff4e5;
+  border:1px solid #f0b357;
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:12px;
+  color:#5c3b00;
+}
 .watermark{
   width:100%;
   max-width:700px;
@@ -155,17 +222,6 @@ th,td{
   text-align:center;
   font-weight:bold;
 }
-.source-tag{
-  display:inline-block;
-  font-size:9px;
-  font-weight:700;
-  padding:1px 5px;
-  border-radius:4px;
-  margin-left:4px;
-  vertical-align:middle;
-}
-.source-blaze{ background:#ffe08a; color:#5c4300; }
-.source-bolt{ background:#b7e4c7; color:#0a3d20; }
 </style>
 
 </head>
@@ -176,7 +232,14 @@ th,td{
   <h2>SDD – Pendancy Report</h2>
 </div>
 
-<button onclick="downloadImage()" style="
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingText">Fetching store list from Google Sheet…</div>
+  </div>
+</div>
+
+<button id="imgBtn" onclick="downloadImage()" style="
   margin:15px 0 15px 20px;
   padding:8px 16px;
   background:#062e44;
@@ -188,7 +251,7 @@ th,td{
 Download Report
 </button>
 
-<button onclick="downloadCSV()" style="
+<button id="csvBtn" onclick="downloadCSV()" style="
   margin:10px 0 15px 20px;
   padding:8px 16px;
   background:#0a5c36;
@@ -203,21 +266,28 @@ Download Filtered CSV
 <div class="card">
 
 <div class="upload-row">
-  <div class="upload-box">
-    <label>Blaze File (legacy format)</label>
-    <input type="file" id="blazeFileInput" accept=".csv">
-    <div class="upload-status" id="blazeStatus">No file loaded</div>
+  <div class="upload-box" style="flex:1 1 100%;">
+    <label>Store List (published Google Sheet CSV link)</label>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="sheetUrl" style="flex:1;font-size:11px;padding:4px;">
+      <button class="clear-btn" style="background:#062e44;margin-top:0;" onclick="loadStoreSheet()">Load / Refresh</button>
+    </div>
+    <div class="upload-status" id="sheetStatus">Store list not loaded</div>
   </div>
   <div class="upload-box">
-    <label>Bolt File (new format)</label>
-    <input type="file" id="boltFileInput" accept=".csv">
+    <label>Bolt Files (CSV / Excel)</label>
+    <input type="file" id="boltFileInput" accept=".csv,.xlsx,.xls" multiple disabled>
+    <div class="upload-hint">Select one or more files. New selections are added to the ones already loaded.</div>
     <div class="upload-status" id="boltStatus">No file loaded</div>
+    <ul class="file-list" id="boltFileList"></ul>
+    <button class="clear-btn" id="clearBtn" onclick="clearFiles()" style="display:none;">Clear all files</button>
   </div>
 </div>
 
 <div class="filter-box" id="filterBox"></div>
 
 <div id="tableContainer"></div>
+<div id="diagBox" class="diag-box" style="display:none;"></div>
 
 </div>
 
@@ -225,99 +295,15 @@ Download Filtered CSV
 
 /* ========================= CONFIG ========================= */
 
-// Fixed Blaze darkstore whitelist (unchanged from the original report)
-const blazeAllowedStores = [
-  "zippee_andheri_sdd",
-  "zippee_horamavu_sdd",
-  "zippee_okhla_sdd",
-  "zippee_koramangala_sdd",
-  "zippee_koregaonpark_sdd",
-  "zippee_manikonda_sdd",
-  "zippee_matunga_valkyriesdd",
-  "zippee_periyamet_sdd",
-  "zippee_kolkata_sdd",
-  "zippee_ghaziabad_sdd",
-  "zippee_wazirpur_sdd",
-  "zippee_dwarka_sdd",
-  "zippee_gurugram_sdd",
-  "zipppee_noida_sdd"
-];
+// Store list comes from the published Google Sheet ("Brand Pendancy" tab).
+// Columns used: Stores (raw Warehouse Name), Rename (display name),
+// Cutoff (time of day, e.g. 16:00:00). Only stores listed there are shown.
+// If this link stops working, paste the correct one in the box on the page.
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSalB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=1217247023&single=true&output=csv";
 
-// Display names for known store slugs (Blaze slugs, plus any Bolt slugs
-// you want to alias later). Anything not listed here falls back to a
-// prettified version of the raw warehouse name.
-const storeNameMap = {
-  "zippee_andheri_sdd": "Mumbai | Andheri",
-  "zippee_horamavu_sdd": "Bangalore | Horamavu",
-  "zippee_okhla_sdd": "Delhi | Okhla",
-  "zippee_ghaziabad_sdd": "Delhi | Ghaziabad",
-  "zippee_wazirpur_sdd": "Delhi | Wazirpur",
-  "zippee_dwarka_sdd": "Delhi | Dwarka",
-  "zippee_gurugram_sdd": "Delhi | Gurugram",
-  "zipppee_noida_sdd": "Delhi | Noida",
-  "zippee_koramangala_sdd": "Bangalore | Koramangala",
-  "zippee_koregaonpark_sdd": "Pune | Koregaon Park",
-  "zippee_manikonda_sdd": "Hyderabad | Manikonda",
-  "zippee_matunga_valkyriesdd": "Mumbai | Matunga",
-  "zippee_periyamet_sdd": "Chennai | Periyamet",
-    "zippee_periyamet_sdd": "Chennai | Periyamet",
-  "zippee_kolkata_sdd": "Kolkata | Topsia",
-  "zippee_topsia_valkyriesdd": "Kolkata | Topsia",
-  "zippee_krishna_herbal_indorewh": "Indore | Krishna Herbal",
-  "zippee_krishna_herbal_jodhpurwh": "Jodhpur | Krishna Herbal"
-};
+// Used only when a store's Cutoff cell is blank or unreadable.
+const fallbackCutoffMinutes = 16 * 60;
 
-// Only these Bolt warehouses are included in the report. Everything else
-// in a Bolt upload (test stores, other clients' warehouses, etc.) is
-// excluded. Add/remove slugs here as needed.
-// Only these Bolt warehouses are included in the report. Everything else
-// in a Bolt upload (test stores, other clients' warehouses, etc.) is
-// excluded. Add/remove slugs here as needed.
-const boltAllowedStores = [
-  "zippee_krishna_herbal_indorewh",
-  "zippee_krishna_herbal_jodhpurwh",
-  "zippee_periyamet_sdd",
-  "zippee_topsia_valkyriesdd",
-  "zippee_periyamet_sdd",
-  "zippee_topsia_valkyriesdd",
-"zippee_periyamet_sdd",
-"zippee_koramangala_sdd",
-"zippee_okhla_sdd",
-"zippee_horamavu_sdd",
-"zippee_manikonda_sdd",
-"zippee_kalyannagar_sdd",
-"zippee_wazirpur_sdd",
-"zippee_dwarka_sdd",
-"zippee_ghaziabad_sdd",
-"zippee_okhla_sdd",
-"zipppee_noida_sdd",
-"zippee_gurugram_sdd",
-"koregaon park",
-"zippee_horamavu_sdd",
-"zippee_koramangala_sdd",
-"zippee_andheri_sdd",
-"zippee_matunga_valkyriesdd",
-"zippee_manikonda_sdd",
-"zippee_topsia_valkyriesdd",
-"zippee_periyamet_sdd",
-"zippee_krishna_herbal_jodhpurwh",
-"zippee_krishna_herbal_indorewh",
-"zippee_kalyannagar_sdd"
-
-];
-
-// Same-day cutoff hour (24h) per store. Any order created today, after
-// this hour, is excluded from pendency. Default is 3pm; override specific
-// stores below.
-const defaultCutoffHour = 15;
-const storeCutoffHours = {
-  "zippee_krishna_herbal_indorewh": 11,
-  "zippee_krishna_herbal_jodhpurwh": 11
-};
-
-// Brands excluded regardless of source. Bolt data also contains obvious
-// test brands (Test_onprod, Test locus, Moksh_Test) — not excluded by
-// default since you didn't ask for that; add them below if you want them out.
 const excludedBrands = ["testing_fabbox", "supertails"];
 
 const statusesList = [
@@ -335,170 +321,373 @@ const statusesList = [
 
 /* ========================= STATE ========================= */
 
-let blazeNormalized = [];
-let boltNormalized = [];
+// fileName -> array of normalized rows. Re-uploading a file with the same
+// name replaces its rows instead of double-counting them.
+let loadedFiles = {};
+
+// lowercase warehouse name -> { name, cutoffMinutes, cutoffLabel }
+let storeConfig = {};
+let storeConfigLoaded = false;
+
+function allRows(){
+  return Object.values(loadedFiles).flat();
+}
+
+/* ========================= STORE SHEET ========================= */
+
+function getSheetUrl(){
+  try{
+    let saved = localStorage.getItem("sddSheetUrl");
+    if(saved) return saved;
+  } catch(e){}
+  return DEFAULT_SHEET_URL;
+}
+
+function storeKey(raw){
+  return str(raw).toLowerCase().replace(/\s+/g, " ");
+}
+
+// "16:00:00", "16:00", "4:00 PM", or a sheet fraction like 0.6667 -> minutes
+function parseCutoff(raw){
+  let s = str(raw);
+  if(!s) return null;
+  if(/^\d*\.\d+$/.test(s)) return Math.round(parseFloat(s) * 1440);
+  let t = parseTime(s);
+  return t ? t.hour * 60 + t.minute : null;
+}
+
+function minutesLabel(m){
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+
+// Locks upload + download until the store list is in, so nobody can
+// download an empty report while the sheet is still loading.
+function setControlsEnabled(on){
+  document.getElementById("boltFileInput").disabled = !on;
+  document.getElementById("imgBtn").disabled = !on;
+  document.getElementById("csvBtn").disabled = !on;
+}
+
+function showLoading(text){
+  document.getElementById("loadingText").textContent = text;
+  document.getElementById("loadingOverlay").style.display = "flex";
+}
+function hideLoading(){
+  document.getElementById("loadingOverlay").style.display = "none";
+}
+
+async function fetchWithTimeout(url, ms){
+  let ctrl = new AbortController();
+  let timer = setTimeout(() => ctrl.abort(), ms);
+  try{
+    let res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function buildStoreConfig(csvText){
+  let parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  let cfg = {};
+  parsed.data.forEach(row=>{
+    let lower = {};
+    Object.keys(row).forEach(k => lower[k.trim().toLowerCase()] = row[k]);
+    let key = storeKey(lower["stores"]);
+    if(!key) return;
+    let cutoff = parseCutoff(lower["cutoff"]);
+    if(cutoff === null) cutoff = fallbackCutoffMinutes;
+    cfg[key] = {
+      name: str(lower["rename"]) || str(lower["stores"]),
+      cutoffMinutes: cutoff
+    };
+  });
+  return cfg;
+}
+
+let sheetLoading = false;
+
+async function loadStoreSheet(){
+  if(sheetLoading) return;
+  sheetLoading = true;
+
+  let input = document.getElementById("sheetUrl");
+  let url = str(input.value) || DEFAULT_SHEET_URL;
+  try{ localStorage.setItem("sddSheetUrl", url); } catch(e){}
+
+  let statusEl = document.getElementById("sheetStatus");
+  statusEl.style.color = "#0a5c36";
+  statusEl.textContent = "Loading store list...";
+  setControlsEnabled(false);
+
+  const maxTries = 3;
+  let lastErr = null;
+
+  for(let attempt = 1; attempt <= maxTries; attempt++){
+    showLoading(`Fetching store list from Google Sheet… (attempt ${attempt} of ${maxTries}, can take up to ~10 sec)`);
+    try{
+      let fetchUrl = url + (url.includes("?") ? "&" : "?") + "_ts=" + Date.now();
+      let text = await fetchWithTimeout(fetchUrl, 20000);
+      if(/^\s*<(!doctype|html)/i.test(text)){
+        throw new Error("Link returned a web page, not CSV. Use the 'Publish to web → CSV' link.");
+      }
+      let cfg = buildStoreConfig(text);
+      if(Object.keys(cfg).length === 0){
+        throw new Error("Sheet loaded but no stores found. It needs Stores / Rename / Cutoff columns.");
+      }
+
+      storeConfig = cfg;
+      storeConfigLoaded = true;
+      let names = Object.values(cfg).map(c => `${c.name} (${minutesLabel(c.cutoffMinutes)})`);
+      statusEl.style.color = "#0a5c36";
+      statusEl.textContent = `Loaded ${names.length} stores: ${names.join(", ")}`;
+      hideLoading();
+      setControlsEnabled(true);
+      sheetLoading = false;
+      updateTable();
+      return;
+    } catch(err){
+      lastErr = err;
+      console.error("Store sheet attempt " + attempt + " failed:", err);
+      if(attempt < maxTries) await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+
+  hideLoading();
+  sheetLoading = false;
+  statusEl.style.color = "#b00020";
+  let reason = lastErr && lastErr.name === "AbortError" ? "timed out" : (lastErr ? lastErr.message : "unknown error");
+  statusEl.textContent = `Could not load the store list (${reason}). Check the link and your internet, then click Load / Refresh. Upload and download stay locked until it loads.`;
+}
 
 /* ========================= HELPERS ========================= */
 
 function prettifyStoreName(raw){
-  if(storeNameMap[raw]) return storeNameMap[raw];
-  return raw
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, c => c.toUpperCase());
+  let cfg = storeConfig[storeKey(raw)];
+  return cfg ? cfg.name : raw;
 }
 
-// Blaze: single field like ="17/08/2026 5:16 PM" -> dd/mm/yyyy hh:mm AM/PM
-function parseBlazeDate(raw){
-  raw = (raw || "").trim().replace(/^="|"$/g, "");
+function str(v){
+  if(v === null || v === undefined) return "";
+  return String(v).trim();
+}
+
+// Excel serial date (days since 1899-12-30) -> {y,m,d,frac}
+function excelSerialToParts(serial){
+  let days = Math.floor(serial);
+  let frac = serial - days;
+  let ms = Date.UTC(1899, 11, 30) + days * 86400000;
+  let dt = new Date(ms);
+  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth(), d: dt.getUTCDate(), frac };
+}
+
+// Returns {hour, minute} from a time value: Excel fraction, "14:35",
+// "14:35:00", or "2:35 PM".
+function parseTime(raw){
+  if(typeof raw === "number"){
+    let mins = Math.round((raw - Math.floor(raw)) * 1440);
+    return { hour: Math.floor(mins / 60) % 24, minute: mins % 60 };
+  }
+  raw = str(raw);
   if(!raw) return null;
-  let parts = raw.split(/[\s/:]/);
-  if(parts.length < 6) return null;
-  let day = parseInt(parts[0]);
-  let month = parseInt(parts[1]) - 1;
-  let year = parseInt(parts[2]);
-  let hour = parseInt(parts[3]);
-  let minute = parseInt(parts[4]);
-  let ampm = parts[5];
+  let m = raw.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
+  if(!m) return null;
+  let hour = parseInt(m[1]);
+  let minute = parseInt(m[2]);
+  let ampm = (m[3] || "").toUpperCase();
   if(ampm === "PM" && hour !== 12) hour += 12;
   if(ampm === "AM" && hour === 12) hour = 0;
-  let d = new Date(year, month, day, hour, minute);
-  return isNaN(d.getTime()) ? null : d;
+  return { hour, minute };
 }
 
-// Bolt: separate fields, Creation Date = MM/DD/YYYY, Creation Time = HH:MM (24h)
+// Bolt: Creation Date = MM/DD/YYYY (or YYYY-MM-DD, or Excel serial),
+// Creation Time = HH:MM (24h, AM/PM, or Excel fraction)
 function parseBoltDate(dateRaw, timeRaw){
-  dateRaw = (dateRaw || "").trim();
-  if(!dateRaw) return null;
-  let dparts = dateRaw.split("/");
-  if(dparts.length < 3) return null;
-  let month = parseInt(dparts[0]) - 1;
-  let day = parseInt(dparts[1]);
-  let year = parseInt(dparts[2]);
-  let hour = 0, minute = 0;
-  if(timeRaw){
-    let tparts = timeRaw.trim().split(":");
-    hour = parseInt(tparts[0]) || 0;
-    minute = parseInt(tparts[1]) || 0;
+  let y, mo, d, time = null;
+
+  if(typeof dateRaw === "number"){
+    let p = excelSerialToParts(dateRaw);
+    y = p.y; mo = p.m; d = p.d;
+    if(p.frac > 0) time = parseTime(dateRaw);
+  } else {
+    let s = str(dateRaw);
+    if(!s) return null;
+    let iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(iso){
+      y = parseInt(iso[1]); mo = parseInt(iso[2]) - 1; d = parseInt(iso[3]);
+    } else {
+      let dp = s.split(/[\/\s]/);
+      if(dp.length < 3) return null;
+      mo = parseInt(dp[0]) - 1;
+      d = parseInt(dp[1]);
+      y = parseInt(dp[2]);
+      if(y < 100) y += 2000;
+    }
+    time = parseTime(s.replace(/^\S+\s*/, "")) || null;
   }
-  let d = new Date(year, month, day, hour, minute);
-  return isNaN(d.getTime()) ? null : d;
+
+  let t = parseTime(timeRaw) || time || { hour: 0, minute: 0 };
+  let dt = new Date(y, mo, d, t.hour, t.minute);
+  return isNaN(dt.getTime()) ? null : dt;
 }
 
-function normalizeBlazeRow(row){
+function normalizeBoltRow(row, fileName){
   return {
-    source: "blaze",
-    store: (row["Darkstore"] || "").trim(),
-    awb: (row["AWB Number"] || "").trim(),
-    orderNumber: (row["Order Number"] || "").trim(),
-    brand: (row["Brand Name"] || "").trim().toLowerCase(),
-    trip: (row["Trip ID"] || "").toString().trim(),
-    attempts: parseInt(row["No. of Attempts"]) || 0,
-    status: (row["Current Status"] || "").trim().toUpperCase(),
-    creationDate: parseBlazeDate(row["Creation Date"]),
-    customerName: (row["Customer Name"] || "").trim(),
-    customerMobile: (row["Customer Mobile"] || "").trim(),
-    deliveryAddress: (row["Delivery Address"] || "").trim(),
-    deliveryPincode: (row["Delivery Pincode"] || "").trim(),
-    riderName: (row["Rider Name"] || "").trim()
-  };
-}
-
-function normalizeBoltRow(row){
-  return {
-    source: "bolt",
-    store: (row["Warehouse Name"] || "").trim(),
-    awb: (row["Zippee AWB"] || "").trim(),
-    orderNumber: (row["Order Number"] || "").trim(),
-    brand: (row["Brand Name"] || "").trim().toLowerCase(),
-    trip: (row["Trip Code"] || "").toString().trim(),
+    sourceFile: fileName,
+    store: str(row["Warehouse Name"]),
+    awb: str(row["Zippee AWB"]),
+    orderNumber: str(row["Order Number"]),
+    brand: str(row["Brand Name"]).toLowerCase(),
+    trip: str(row["Trip Code"]),
     attempts: parseInt(row["Total Attempt Count"]) || 0,
-    status: (row["Current Status"] || "").trim().toUpperCase(),
+    status: str(row["Current Status"]).toUpperCase(),
     creationDate: parseBoltDate(row["Creation Date"], row["Creation Time"]),
-    customerName: (row["Customer Name"] || "").trim(),
-    customerMobile: (row["Customer Mobile"] || "").trim(),
-    deliveryAddress: (row["Delivery Address"] || "").trim(),
-    deliveryPincode: (row["Delivery Pincode"] || "").trim(),
-    riderName: (row["Rider Name"] || "").trim()
+    customerName: str(row["Customer Name"]),
+    customerMobile: str(row["Customer Mobile"]),
+    deliveryAddress: str(row["Delivery Address"]),
+    deliveryPincode: str(row["Delivery Pincode"]),
+    riderName: str(row["Rider Name"])
   };
 }
 
-// Single shared filter, used by both the table and the CSV export so
-// they can never disagree with each other.
+// Shared filter used by both the table and the CSV export.
 function passesFilters(nrow, includeTrips){
   if(!nrow.store) return false;
-
-  if(nrow.source === "blaze" && !blazeAllowedStores.includes(nrow.store)) return false;
-  if(nrow.source === "bolt" && !boltAllowedStores.includes(nrow.store)) return false;
-
+  let cfg = storeConfig[storeKey(nrow.store)];
+  if(!cfg) return false;                       // only stores listed in the sheet
   if(excludedBrands.includes(nrow.brand)) return false;
-
   if(!includeTrips && nrow.trip !== "") return false;
-
   if(nrow.attempts > 3) return false;
   if(!nrow.awb) return false;
   if(nrow.status === "RTO") return false;
 
+  // Orders created today after the store's cutoff time are excluded.
   if(nrow.creationDate){
     let now = new Date();
     let isToday =
       nrow.creationDate.getDate() === now.getDate() &&
       nrow.creationDate.getMonth() === now.getMonth() &&
       nrow.creationDate.getFullYear() === now.getFullYear();
-    let cutoffHour = storeCutoffHours[nrow.store] ?? defaultCutoffHour;
-    let cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), cutoffHour, 0, 0);
-    if(isToday && nrow.creationDate > cutoff) return false;
+    let createdMinutes = nrow.creationDate.getHours() * 60 + nrow.creationDate.getMinutes();
+    if(isToday && createdMinutes > cfg.cutoffMinutes) return false;
   }
 
   return true;
 }
 
-// Filters + dedupes by AWB (keeps the row with the highest attempt count
-// per AWB, across both sources combined). This replaces the old
-// `awb + "_" + Math.random()` key, which never actually deduplicated.
+// Filters + dedupes by AWB across all loaded files (keeps the row with the
+// highest attempt count per AWB).
 function getFilteredDeduped(){
   let includeTrips = document.getElementById("tripToggle")?.checked || false;
-  let combined = blazeNormalized.concat(boltNormalized);
-
   let latestMap = {};
-  combined.forEach(nrow=>{
+  allRows().forEach(nrow=>{
     if(!passesFilters(nrow, includeTrips)) return;
     if(!latestMap[nrow.awb] || nrow.attempts > latestMap[nrow.awb].attempts){
       latestMap[nrow.awb] = nrow;
     }
   });
-
   return Object.values(latestMap);
 }
 
 /* ========================= FILE HANDLING ========================= */
 
-document.getElementById("blazeFileInput").addEventListener("change", function(e){
-  if(!e.target.files[0]) return;
-  Papa.parse(e.target.files[0], {
-    header: true,
-    skipEmptyLines: true,
-    complete: function(res){
-      blazeNormalized = res.data.map(normalizeBlazeRow);
-      document.getElementById("blazeStatus").textContent =
-        `Loaded ${blazeNormalized.length} rows`;
-      renderTable(getSelectedStatuses());
-    }
+function readCSV(file){
+  return new Promise((resolve, reject)=>{
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: res => resolve(res.data),
+      error: err => reject(err)
+    });
   });
+}
+
+function readExcel(file){
+  return new Promise((resolve, reject)=>{
+    let reader = new FileReader();
+    reader.onload = e => {
+      try{
+        let wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+        let rows = [];
+        wb.SheetNames.forEach(name=>{
+          let sheetRows = XLSX.utils.sheet_to_json(wb.Sheets[name], { raw: true, defval: "" });
+          rows = rows.concat(sheetRows);
+        });
+        resolve(rows);
+      } catch(err){ reject(err); }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function readAnyFile(file){
+  let name = file.name.toLowerCase();
+  if(name.endsWith(".xlsx") || name.endsWith(".xls")) return readExcel(file);
+  return readCSV(file);
+}
+
+document.getElementById("boltFileInput").addEventListener("change", async function(e){
+  let files = Array.from(e.target.files || []);
+  if(!files.length) return;
+
+  let statusEl = document.getElementById("boltStatus");
+  statusEl.style.color = "#0a5c36";
+  statusEl.textContent = `Reading ${files.length} file(s)...`;
+
+  let errors = [];
+  await Promise.all(files.map(async file=>{
+    try{
+      let raw = await readAnyFile(file);
+      loadedFiles[file.name] = raw.map(r => normalizeBoltRow(r, file.name));
+    } catch(err){
+      errors.push(file.name);
+      console.error("Failed to read", file.name, err);
+    }
+  }));
+
+  e.target.value = ""; // allow re-selecting the same file later
+  refreshFileUI(errors);
+  updateTable();
 });
 
-document.getElementById("boltFileInput").addEventListener("change", function(e){
-  if(!e.target.files[0]) return;
-  Papa.parse(e.target.files[0], {
-    header: true,
-    skipEmptyLines: true,
-    complete: function(res){
-      boltNormalized = res.data.map(normalizeBoltRow);
-      document.getElementById("boltStatus").textContent =
-        `Loaded ${boltNormalized.length} rows`;
-      renderTable(getSelectedStatuses());
-    }
-  });
-});
+function refreshFileUI(errors){
+  let names = Object.keys(loadedFiles);
+  let total = allRows().length;
+  let statusEl = document.getElementById("boltStatus");
+
+  if(names.length === 0){
+    statusEl.textContent = "No file loaded";
+  } else {
+    statusEl.textContent = `Loaded ${names.length} file(s), ${total} rows total`;
+  }
+  if(errors && errors.length){
+    statusEl.style.color = "#b00020";
+    statusEl.textContent += ` — could not read: ${errors.join(", ")}`;
+  } else {
+    statusEl.style.color = "#0a5c36";
+  }
+
+  document.getElementById("boltFileList").innerHTML = names.map(n=>`
+    <li><span>${n} (${loadedFiles[n].length} rows)</span>
+    <button onclick="removeFile(${JSON.stringify(n).replace(/"/g,'&quot;')})">✕</button></li>
+  `).join("");
+
+  document.getElementById("clearBtn").style.display = names.length ? "inline-block" : "none";
+}
+
+function removeFile(name){
+  delete loadedFiles[name];
+  refreshFileUI();
+  updateTable();
+}
+
+function clearFiles(){
+  loadedFiles = {};
+  refreshFileUI();
+  updateTable();
+}
 
 /* ========================= FILTER UI ========================= */
 
@@ -540,21 +729,14 @@ function renderTable(statuses){
 
   let deduped = getFilteredDeduped();
 
-  // Build pivot: store|attempts -> status -> count
-  let pivot = {};
-  deduped.forEach(nrow=>{
-    let key = nrow.store + "|" + nrow.source + "|" + nrow.attempts;
-    if(!pivot[key]) pivot[key] = {};
-    pivot[key][nrow.status] = (pivot[key][nrow.status] || 0) + 1;
-  });
-
+  // store -> attempts -> status -> count
   let grouped = {};
-  for(let key in pivot){
-    let [store, source, attempt] = key.split("|");
-    let storeLabel = store + "|" + source; // keep Blaze/Bolt rows for the same store name separate
-    if(!grouped[storeLabel]) grouped[storeLabel] = {};
-    grouped[storeLabel][attempt] = pivot[key];
-  }
+  deduped.forEach(nrow=>{
+    if(!grouped[nrow.store]) grouped[nrow.store] = {};
+    if(!grouped[nrow.store][nrow.attempts]) grouped[nrow.store][nrow.attempts] = {};
+    let cell = grouped[nrow.store][nrow.attempts];
+    cell[nrow.status] = (cell[nrow.status] || 0) + 1;
+  });
 
   let html = `
   <div id="downloadArea">
@@ -574,15 +756,14 @@ function renderTable(statuses){
   statuses.forEach(s=>gTotal[s]=0);
   let grand = 0;
 
-  // Sort store labels for stable output
-  let storeLabels = Object.keys(grouped).sort();
+  let stores = Object.keys(grouped).sort((a,b)=>
+    prettifyStoreName(a).localeCompare(prettifyStoreName(b)));
 
-  storeLabels.forEach(storeLabel=>{
-    let [store, source] = storeLabel.split("|");
-    let attemptsArr = Object.keys(grouped[storeLabel]).sort((a,b)=>a-b);
+  stores.forEach(store=>{
+    let attemptsArr = Object.keys(grouped[store]).sort((a,b)=>a-b);
 
     let validAttempts = attemptsArr.filter(attempt=>{
-      let rowData = grouped[storeLabel][attempt];
+      let rowData = grouped[store][attempt];
       return statuses.some(s => (rowData[s] || 0) > 0);
     });
 
@@ -590,11 +771,9 @@ function renderTable(statuses){
 
     let firstRow = true;
     let storeTotal = 0;
-    let tagClass = source === "bolt" ? "source-bolt" : "source-blaze";
-    let tagText = source === "bolt" ? "BOLT" : "BLAZE";
 
     validAttempts.forEach(attempt=>{
-      let rowData = grouped[storeLabel][attempt];
+      let rowData = grouped[store][attempt];
       let rowTotal = 0;
       statuses.forEach(s=>{ rowTotal += (rowData[s] || 0); });
 
@@ -603,7 +782,6 @@ function renderTable(statuses){
       if(firstRow){
         html += `<td rowspan="${validAttempts.length}">
           <span style="font-weight:600;font-size:12px;">${prettifyStoreName(store)}</span>
-          <span class="source-tag ${tagClass}">${tagText}</span>
         </td>`;
         firstRow = false;
       }
@@ -627,10 +805,8 @@ function renderTable(statuses){
         <td colspan="2">Subtotal</td>`;
 
       statuses.forEach(s=>{
-        let sub = validAttempts.reduce((sum, attempt)=>{
-          let rowData = grouped[storeLabel][attempt];
-          return sum + (rowData[s] || 0);
-        }, 0);
+        let sub = validAttempts.reduce((sum, attempt)=>
+          sum + (grouped[store][attempt][s] || 0), 0);
         html += `<td>${sub}</td>`;
       });
 
@@ -654,11 +830,71 @@ function renderTable(statuses){
   </div>`;
 
   document.getElementById("tableContainer").innerHTML = html;
+  renderDiagnostics(grand);
+}
+
+// When the report comes out empty, explain why instead of showing just 0.
+function renderDiagnostics(grand){
+  let box = document.getElementById("diagBox");
+  let rows = allRows();
+
+  if(!storeConfigLoaded){
+    box.style.display = "block";
+    box.innerHTML = "<b>Store list not loaded yet.</b> Wait for it to finish, or click Load / Refresh.";
+    return;
+  }
+  if(rows.length === 0 || grand > 0){
+    box.style.display = "none";
+    return;
+  }
+
+  let includeTrips = document.getElementById("tripToggle")?.checked || false;
+  let unmatched = {};
+  let c = { matched:0, trip:0, attempts:0, rto:0, cutoff:0, brand:0, noAwb:0 };
+  let now = new Date();
+
+  rows.forEach(r=>{
+    let cfg = storeConfig[storeKey(r.store)];
+    if(!cfg){ if(r.store) unmatched[r.store] = (unmatched[r.store] || 0) + 1; return; }
+    c.matched++;
+    if(excludedBrands.includes(r.brand)) c.brand++;
+    else if(!includeTrips && r.trip !== "") c.trip++;
+    else if(r.attempts > 3) c.attempts++;
+    else if(!r.awb) c.noAwb++;
+    else if(r.status === "RTO") c.rto++;
+    else if(r.creationDate && r.creationDate.toDateString() === now.toDateString() &&
+            r.creationDate.getHours()*60 + r.creationDate.getMinutes() > cfg.cutoffMinutes) c.cutoff++;
+  });
+
+  let top = Object.entries(unmatched).sort((a,b)=>b[1]-a[1]).slice(0,10)
+    .map(([k,v]) => `${k} (${v})`).join(", ");
+
+  box.style.display = "block";
+  box.innerHTML = `<b>No orders matched.</b> Of ${rows.length} uploaded rows:<br>
+    • ${c.matched} belong to stores in the sheet<br>
+    • ${c.trip} removed as trip orders (tick "Include Trip Orders" to keep them)<br>
+    • ${c.cutoff} removed as created today after cutoff<br>
+    • ${c.attempts} removed for more than 3 attempts, ${c.rto} RTO, ${c.brand} excluded brand, ${c.noAwb} missing AWB<br>
+    • Rest have a status not ticked above<br>
+    ${top ? `<br>Warehouse names in your files that are <b>not</b> in the sheet: ${top}` : ""}`;
 }
 
 /* ========================= EXPORTS ========================= */
 
+function readyToDownload(){
+  if(!storeConfigLoaded){
+    alert("Store list is still loading. Please wait a few seconds and try again.");
+    return false;
+  }
+  if(allRows().length === 0){
+    alert("Upload at least one Bolt file first.");
+    return false;
+  }
+  return true;
+}
+
 function downloadImage(){
+  if(!readyToDownload()) return;
   let area = document.getElementById("downloadArea");
   html2canvas(area, {
     scale: 3,
@@ -678,13 +914,14 @@ function downloadImage(){
 }
 
 function downloadCSV(){
+  if(!readyToDownload()) return;
   let selectedStatuses = getSelectedStatuses();
 
   let deduped = getFilteredDeduped()
     .filter(nrow => selectedStatuses.includes(nrow.status));
 
   let exportRows = deduped.map(nrow => ({
-    "Source": nrow.source.toUpperCase(),
+    "Source File": nrow.sourceFile,
     "Darkstore": prettifyStoreName(nrow.store),
     "Raw Warehouse Value": nrow.store,
     "AWB": nrow.awb,
@@ -712,7 +949,10 @@ function downloadCSV(){
 /* ========================= INIT ========================= */
 
 createFilter();
+setControlsEnabled(false);
 renderTable(getSelectedStatuses());
+document.getElementById("sheetUrl").value = getSheetUrl();
+loadStoreSheet();
 
 </script>
 
