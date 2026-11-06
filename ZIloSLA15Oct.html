@@ -733,7 +733,11 @@ const MANUAL_RIDER_IDS = [
     "gPickupRider","mPickupRider","vPickupRider",
     "gOmniRider","mOmniRider","vOmniRider"
 ];
-
+/* "1,279" -> "1279"; blank -> "--" */
+const cleanNum = v => {
+    const s = String(v ?? "").replace(/,/g, "").trim();
+    return s === "" ? "--" : s;
+};
 let breachOrders = {Ghatkopar:[], Malad:[], Vashi:[]};
 let reportReady = false;
 
@@ -798,11 +802,30 @@ function findStoreRow(data, store){
 }
 
 function parseCSV(text){
-    const rows = text.trim().split("\n").map(r=>r.split(","));
-    const headers = rows[0];
-    return rows.slice(1).map(r=>{
-        let obj={};
-        headers.forEach((h,i)=>obj[h.trim()]=r[i]);
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++){
+        const c = text[i];
+        if (inQuotes){
+            if (c === '"'){
+                if (text[i + 1] === '"'){ field += '"'; i++; }   // escaped quote ""
+                else inQuotes = false;
+            } else field += c;
+        } else if (c === '"') inQuotes = true;
+        else if (c === ",") { row.push(field); field = ""; }
+        else if (c === "\n" || c === "\r") {
+            if (c === "\r" && text[i + 1] === "\n") i++;
+            row.push(field); rows.push(row); row = []; field = "";
+        } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+
+    const clean = rows.filter(r => r.some(v => v.trim() !== ""));
+    if (!clean.length) return [];
+    const headers = clean[0].map(h => h.trim());
+    return clean.slice(1).map(r => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = (r[i] ?? "").trim());
         return obj;
     });
 }
@@ -872,14 +895,14 @@ async function generateReport(){
         ]);
 
         const orderRow = findDateRow(orderData);
-        document.getElementById("gProjOrder").innerText = orderRow["GHATKOPAR"] || "--";
-        document.getElementById("mProjOrder").innerText = orderRow["MALAD"] || "--";
-        document.getElementById("vProjOrder").innerText = orderRow["VASHI"] || "--";
+        document.getElementById("gProjOrder").innerText = cleanNum(orderRow["GHATKOPAR"]);
+        document.getElementById("mProjOrder").innerText = cleanNum(orderRow["MALAD"]);
+        document.getElementById("vProjOrder").innerText = cleanNum(orderRow["VASHI"]);
 
         const riderRow = findDateRow(riderData);
-        document.getElementById("gProjRider").innerText = riderRow["Ghatkopar"] || "--";
-        document.getElementById("mProjRider").innerText = riderRow["Malad"] || "--";
-        document.getElementById("vProjRider").innerText = riderRow["Vashi"] || "--";
+        document.getElementById("gProjRider").innerText = cleanNum(riderRow["Ghatkopar"]);
+        document.getElementById("mProjRider").innerText = cleanNum(riderRow["Malad"]);
+        document.getElementById("vProjRider").innerText = cleanNum(riderRow["Vashi"]);
 
         const slaRow = findDateRow(slaData);
         ["gSLA","mSLA","vSLA"].forEach(id => document.getElementById(id).innerText = slaRow["Target"] || "--");
@@ -1304,4 +1327,4 @@ updateDateTime();
 </script>
 
 </body>
-</html>
+</html> 
