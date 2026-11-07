@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zippee KPI Report</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<style>
+:root{
+    --glass-bg:rgba(255,255,255,0.55);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.18);
+}
+body{
+    margin:0;
+    font-family:"Segoe UI",Arial;
+    background:linear-gradient(135deg,#e8f0fb,#dce9fb 40%,#eef4fc);
+    min-height:100vh;
+}
+.header{
+    background:linear-gradient(90deg,rgba(0,63,140,.95),rgba(0,89,179,.95));
+    color:white;
+    padding:18px;
+    text-align:center;
+}
+.header h1{margin:0;font-size:22px;}
+.header .sub{font-size:13px;opacity:.85;margin-top:4px;}
+.card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(10px);
+    width:fit-content;
+    max-width:96vw;
+    margin:30px auto;
+    padding:26px;
+    border-radius:18px;
+    box-shadow:var(--card-shadow);
+}
+.store-upload-container{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:24px;
+    flex-wrap:wrap;
+}
+.store-upload{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+}
+.store-upload label{font-weight:700;}
+.controls{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:22px 0 4px;
+}
+button{
+    padding:9px 18px;
+    background:#0078ff;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+}
+button:hover{background:#0063d1;}
+button:disabled{background:#9db8d9;cursor:default;}
+.status-line{
+    text-align:center;
+    font-size:13px;
+    color:#333;
+    min-height:18px;
+    margin-top:4px;
+}
+table{
+    width:auto;
+    border-collapse:collapse;
+    background:white;
+    margin:auto;
+}
+th,td{
+    border:1px solid #ddd;
+    padding:8px 12px;
+    font-size:13px;
+    text-align:center;
+    white-space:nowrap;
+}
+th{background:#e6e6e6;}
+.left{
+    text-align:left;
+    white-space:normal;
+    font-weight:600;
+    width:220px;
+    min-width:220px;
+}
+.footer{
+    text-align:center;
+    margin-top:12px;
+    font-weight:700;
+    font-size:13px;
+}
+.overflow-x{overflow-x:auto;max-width:96vw;}
+/* KPI Row Colours */
+.row-yellow td{background:#fff59d !important;}
+.row-green td{background:#c6efce !important;}
+.row-violet td{background:#d9c2f0 !important;}
+.row-brown td{background:#d2b48c !important;}
+.row-skin td{background:#f4d7c3 !important;}
+.row-orange td{background:#f8cbad !important;}
+/* Manually overridden rider inputs (12.7 / 12.9) */
+input[data-dirty="1"]{
+    background:#ffffff;
+    border:1px solid #c9a800;
+    box-shadow:0 0 0 2px rgba(201,168,0,.25);
+}
+.download-value.manual-edit{font-weight:700;}
+
+/* Output stays hidden until a report is generated */
+#outputs{display:none;}
+#outputs.show{display:block;}
+.date-pick{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.date-pick label{font-weight:700;}
+.date-pick .hint{font-size:11px;color:#555;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Zippee &lt;&gt; Zilo Report</h1>
+    <div class="sub">KPI report for the previous day (D-1)</div>
+</div>
+
+<!-- ============ CONTROLS ============ -->
+<div class="card">
+
+    <div class="store-upload-container">
+        <div class="date-pick">
+            <label for="reportDate">Report date</label>
+            <input type="date" id="reportDate">
+            <span class="hint">Defaults to yesterday (D-1)</span>
+        </div>
+        <div class="store-upload">
+            <label for="ghatkoparFile">Ghatkopar</label>
+            <input type="file" id="ghatkoparFile" accept=".csv,.xlsx">
+        </div>
+        <div class="store-upload">
+            <label for="maladFile">Malad</label>
+            <input type="file" id="maladFile" accept=".csv,.xlsx">
+        </div>
+        <div class="store-upload">
+            <label for="vashiFile">Vashi</label>
+            <input type="file" id="vashiFile" accept=".csv,.xlsx">
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="genBtn" onclick="generateReport()">Generate Report</button>
+        <button onclick="downloadCard('reportCard','Zippee_KPI_Report.png')">Download KPI Report</button>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+
+</div>
+
+<!-- ============ OUTPUT (shown after Generate Report) ============ -->
+<div id="outputs">
+
+<div class="card overflow-x">
+<div id="reportCard">
+
+    <div style="text-align:center;font-weight:800;margin-bottom:10px;">
+        Zippee &lt;&gt; Zilo EOD Report
+    </div>
+
+    <div style="text-align:center;margin-bottom:10px;">
+        Date: <span id="date"></span> |
+        Time: <span id="time"></span>
+    </div>
+
+<table>
+<tr><th>S. No.</th><th>Key Parameters</th><th>Ghatkopar</th><th>Malad</th><th>Vashi</th></tr>
+
+<tr class="row-yellow"><td>1</td><td class="left">SLA Target</td><td id="gSLA">--</td><td id="mSLA">--</td><td id="vSLA">--</td></tr>
+<tr class="row-yellow"><td>2</td><td class="left">Delay Target</td><td id="gDelay">--</td><td id="mDelay">--</td><td id="vDelay">--</td></tr>
+<tr class="row-yellow"><td>3</td><td class="left">Projected Order</td><td id="gProjOrder">--</td><td id="mProjOrder">--</td><td id="vProjOrder">--</td></tr>
+
+<tr><td>4</td><td class="left">Actual Order</td><td id="gOrders">--</td><td id="mOrders">--</td><td id="vOrders">--</td></tr>
+<tr><td>4.1</td><td class="left">Attainment%</td><td id="gAttain">--</td><td id="mAttain">--</td><td id="vAttain">--</td></tr>
+
+<tr class="row-green"><td>5</td><td class="left">Delivered Order</td><td id="gDelivered">--</td><td id="mDelivered">--</td><td id="vDelivered">--</td></tr>
+
+<tr class="row-violet"><td>6</td><td class="left">RTO Orders</td><td id="gRTO">--</td><td id="mRTO">--</td><td id="vRTO">--</td></tr>
+
+<tr class="row-brown"><td>7</td><td class="left">SLA + 15 min</td><td id="gSLA15">--</td><td id="mSLA15">--</td><td id="vSLA15">--</td></tr>
+<tr class="row-skin"><td>7.1</td><td class="left">SLA %</td><td id="gSLAPct">--</td><td id="mSLAPct">--</td><td id="vSLAPct">--</td></tr>
+<tr class="row-orange"><td>7.2</td><td class="left">60 Min</td><td id="gB60">--</td><td id="mB60">--</td><td id="vB60">--</td></tr>
+<tr class="row-orange"><td>7.3</td><td class="left">90 Min</td><td id="gB90">--</td><td id="mB90">--</td><td id="vB90">--</td></tr>
+<tr class="row-orange"><td>7.4</td><td class="left">120 Min</td><td id="gB120">--</td><td id="mB120">--</td><td id="vB120">--</td></tr>
+<tr class="row-orange"><td>7.5</td><td class="left">Others</td><td id="gBOthers">--</td><td id="mBOthers">--</td><td id="vBOthers">--</td></tr>
+
+<tr class="row-violet"><td>8</td><td class="left">Breach order / %</td><td id="gBreach">--</td><td id="mBreach">--</td><td id="vBreach">--</td></tr>
+<tr class="row-violet"><td>9</td><td class="left">Delay order / %</td><td id="gDelayOrder">--</td><td id="mDelayOrder">--</td><td id="vDelayOrder">--</td></tr>
+<tr class="row-violet"><td>10</td><td class="left">Deep Pain Order</td><td id="gDeepPain">--</td><td id="mDeepPain">--</td><td id="vDeepPain">--</td></tr>
+
+<tr class="row-yellow"><td>11</td><td class="left">Projected Forward Rider</td><td id="gProjRider">--</td><td id="mProjRider">--</td><td id="vProjRider">--</td></tr>
+<tr class="row-yellow"><td>12</td><td class="left">Actual Forward Rider</td><td id="gRiders">--</td><td id="mRiders">--</td><td id="vRiders">--</td></tr>
+<tr class="row-yellow"><td>12.1</td><td class="left">Rider attainment</td><td id="gRiderAttain">--</td><td id="mRiderAttain">--</td><td id="vRiderAttain">--</td></tr>
+
+<!-- Riders bucketed by orders-to-rider (OTR). Labels are filled from OTR_BANDS in the script. -->
+<tr class="row-yellow"><td>12.2</td><td class="left" id="otrLabelHigh">Rider &gt;= 10 OTR</td><td id="gOtrHigh">--</td><td id="mOtrHigh">--</td><td id="vOtrHigh">--</td></tr>
+<tr class="row-yellow"><td>12.3</td><td class="left" id="otrLabelMid">Rider 5 &lt;= OTR &lt; 10</td><td id="gOtrMid">--</td><td id="mOtrMid">--</td><td id="vOtrMid">--</td></tr>
+<tr class="row-yellow"><td>12.4</td><td class="left" id="otrLabelLow">Rider 3 &lt;= OTR &lt; 5</td><td id="gOtrLow">--</td><td id="mOtrLow">--</td><td id="vOtrLow">--</td></tr>
+<tr class="row-yellow"><td>12.5</td><td class="left" id="otrLabelVeryLow">Rider &lt; 3 OTR</td><td id="gOtrVeryLow">--</td><td id="mOtrVeryLow">--</td><td id="vOtrVeryLow">--</td></tr>
+
+<tr class="row-yellow">
+    <td>12.6</td><td class="left">Projected Pickup Rider</td>
+    <td><input type="number" id="gProjPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mProjPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vProjPickupRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.7</td><td class="left">Pickup Rider</td>
+    <td><input type="number" id="gPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mPickupRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vPickupRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.8</td><td class="left">Projected Omni Rider</td>
+    <td><input type="number" id="gProjOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mProjOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vProjOmniRider" style="width:60px;text-align:center;"></td>
+</tr>
+<tr class="row-yellow">
+    <td>12.9</td><td class="left">Omni Rider</td>
+    <td><input type="number" id="gOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="mOmniRider" style="width:60px;text-align:center;"></td>
+    <td><input type="number" id="vOmniRider" style="width:60px;text-align:center;"></td>
+</tr>
+
+</table>
+
+<div class="footer">Powered by SASA Automation | Zippee</div>
+
+</div>
+</div>
+
+</div><!-- /outputs -->
+<script>
+// ===== EXCEL CORE START =====
+/* ------------------------------------------------------------------
+   EXCEL-LOGIC CORE
+   Each derived field below mirrors one helper column in the
+   mastersheet (store sheets, columns AU–BH), and computeStore()
+   mirrors the COUNTIFS formulas in the "Report" sheet.
+   ------------------------------------------------------------------ */
+
+const STORES = ["Ghatkopar","Malad","Vashi"];
+
+/* Rows 12.2–12.5: riders bucketed by orders-to-rider (OTR).
+   OTR = same as a pivot on the raw file: filter Delivery Date = report date,
+   Rows = Rider ID, Values = Count of CHOID. Every row counts (any status,
+   any order type incl. RTO legs). Change the numbers here to move a boundary.
+     12.2  OTR >= high
+     12.3  low <= OTR < high
+     12.4  veryLow <= OTR < low
+     12.5  OTR <  veryLow
+   Each rider lands in exactly one row, so 12.2 + 12.3 + 12.4 + 12.5 = riders counted. */
+const OTR_BANDS = { high: 10, low: 5, veryLow: 3 };
+
+/* AV – Service Duration: pincode lists copied from each store sheet's formula.
+   Order of checks follows the Excel IF nesting for that store.
+   Malad wraps the whole formula in VALUE(), so an unmapped pincode becomes
+   #VALUE! there (null here) instead of "Others". */
+const SERVICE_RULES = {
+    Malad: {
+        order: [120, 60, 90],
+        120: ["400068","401105","401107","401101"],
+        60:  ["400047","400053","400058","400060","400062","400063","400064","400066",
+              "400067","400069","400090","400091","400092","400093","400095","400097",
+              "400101","400102","400103","400104"],
+        90:  ["400049","400054","400056","400061","400065"],
+        others: null
+    },
+    Ghatkopar: {
+        order: [60, 90],
+        60: ["400024","400042","400043","400059","400070","400071","400072","400075",
+             "400076","400077","400078","400079","400083","400084","400086","400087",
+             "400089","400096"],
+        90: ["400051","400055","400057","400074","400085","400088","400094","400098",
+             "400099","400029"],
+        others: "Others"
+    },
+    Vashi: {
+        order: [120, 60, 90],
+        120: ["400068","401105","401107"],
+        60:  ["400047","400053","400058","400060","400062","400063","400064","400066",
+              "400067","400069","400090","400091","400092","400093","400095","400097",
+              "400101","400102","400103","400104","400614","400701","400703","400705",
+              "400706","400709","400710"],
+        90:  ["400049","400054","400056","400061","400065","400708"],
+        others: "Others"
+    }
+};
+
+/* Any date/time cell -> JS Date (Excel serial number or text) */
+function toDate(val){
+    if (val == null || val === "") return null;
+    if (val instanceof Date) return isNaN(val) ? null : val;
+    if (typeof val === "number") {
+        const d = XLSX.SSF.parse_date_code(val);
+        if (!d) return null;
+        return new Date(d.y, d.m - 1, d.d, d.H, d.M, Math.floor(d.S));
+    }
+    const s = String(val).trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) return new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+    m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+        const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+        return new Date(y, +m[2] - 1, +m[1], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+    }
+    return null;
+}
+
+/* Excel MOD(cell,1) in seconds. A blank cell is 0 in Excel, so it is 0 here. */
+function secsOfDay(val){
+    if (val == null || val === "") return 0;
+    if (typeof val === "number") return Math.round((val - Math.floor(val)) * 86400) % 86400;
+    const d = toDate(val);
+    return d ? d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds() : null;
+}
+
+/* Excel TIMEVALUE("HH:MM") in seconds; null = #VALUE! */
+function timeValue(text){
+    const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(text);
+    if (!m || +m[1] > 23 || +m[2] > 59) return null;
+    return +m[1]*3600 + +m[2]*60;
+}
+
+function sameDay(a, b){
+    return !!(a && b && a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() && a.getDate() === b.getDate());
+}
+
+/* AX – IS RTO ORDER OR PICKED UP */
+function orderType(ref){
+    const refL = String(ref ?? "").toLowerCase();
+    return refL.startsWith("return") ? "PICKUP ORDER"
+         : refL.startsWith("f-")     ? "OMNI PICKUP"
+         : refL.endsWith("-pd")      ? "RTO ORDER"
+         : refL.startsWith("rtv-")   ? "RTV ORDER"
+         : "NONE";
+}
+
+/* One raw row -> the mastersheet helper columns */
+function deriveRow(store, row){
+    const ref  = String(row["Reference ID"] ?? "");
+
+    // AX – IS RTO ORDER OR PICKED UP
+    const AX = orderType(ref);
+
+    // AU – Pincode = RIGHT(Customer Address, 6)
+    const AU = String(row["Customer Address"] ?? "").slice(-6);
+
+    // AV – Service Duration
+    const rules = SERVICE_RULES[store];
+    let AV = rules.others;
+    for (const k of rules.order) { if (rules[k].includes(AU)) { AV = k; break; } }
+
+    // Delivery Slot text, e.g. "22:55-23:55"
+    const P = String(row["Delivery Slot"] ?? "");
+    const BH = timeValue(P.slice(0, 5));    // "Order time"  = slot START
+    const BG = timeValue(P.slice(-5));      // "Slotstart"   = slot END
+
+    // AW – Actual Promise Time (mins) = slot end − slot start
+    const AW = (BH != null && BG != null) ? (BG - BH) / 60 : null;
+
+    // AY – Instant: minutes of slot end = 00 -> SLOTTED, else INSTANT
+    let AY = null;
+    const dash = P.indexOf("-");
+    if (dash >= 0) {
+        const mm = P.substr(dash + 4, 2);
+        if (/^\s*\d+\s*$/.test(mm)) AY = (+mm === 0) ? "SLOTTED" : "INSTANT";
+    }
+
+    // BA – SLA + 15 min (NOT wrapped at midnight, same as Excel)
+    const BA = BG != null ? BG + 15*60 : null;
+    // BB – RDT Slot = MOD(Reached Delivery Time, 1)
+    const BB = secsOfDay(row["Reached Delivery Time"]);
+    // BC – Breach
+    const BC = (BA != null && BB != null) ? (BB < BA ? "No Breach" : "Breach") : null;
+    // BD / BE – Deep Pain (slot end + 1 hr, NOT wrapped at midnight)
+    const BD = BG != null ? BG + 60*60 : null;
+    const BE = (BD != null && BB != null) ? (BD < BB ? "DP Order" : "Not DP Order") : null;
+    // BF – Delay duration = AW − AV (error if AV is "Others" / missing)
+    const BF = (AW != null && typeof AV === "number") ? AW - AV : null;
+
+    return {
+        ref, AX, AU, AV, AW, AY, BA, BB, BC, BD, BE, BF, BG, BH,
+        W: String(row["Fulfillment Status"] ?? "").trim().toUpperCase()
+    };
+}
+
+/* Rows that belong to the day's sheet: Zilo channel, completed, Delivery Date = report date */
+function inScope(row, reportDate){
+    const channel = String(row["Channel"] ?? "").trim().toUpperCase();
+    const status  = String(row["Status"] ?? "").trim().toUpperCase();
+    return channel === "ZILO" && status === "COMPLETED" &&
+           sameDay(toDate(row["Delivery Date"]), reportDate);
+}
+
+/* OTR per rider = pivot "Count of CHOID" by Rider ID, Delivery Date = report date.
+   Returns Map<Rider ID, order count>. */
+function collectOTR(rawRows, reportDate){
+    const otr = new Map();
+    rawRows.forEach(row => {
+        if (!sameDay(toDate(row["Delivery Date"]), reportDate)) return;
+        const rid   = String(row["Rider ID"] ?? "").trim();
+        const choid = String(row["CHOID"] ?? "").trim();
+        if (rid === "" || choid === "") return;
+        otr.set(rid, (otr.get(rid) || 0) + 1);
+    });
+    return otr;
+}
+
+/* Rows 12.2–12.5: count riders per OTR band */
+function bucketOTR(otr){
+    const out = {high:0, mid:0, low:0, veryLow:0};
+    otr.forEach(n => {
+        if (n >= OTR_BANDS.high)         out.high++;
+        else if (n >= OTR_BANDS.low)     out.mid++;
+        else if (n >= OTR_BANDS.veryLow) out.low++;
+        else                             out.veryLow++;
+    });
+    return out;
+}
+
+/* Report-sheet aggregation for one store */
+function computeStore(store, rawRows, reportDate){
+    const rows = rawRows.filter(r => inScope(r, reportDate));
+
+    const res = {
+        actual:0, delivered:0, rto:0,
+        buckets:{60:0, 90:0, 120:0, Others:0},
+        breach:0, delay:0, deepPain:0,
+        scopedRows: rows.length
+    };
+
+    rows.forEach(row => {
+        const d = deriveRow(store, row);
+        const isNone = d.AX === "NONE";
+        const isDel  = d.W === "DELIVERED";
+
+        // Row 4  Actual Order   = COUNTIFS(AX,"NONE", C,"<>")
+        if (isNone && d.ref !== "") res.actual++;
+        // Row 5  Delivered      = COUNTIFS(AX,"NONE", W,"DELIVERED")
+        if (isNone && isDel) res.delivered++;
+        // Row 6  RTO Order      = COUNTIFS(W,"RTO_DELIVERED")   (all order types, as in Excel)
+        if (d.W === "RTO_DELIVERED") res.rto++;
+        // Rows 7.2–7.5 buckets  = COUNTIFS(W,"DELIVERED", BC,"No Breach", AV,"60"/"90"/"120"/"Others")
+        if (isDel && d.BC === "No Breach" && d.AV != null) res.buckets[d.AV]++;
+        // Row 8  Breach         = COUNTIFS(W,"DELIVERED", BC,"Breach", AX,"NONE")
+        if (isDel && d.BC === "Breach" && isNone) res.breach++;
+        // Row 9  Delay          = COUNTIFS(W,"DELIVERED", AY,"INSTANT", BF,">0")
+        if (isDel && d.AY === "INSTANT" && d.BF != null && d.BF > 0) res.delay++;
+        // Row 10 Deep Pain      = COUNTIFS(W,"DELIVERED", BE,"DP Order")
+        if (isDel && d.BE === "DP Order") res.deepPain++;
+    });
+
+    res.otr = bucketOTR(collectOTR(rawRows, reportDate));
+    res.sla15 = res.buckets[60] + res.buckets[90] + res.buckets[120] + res.buckets.Others;
+    return res;
+}
+// ===== EXCEL CORE END =====
+
+/* =================== PAGE / UI =================== */
+const ORDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=0&single=true&output=csv";
+const RIDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=775811107&single=true&output=csv";
+const SLA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=1169651333&single=true&output=csv";
+const DELAY_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=319008300&single=true&output=csv";
+/* Rider2 tab: Store | Omni Rider | Pickup Rider  → feeds rows 12.9 and 12.7 (no date column) */
+const RIDER2_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHEGv04UcbZtiL2_vsy5G2zxbG-AljveWcJfPQ2Mod1a9XuiUhARYDR4v83yc2FSawTcmdHR04Z0ES/pub?gid=157776774&single=true&output=csv";
+
+const PREFIX = {Ghatkopar:"g", Malad:"m", Vashi:"v"};
+
+const MANUAL_RIDER_IDS = [
+    "gPickupRider","mPickupRider","vPickupRider",
+    "gOmniRider","mOmniRider","vOmniRider"
+];
+/* "1,279" -> "1279"; blank -> "--" */
+const cleanNum = v => {
+    const s = String(v ?? "").replace(/,/g, "").trim();
+    return s === "" ? "--" : s;
+};
+let reportReady = false;
+
+function setStatus(msg){ document.getElementById("statusLine").innerText = msg; }
+
+/* D-1: yesterday's date at local midnight. Month/year rollover is handled by Date. */
+function yesterday(){
+    const t = new Date();
+    return new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1);
+}
+
+/* Selected report date (defaults to D-1 = yesterday) */
+function getReportDate(){
+    const v = document.getElementById("reportDate").value;
+    if (!v) return yesterday();
+    const [y, m, d] = v.split("-").map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function updateDateTime(){
+    const now = new Date();
+    const dateStr = getReportDate().toLocaleDateString('en-GB',{day:"2-digit",month:"short",year:"numeric"});
+    let h = now.getHours();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    const timeStr = h + ":" + String(now.getMinutes()).padStart(2,"0") + " " + ampm;
+
+    document.getElementById("date").innerText = dateStr;
+    document.getElementById("time").innerText = timeStr;
+}
+
+/* Finds the target-sheet row for the report date (D-1 by default) */
+function findDateRow(data){
+    const target = getReportDate();
+    return data.find(r => {
+        const sheetDate = String(r.Date || "").trim();
+        if (!sheetDate) return false;
+
+        const shortMatch = sheetDate.match(/^(\d{1,2})-([A-Za-z]{3})$/);
+        if (shortMatch) {
+            const day = parseInt(shortMatch[1], 10);
+            const month = new Date(`${shortMatch[2]} 1, 2000`).getMonth();
+            return day === target.getDate() && month === target.getMonth();
+        }
+
+        const dateMatch = sheetDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dateMatch) {
+            const month = parseInt(dateMatch[1], 10) - 1;
+            const day = parseInt(dateMatch[2], 10);
+            const year = parseInt(dateMatch[3], 10);
+            return day === target.getDate() && month === target.getMonth() && year === target.getFullYear();
+        }
+        return false;
+    }) || {};
+}
+
+function findStoreRow(data, store){
+    const want = store.trim().toLowerCase();
+    return data.find(r => String(r.Store || "").trim().toLowerCase() === want) || {};
+}
+
+function parseCSV(text){
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++){
+        const c = text[i];
+        if (inQuotes){
+            if (c === '"'){
+                if (text[i + 1] === '"'){ field += '"'; i++; }   // escaped quote ""
+                else inQuotes = false;
+            } else field += c;
+        } else if (c === '"') inQuotes = true;
+        else if (c === ",") { row.push(field); field = ""; }
+        else if (c === "\n" || c === "\r") {
+            if (c === "\r" && text[i + 1] === "\n") i++;
+            row.push(field); rows.push(row); row = []; field = "";
+        } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+
+    const clean = rows.filter(r => r.some(v => v.trim() !== ""));
+    if (!clean.length) return [];
+    const headers = clean[0].map(h => h.trim());
+    return clean.slice(1).map(r => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = (r[i] ?? "").trim());
+        return obj;
+    });
+}
+
+async function fetchSheet(url){
+    const res = await fetch(url);
+    const text = await res.text();
+    return parseCSV(text);
+}
+
+async function generateReport(){
+
+    const genBtn = document.getElementById("genBtn");
+    genBtn.disabled = true;
+    setStatus("Fetching targets & processing files…");
+
+    updateDateTime();
+
+    const rider2Promise = fetchSheet(RIDER2_URL).catch(e => {
+        console.error("Rider2 sheet fetch failed:", e);
+        return [];
+    });
+
+    // 1. TARGETS FROM GOOGLE SHEETS (looked up on the report date = D-1)
+    try {
+        const [orderData, riderData, slaData, delayData] = await Promise.all([
+            fetchSheet(ORDER_URL), fetchSheet(RIDER_URL), fetchSheet(SLA_URL), fetchSheet(DELAY_URL)
+        ]);
+
+        const orderRow = findDateRow(orderData);
+        document.getElementById("gProjOrder").innerText = cleanNum(orderRow["GHATKOPAR"]);
+        document.getElementById("mProjOrder").innerText = cleanNum(orderRow["MALAD"]);
+        document.getElementById("vProjOrder").innerText = cleanNum(orderRow["VASHI"]);
+
+        const riderRow = findDateRow(riderData);
+        document.getElementById("gProjRider").innerText = cleanNum(riderRow["Ghatkopar"]);
+        document.getElementById("mProjRider").innerText = cleanNum(riderRow["Malad"]);
+        document.getElementById("vProjRider").innerText = cleanNum(riderRow["Vashi"]);
+
+        const slaRow = findDateRow(slaData);
+        ["gSLA","mSLA","vSLA"].forEach(id => document.getElementById(id).innerText = slaRow["Target"] || "--");
+
+        const delayRow = findDateRow(delayData);
+        ["gDelay","mDelay","vDelay"].forEach(id => document.getElementById(id).innerText = delayRow["Target"] || "--");
+    } catch (e) {
+        console.error("Target sheet fetch failed:", e);
+        setStatus("Could not fetch target sheet (check your internet connection) — continuing with uploaded files only.");
+    }
+
+    // Constant projected values
+    document.getElementById("gProjPickupRider").value = 3;
+    document.getElementById("mProjPickupRider").value = 5;
+    document.getElementById("vProjPickupRider").value = 0;
+    document.getElementById("gProjOmniRider").value = 2;
+    document.getElementById("mProjOmniRider").value = 6;
+    document.getElementById("vProjOmniRider").value = 1;
+
+    // 1b. 12.7 PICKUP RIDER & 12.9 OMNI RIDER (Rider2 sheet) — user edits win
+    const rider2Data = await rider2Promise;
+    STORES.forEach(store => {
+        const p = PREFIX[store];
+        const row = findStoreRow(rider2Data, store);
+        const apply = (id, raw) => {
+            const el = document.getElementById(id);
+            if (el.dataset.dirty === "1") return;
+            const val = String(raw ?? "").trim();
+            if (val !== "") el.value = val;
+        };
+        apply(p + "OmniRider",   row["Omni Rider"]);
+        apply(p + "PickupRider", row["Pickup Rider"]);
+    });
+
+    // 2. STORE FILES
+    const storeFiles = {
+        Ghatkopar: document.getElementById("ghatkoparFile").files[0],
+        Malad: document.getElementById("maladFile").files[0],
+        Vashi: document.getElementById("vashiFile").files[0]
+    };
+
+    if (!storeFiles.Ghatkopar && !storeFiles.Malad && !storeFiles.Vashi) {
+        setStatus("Upload at least one store file before generating.");
+        genBtn.disabled = false;
+        return;
+    }
+
+    const results = {};
+    const emptyStores = [];
+    const reportDate = getReportDate();
+
+    for (const store of STORES){
+        const file = storeFiles[store];
+        if (!file) continue;
+
+        const wb = XLSX.read(await file.arrayBuffer());
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        results[store] = computeStore(store, json, reportDate);   // Excel logic
+        if (results[store].scopedRows === 0) emptyStores.push(store);
+    }
+
+    renderKPITable(results);
+
+    reportReady = true;
+    document.getElementById("outputs").classList.add("show");
+    let doneMsg = "Report for " + reportDate.toLocaleDateString('en-GB') + " generated at " +
+                  new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ".";
+    if (emptyStores.length) {
+        doneMsg += " No orders with Delivery Date " + reportDate.toLocaleDateString('en-GB') +
+                   " found for " + emptyStores.join(", ") + " — check the uploaded file or the report date.";
+    }
+    setStatus(doneMsg);
+    genBtn.disabled = false;
+}
+
+const pct = (num, den) => den ? (num / den * 100).toFixed(1) + "%" : "--";
+const withPct = (num, den) => den ? `${num} (${pct(num, den)})` : String(num);
+
+function renderKPITable(results){
+    const set = (id, v) => document.getElementById(id).innerText = v;
+
+    STORES.forEach(store=>{
+        const p = PREFIX[store];
+        const r = results[store];
+        if (!r) return;
+
+        set(p+"Orders",    r.actual);
+        set(p+"Delivered", r.delivered);
+        set(p+"RTO",       r.rto);
+
+        // Rows 7–7.5: SLA + 15 min, SLA %, and bucket share of Delivered
+        set(p+"SLA15",   r.sla15);
+        set(p+"SLAPct",  pct(r.sla15, r.delivered));
+        set(p+"B60",     withPct(r.buckets[60],  r.delivered));
+        set(p+"B90",     withPct(r.buckets[90],  r.delivered));
+        set(p+"B120",    withPct(r.buckets[120], r.delivered));
+        set(p+"BOthers", withPct(r.buckets.Others, r.delivered));
+
+        // Row 8: Breach % = Breach / Delivered
+        set(p+"Breach",     withPct(r.breach, r.delivered));
+        // Row 9: Delay %  = Delay / Actual Order
+        set(p+"DelayOrder", withPct(r.delay, r.actual));
+        set(p+"DeepPain",   r.deepPain);
+
+        // Row 12 = 12.2 + 12.3 + 12.4 + 12.5 (riders in the OTR pivot: Delivery Date = report date)
+        const riderCount = r.otr.high + r.otr.mid + r.otr.low + r.otr.veryLow;
+        set(p+"Riders", riderCount);
+
+        // Rows 12.2–12.5: riders per OTR band
+        set(p+"OtrHigh",    r.otr.high);
+        set(p+"OtrMid",     r.otr.mid);
+        set(p+"OtrLow",     r.otr.low);
+        set(p+"OtrVeryLow", r.otr.veryLow);
+
+        const projOrder = parseFloat(document.getElementById(p+"ProjOrder").innerText);
+        set(p+"Attain", (isNaN(projOrder) || projOrder === 0) ? "--" : (r.actual / projOrder * 100).toFixed(0) + "%");
+
+        const projRider = parseFloat(document.getElementById(p+"ProjRider").innerText);
+        set(p+"RiderAttain", (isNaN(projRider) || projRider === 0) ? "--" : (riderCount / projRider * 100).toFixed(0) + "%");
+    });
+}
+
+function captureCard(card){
+    return html2canvas(card, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: Math.max(document.documentElement.clientWidth, card.scrollWidth + 100),
+        onclone: doc => {
+            doc.querySelectorAll(".overflow-x").forEach(el => {
+                el.style.overflow = "visible";
+                el.style.maxWidth = "none";
+            });
+        }
+    });
+}
+
+/* Swap the rider inputs for plain text while capturing, then restore them */
+async function renderCard(elementId){
+    const card = document.getElementById(elementId);
+    const inputs = card.querySelectorAll("input[type=number]");
+    inputs.forEach(input => {
+        const span = document.createElement("span");
+        span.className = "download-value";
+        if (input.dataset.dirty === "1") span.classList.add("manual-edit");
+        span.innerText = input.value || "--";
+        input.style.display = "none";
+        input.parentNode.appendChild(span);
+    });
+    try {
+        return await captureCard(card);
+    } finally {
+        card.querySelectorAll(".download-value").forEach(span => span.remove());
+        inputs.forEach(input => input.style.display = "");
+    }
+}
+
+async function downloadCard(elementId, filename){
+    if (!reportReady) { setStatus("Generate the report first."); return; }
+    try {
+        triggerDownload(await renderCard(elementId), filename);
+    } catch (e) {
+        console.error("Download failed:", e);
+        setStatus("Download failed — please try again.");
+    }
+}
+
+function triggerDownload(canvas, filename){
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
+/* Row labels 12.2–12.5 follow OTR_BANDS so they never disagree with the counts */
+(function initOtrLabels(){
+    const b = OTR_BANDS;
+    document.getElementById("otrLabelHigh").innerText    = `Rider >= ${b.high} OTR`;
+    document.getElementById("otrLabelMid").innerText     = `Rider ${b.low} <= OTR < ${b.high}`;
+    document.getElementById("otrLabelLow").innerText     = `Rider ${b.veryLow} <= OTR < ${b.low}`;
+    document.getElementById("otrLabelVeryLow").innerText = `Rider < ${b.veryLow} OTR`;
+})();
+
+/* Mark 12.7 / 12.9 as user-edited so Generate stops overwriting them */
+MANUAL_RIDER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+        el.dataset.dirty = el.value.trim() === "" ? "" : "1";
+    });
+});
+
+/* Report date defaults to D-1 (yesterday) */
+(function initDate(){
+    const t = yesterday();
+    document.getElementById("reportDate").value =
+        `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+    document.getElementById("reportDate").addEventListener("change", updateDateTime);
+})();
+
+updateDateTime();
+</script>
+
+</body>
+</html>
