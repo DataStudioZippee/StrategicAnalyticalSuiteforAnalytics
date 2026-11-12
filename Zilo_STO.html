@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>STO Ageing Pivot</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+/* =========================================================
+   THEME — change these to re-colour the whole layout
+   ========================================================= */
+:root{
+    --primary-900:#003f8c;
+    --primary-700:#0059b3;
+    --accent:#5b7cff;
+    --glass-bg:rgba(255,255,255,0.16);
+    --card-shadow:0 8px 30px rgba(0,0,0,0.25);
+    --page-bg:url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1920&auto=format&fit=crop');
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI", Arial, sans-serif; }
+
+body{
+    background:var(--page-bg) center/cover fixed no-repeat, linear-gradient(135deg,#3a6fd8,#7a4fd8);
+    min-height:100vh;
+    padding:30px;
+}
+body::before{
+    content:""; position:fixed; inset:0;
+    background:rgba(255,255,255,.22);
+    backdrop-filter:blur(7px);
+    z-index:-1;
+}
+
+.container{ max-width:1500px; margin:auto; }
+
+/* ---------- Header ---------- */
+.header{
+    background:linear-gradient(90deg,rgba(0,63,140,.88),rgba(0,89,179,.88));
+    color:white; padding:20px 35px; border-radius:18px;
+    display:flex; justify-content:space-between; align-items:center;
+    box-shadow:var(--card-shadow); margin-bottom:28px;
+}
+.header h1{ font-size:30px; font-weight:800; }
+.logo{ height:50px; }
+
+/* ---------- Main glass card ---------- */
+.main-card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(10px) saturate(120%);
+    border-radius:22px; padding:30px;
+    box-shadow:var(--card-shadow);
+}
+
+/* ---------- Inputs section ---------- */
+.upload-section{ margin-bottom:30px; }
+.upload-title{ font-size:22px; font-weight:700; color:var(--primary-900); margin-bottom:16px; }
+
+.controls{ display:flex; flex-wrap:wrap; gap:18px; align-items:flex-end; margin-bottom:18px; }
+.control-label{ display:block; font-weight:700; color:var(--primary-900); font-size:14px; margin-bottom:6px; }
+.field{ margin-top:16px; }
+
+input[type=date], select{ padding:10px; border-radius:10px; border:none; font-size:15px; background:#fff; }
+
+input[type=file]{
+    width:100%; padding:16px; border-radius:14px;
+    border:2px dashed var(--accent);
+    background:rgba(255,255,255,0.55);
+    font-size:15px; cursor:pointer;
+}
+
+/* ---------- Buttons ---------- */
+.btn{
+    background:var(--primary-900); color:white; border:none;
+    padding:11px 20px; border-radius:10px;
+    font-size:14px; font-weight:700; cursor:pointer;
+}
+.btn:hover{ background:var(--primary-700); }
+.btn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn-sm{ padding:9px 16px; font-size:13px; }
+.btn-secondary{ background:#e6ebf3; color:var(--primary-900); }
+.btn-secondary:hover{ background:#d3dcea; }
+
+/* ---------- Notes & status lines ---------- */
+.window-note{
+    margin-top:10px; font-size:13px; font-weight:600; color:var(--primary-900);
+    background:rgba(255,255,255,.7); padding:10px 14px; border-radius:10px;
+    display:inline-block; line-height:1.7;
+}
+.window-note.small{ margin-top:8px; font-size:12px; }
+
+.status{
+    margin-top:14px; padding:13px 16px; border-radius:12px;
+    font-size:14px; font-weight:600; line-height:1.6;
+    background:rgba(255,255,255,0.8); color:#333;
+}
+.status.err { background:#ffe2e2; color:#9b1c1c; }
+.status.ok  { background:#e3f7e8; color:#14632b; }
+.status.warn{ background:#fff4d6; color:#8a5a00; }
+
+/* ---------- Tables ---------- */
+.table-box{ overflow:auto; margin-top:20px; }
+
+table{
+    width:100%; border-collapse:collapse; background:white;
+    border-radius:16px; overflow:hidden;
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+}
+th{ background:var(--primary-900); color:white; padding:14px; text-align:center; font-size:14px; }
+td{ padding:13px; font-size:14px; text-align:center; border:1px solid #808080; }
+tr:hover td{ background:#f8fbff; }
+
+/* Report-style table (title row + metric rows) */
+.eod-table{ margin-top:40px; width:auto; table-layout:auto; }
+.eod-table th, .eod-table td{ min-width:90px; padding:12px; border:1px solid #808080; }
+.eod-table th:first-child, .eod-table td:first-child{ min-width:160px; }
+.report-title{
+    font-size:22px; padding:18px; background:#fff; color:#000;
+    font-weight:800; border-bottom:2px solid #dcdcdc;
+}
+.report-footer{
+    background:#D3D3D3; color:#000; font-size:13px; font-weight:700;
+    letter-spacing:.5px; text-align:center; padding:12px;
+}
+.label-cell{ background:#fff; color:#000; font-weight:700; }
+.gray{ background:#f0f0f0; color:#000; }
+.total-row td{ background:#d9edf7; font-weight:700; }
+
+/* ---------- Explanation box ---------- */
+.formula{
+    margin-top:24px; background:rgba(255,255,255,0.72);
+    padding:20px; border-radius:16px; line-height:1.9;
+    box-shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+.formula b{ color:var(--primary-900); }
+
+/* ---------- Report blocks ---------- */
+.report-block{ margin-bottom:40px; display:flex; flex-direction:column; align-items:center; }
+.report-actions{ display:flex; justify-content:center; gap:12px; margin-bottom:10px; }
+.centered{ display:flex; justify-content:center; }
+
+.empty-state{
+    background:rgba(255,255,255,.85); padding:22px; border-radius:14px;
+    font-weight:700; color:#9b1c1c; text-align:center;
+}
+
+/* ---------- Footer ---------- */
+.footer{ text-align:center; margin-top:28px; color:#fff; font-weight:700; font-size:13px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.45);
+    display:none; align-items:center; justify-content:center;
+    z-index:1000; padding:20px;
+}
+.modal-overlay.show{ display:flex; }
+.modal-box{
+    background:#fff; border-radius:18px; max-width:480px; width:100%;
+    padding:26px 28px; box-shadow:0 16px 40px rgba(0,0,0,.35);
+    border-top:6px solid #e0a800;
+}
+.modal-box h2{ font-size:20px; color:#8a5a00; margin-bottom:12px; }
+.modal-box p{ font-size:14px; color:#333; line-height:1.6; margin-bottom:10px; }
+.modal-box ul{ margin:6px 0 14px 20px; font-size:14px; color:#333; line-height:1.7; }
+.modal-actions{ display:flex; gap:12px; justify-content:flex-end; margin-top:18px; flex-wrap:wrap; }
+
+/* ---------- Additions for this tool (same theme) ---------- */
+.store-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.store-card{ background:rgba(255,255,255,.45); border-radius:14px; padding:16px; }
+.store-card .control-label{ font-size:16px; }
+.store-card .btn-row{ margin-top:10px; text-align:right; }
+.tabs{ display:flex; flex-wrap:wrap; gap:10px; }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+    background:rgba(255,255,255,.7); color:var(--primary-900);
+    padding:8px 12px; border-radius:10px; font-size:13px; font-weight:600;
+}
+.chip.on{ background:var(--primary-900); color:#fff; }
+.chip input{ accent-color:var(--accent); }
+.indent{ padding-left:30px !important; text-align:left !important; }
+.store-row td{ background:#eef3fb; font-weight:700; }
+.eod-table td:first-child{ text-align:left; }
+
+/* ---------- Mobile ---------- */
+@media(max-width:900px){ .store-grid{ grid-template-columns:1fr; } }
+@media(max-width:768px){
+    body{ padding:16px; }
+    .header{ flex-direction:column; gap:14px; text-align:center; }
+    .header h1{ font-size:24px; }
+    .eod-table{ width:100%; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- ================= HEADER ================= -->
+    <div class="header">
+        <h1>STO Ageing Pivot</h1>
+        <img class="logo" src="logo.png" alt="Logo" onerror="this.style.display='none'">
+    </div>
+
+    <div class="main-card">
+
+        <!-- ================= INPUTS ================= -->
+        <div class="upload-section">
+
+            <div class="upload-title">Upload store files</div>
+
+            <div class="controls">
+                <div>
+                    <label class="control-label" for="asOf">Age measured as of</label>
+                    <input type="date" id="asOf">
+                </div>
+            </div>
+
+            <div class="window-note">Upload the Detail Stock Transfer Enquiry export (.xlsx) for each store. Helper columns are not needed.</div>
+
+            <div class="store-grid field">
+                <div class="store-card">
+                    <label class="control-label" for="file-Ghatkopar">Ghatkopar</label>
+                    <input type="file" id="file-Ghatkopar" accept=".xlsx,.xls,.xlsm,.csv">
+                    <div class="status" id="status-Ghatkopar">No file loaded yet.</div>
+                    <div class="btn-row"><button class="btn btn-sm btn-secondary" type="button" data-clear="Ghatkopar" hidden>Remove file</button></div>
+                </div>
+                <div class="store-card">
+                    <label class="control-label" for="file-Malad">Malad</label>
+                    <input type="file" id="file-Malad" accept=".xlsx,.xls,.xlsm,.csv">
+                    <div class="status" id="status-Malad">No file loaded yet.</div>
+                    <div class="btn-row"><button class="btn btn-sm btn-secondary" type="button" data-clear="Malad" hidden>Remove file</button></div>
+                </div>
+                <div class="store-card">
+                    <label class="control-label" for="file-Vashi">Vashi</label>
+                    <input type="file" id="file-Vashi" accept=".xlsx,.xls,.xlsm,.csv">
+                    <div class="status" id="status-Vashi">No file loaded yet.</div>
+                    <div class="btn-row"><button class="btn btn-sm btn-secondary" type="button" data-clear="Vashi" hidden>Remove file</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PIVOT CONTROLS ================= -->
+        <div class="controls">
+            <div>
+                <span class="control-label">Store</span>
+                <div class="tabs" id="tabs"></div>
+            </div>
+            <div>
+                <label class="control-label" for="valSel">Values</label>
+                <select id="valSel">
+                    <option value="count">Count of lines</option>
+                    <option value="qty">Sum of Transfer Qty</option>
+                    <option value="diff">Sum of Diff Qty</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <span class="control-label">Line Status</span>
+            <div class="chips" id="chips"><span class="window-note small">Statuses appear after you upload a file.</span></div>
+        </div>
+
+        <!-- ================= EXPLANATION ================= -->
+        <div class="formula">
+            <b>Pivot logic (same as the Excel helper columns):</b><br>
+            <b>Days</b> = as-of date − STO date (dates only)<br>
+            <b>Within 24</b> = 1 day or less &nbsp;|&nbsp; <b>Within 48</b> = 2 days &nbsp;|&nbsp; <b>Within 72</b> = 3 days &nbsp;|&nbsp; <b>Above 72</b> = more than 3 days<br>
+            <b>Rows</b> = STO No &nbsp;|&nbsp; <b>Filter</b> = Line Status (default: Allocated, Partially Shipped, Pick complete, Shipped complete)
+        </div>
+
+        <!-- ================= REPORT ================= -->
+        <div class="table-box centered" id="reportArea">
+            <div class="empty-state">Upload a store file to see its pivot.</div>
+        </div>
+
+    </div>
+
+    <!-- ================= FOOTER ================= -->
+    <div class="footer">STO Ageing Pivot | Ghatkopar · Malad · Vashi</div>
+
+</div>
+
+<!-- ================= MODAL (popup) ================= -->
+<div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+        <h2 id="modalTitle">&#9888; File could not be read</h2>
+        <p>Check the file and upload it again.</p>
+        <ul id="modalList"></ul>
+        <div class="modal-actions">
+            <button class="btn" id="modalOk" type="button">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* =========================================================
+   LAYOUT HELPERS
+   ========================================================= */
+function setStatus(id, msg, cls){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.className = "status" + (cls ? " " + cls : "");
+    el.innerHTML = msg;
+}
+function showModal(items){
+    document.getElementById("modalList").innerHTML = (items || []).map(t => "<li>" + t + "</li>").join("");
+    document.getElementById("modal").classList.add("show");
+    document.getElementById("modalOk").focus();
+}
+function hideModal(){ document.getElementById("modal").classList.remove("show"); }
+document.getElementById("modalOk").addEventListener("click", hideModal);
+document.getElementById("modal").addEventListener("click", e => { if(e.target.id === "modal") hideModal(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") hideModal(); });
+
+function downloadPNG(elementId, fileName){
+    const el = document.getElementById(elementId);
+    if(!el || !el.innerHTML.trim()) return;
+    const btns = el.querySelectorAll("button");
+    btns.forEach(b => b.style.visibility = "hidden");
+    html2canvas(el, { scale:2, useCORS:true })
+        .then(canvas => {
+            const a = document.createElement("a");
+            a.download = fileName + ".png";
+            a.href = canvas.toDataURL("image/png");
+            a.click();
+        })
+        .finally(() => btns.forEach(b => b.style.visibility = "visible"));
+}
+
+/* =========================================================
+   STO AGEING PIVOT
+   ========================================================= */
+const STORES = ['Ghatkopar','Malad','Vashi'];
+const BUCKETS = ['Within 24','Within 48','Within 72','Above 72'];
+const BUCKET_COLOUR = ['#90EE90','#FFFF00','#F4A460','#FF7F7F'];
+const DEFAULT_STATUS = ['Allocated','Partially Shipped','Pick complete','Shipped complete'];
+const VAL_LABEL = {count:'Count of lines', qty:'Sum of Transfer Qty', diff:'Sum of Diff Qty'};
+
+const state = { data:{}, files:{}, view:null, statuses:null, value:'count', asOf:null, lastAoa:null };
+
+/* ---------- dates & numbers ---------- */
+const dayNum = (y,m,d) => Math.round(Date.UTC(y,m-1,d)/86400000);
+function parseDay(v){
+    if(v === null || v === undefined || v === '') return null;
+    if(typeof v === 'number'){
+        const p = XLSX.SSF.parse_date_code(v);
+        return p ? dayNum(p.y,p.m,p.d) : null;
+    }
+    const s = String(v).trim();
+    let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);   // dd/mm/yyyy
+    if(m) return dayNum(+m[3],+m[2],+m[1]);
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);                   // yyyy-mm-dd
+    if(m) return dayNum(+m[1],+m[2],+m[3]);
+    return null;
+}
+const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g,'')); return isNaN(n) ? 0 : n; };
+const bucketOf = days => days <= 1 ? 0 : days <= 2 ? 1 : days <= 3 ? 2 : 3;
+const fmt = v => Number.isInteger(v) ? v.toLocaleString('en-IN') : v.toLocaleString('en-IN',{maximumFractionDigits:2});
+const sum = a => a.reduce((x,y) => x + y, 0);
+function asOfLabel(){
+    const [y,m,d] = document.getElementById('asOf').value.split('-');
+    return d + '/' + m + '/' + y;
+}
+
+/* ---------- file parsing ---------- */
+function parseWorkbook(buf){
+    const wb = XLSX.read(buf, {type:'array'});
+    for(const name of wb.SheetNames){
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:true, defval:''});
+        const hi = rows.slice(0,15).findIndex(r => r.some(c => String(c).trim() === 'STO No'));
+        if(hi < 0) continue;
+        const head = rows[hi].map(c => String(c).trim());
+        const col = n => head.indexOf(n);
+        const iSto = col('STO No'), iLS = col('Line Status'), iQty = col('Transfer Qty'), iDiff = col('Diff Qty');
+        if(iLS < 0) throw new Error('Sheet "' + name + '" has "STO No" but no "Line Status" column.');
+        // "STO Date" can appear twice (helper text + original). Use the one holding real dates.
+        const dateCols = head.map((h,i) => h === 'STO Date' ? i : -1).filter(i => i >= 0);
+        if(!dateCols.length) throw new Error('Sheet "' + name + '" has no "STO Date" column.');
+        const sample = rows.slice(hi+1, hi+20);
+        const iDate = dateCols.find(i => sample.some(r => typeof r[i] === 'number')) ?? dateCols[0];
+        const out = []; let badDates = 0;
+        for(const r of rows.slice(hi+1)){
+            const sto = String(r[iSto] ?? '').trim();
+            if(!sto) continue;
+            const d = parseDay(r[iDate]);
+            if(d === null){ badDates++; continue; }
+            out.push({ sto, day:d, ls:String(r[iLS] ?? '').trim(),
+                       qty: iQty >= 0 ? num(r[iQty]) : 0, diff: iDiff >= 0 ? num(r[iDiff]) : 0 });
+        }
+        if(!out.length) throw new Error('Sheet "' + name + '" has headers but no readable STO lines.');
+        return { rows:out, sheet:name, badDates };
+    }
+    throw new Error('No sheet has an "STO No" header. Upload the Detail Stock Transfer Enquiry export.');
+}
+
+function loadFile(store, file){
+    setStatus('status-' + store, 'Reading ' + file.name + '…');
+    const reader = new FileReader();
+    reader.onload = e => {
+        try{
+            const res = parseWorkbook(new Uint8Array(e.target.result));
+            state.data[store] = res.rows;
+            state.files[store] = { name:file.name, badDates:res.badDates };
+            if(!state.view || !state.data[state.view]) state.view = store;
+            if(!state.statuses){
+                const present = allStatuses();
+                const def = DEFAULT_STATUS.filter(s => present.includes(s));
+                state.statuses = new Set(def.length ? def : present);
+            }
+        }catch(err){
+            delete state.data[store]; delete state.files[store];
+            showModal([store + ': ' + file.name, err.message]);
+            setStatus('status-' + store, err.message, 'err');
+        }
+        renderAll();
+    };
+    reader.onerror = () => setStatus('status-' + store, 'Could not read ' + file.name + '. Save it again as .xlsx and retry.', 'err');
+    reader.readAsArrayBuffer(file);
+}
+
+function allStatuses(){
+    const s = new Set();
+    Object.values(state.data).forEach(rows => rows.forEach(r => s.add(r.ls)));
+    return [...s].sort((a,b) => a.localeCompare(b, undefined, {sensitivity:'base'}));
+}
+
+/* ---------- render: store cards ---------- */
+function renderStoreCards(){
+    STORES.forEach(store => {
+        const rows = state.data[store];
+        document.querySelector('[data-clear="' + store + '"]').hidden = !rows;
+        const st = document.getElementById('status-' + store);
+        if(rows){
+            const f = state.files[store];
+            const stos = new Set(rows.map(r => r.sto)).size;
+            setStatus('status-' + store,
+                '&#10004; ' + f.name + '<br>' + rows.length.toLocaleString('en-IN') + ' lines, ' + stos + ' STOs' +
+                (f.badDates ? '<br>' + f.badDates + ' lines skipped (no STO date)' : ''),
+                f.badDates ? 'warn' : 'ok');
+        }else if(!st.classList.contains('err')){
+            setStatus('status-' + store, 'No file loaded yet.');
+        }
+    });
+}
+
+/* ---------- render: tabs & chips ---------- */
+function renderTabs(){
+    const loaded = STORES.filter(s => state.data[s]);
+    if(state.view === 'All stores' && loaded.length < 2) state.view = loaded[0] || null;
+    const tabs = document.getElementById('tabs');
+    tabs.innerHTML = '';
+    [...STORES, 'All stores'].forEach(v => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = v;
+        b.className = 'btn btn-sm' + (state.view === v ? '' : ' btn-secondary');
+        b.disabled = v === 'All stores' ? loaded.length < 2 : !state.data[v];
+        b.setAttribute('aria-pressed', state.view === v);
+        b.addEventListener('click', () => { state.view = v; renderAll(); });
+        tabs.appendChild(b);
+    });
+}
+
+function renderChips(){
+    const chips = document.getElementById('chips');
+    const list = allStatuses();
+    if(!list.length){
+        chips.innerHTML = '<span class="window-note small">Statuses appear after you upload a file.</span>';
+        return;
+    }
+    chips.innerHTML = '';
+    list.forEach(s => {
+        const on = state.statuses.has(s);
+        const lab = document.createElement('label');
+        lab.className = 'chip' + (on ? ' on' : '');
+        lab.innerHTML = '<input type="checkbox"' + (on ? ' checked' : '') + '> ' + (s || '(blank)');
+        lab.querySelector('input').addEventListener('change', e => {
+            e.target.checked ? state.statuses.add(s) : state.statuses.delete(s);
+            renderAll();
+        });
+        chips.appendChild(lab);
+    });
+}
+
+/* ---------- pivot ---------- */
+function pivotFor(store){
+    const map = new Map();
+    (state.data[store] || []).forEach(r => {
+        if(!state.statuses.has(r.ls)) return;
+        const b = bucketOf(state.asOf - r.day);
+        const v = state.value === 'count' ? 1 : state.value === 'qty' ? r.qty : r.diff;
+        if(!map.has(r.sto)) map.set(r.sto, { vals:[0,0,0,0], seen:[false,false,false,false] });
+        const e = map.get(r.sto);
+        e.vals[b] += v; e.seen[b] = true;
+    });
+    return [...map.entries()]
+        .sort((a,b) => a[0].localeCompare(b[0], undefined, {numeric:true}))
+        .map(([sto,e]) => ({ sto, vals:e.vals, seen:e.seen }));
+}
+
+function bucketCell(v, seen, i){
+    return seen ? '<td style="background:' + BUCKET_COLOUR[i] + ';font-weight:700;">' + fmt(v) + '</td>' : '<td></td>';
+}
+
+function renderPivot(){
+    const area = document.getElementById('reportArea');
+    if(!state.view){
+        area.innerHTML = '<div class="empty-state">Upload a store file to see its pivot.</div>';
+        state.lastAoa = null; return;
+    }
+    const multi = state.view === 'All stores';
+    const stores = multi ? STORES.filter(s => state.data[s]) : [state.view];
+    const sel = [...state.statuses];
+    const all = allStatuses();
+    const filterText = sel.length === all.length ? '(All)' : sel.length === 1 ? sel[0] : '(Multiple Items): ' + sel.join(', ');
+    const groups = stores.map(s => ({ store:s, rows:pivotFor(s) }));
+
+    if(!sel.length || !groups.some(g => g.rows.length)){
+        area.innerHTML = '<div class="empty-state">No lines match the selected Line Status. Tick at least one status above.</div>';
+        state.lastAoa = null; return;
+    }
+
+    const cols = BUCKETS.length + 2;
+    const aoa = [['Row Labels', ...BUCKETS, 'Grand Total']];
+    let html = '<div class="report-block">' +
+        '<div class="report-actions">' +
+            '<button class="btn btn-sm" type="button" onclick="downloadPNG(\'pivotTable\',\'STO_Ageing_' + state.view.replace(/\s+/g,'_') + '\')">Download PNG</button>' +
+            '<button class="btn btn-sm btn-secondary" type="button" onclick="downloadXLSX()">Download Excel</button>' +
+        '</div>' +
+        '<table id="pivotTable" class="eod-table">' +
+        '<tr><th colspan="' + cols + '" class="report-title">STO AGEING | ' + state.view.toUpperCase() + ' | ' + asOfLabel() + '</th></tr>' +
+        '<tr><td class="label-cell">Row Labels</td>' + BUCKETS.map(b => '<td class="label-cell">' + b + '</td>').join('') +
+        '<td class="label-cell">Grand Total</td></tr>';
+
+    const grand = [0,0,0,0], grandSeen = [false,false,false,false];
+    groups.forEach(g => {
+        if(!g.rows.length) return;
+        if(multi){
+            const st = [0,0,0,0], ss = [false,false,false,false];
+            g.rows.forEach(r => r.vals.forEach((v,i) => { st[i] += v; ss[i] = ss[i] || r.seen[i]; }));
+            html += '<tr class="store-row"><td>' + g.store + '</td>' +
+                st.map((v,i) => '<td>' + (ss[i] ? fmt(v) : '') + '</td>').join('') +
+                '<td>' + fmt(sum(st)) + '</td></tr>';
+            aoa.push([g.store, ...st.map((v,i) => ss[i] ? v : ''), sum(st)]);
+        }
+        g.rows.forEach(r => {
+            html += '<tr><td class="label-cell' + (multi ? ' indent' : '') + '">' + r.sto + '</td>' +
+                r.vals.map((v,i) => bucketCell(v, r.seen[i], i)).join('') +
+                '<td class="gray"><b>' + fmt(sum(r.vals)) + '</b></td></tr>';
+            aoa.push([multi ? '   ' + r.sto : r.sto, ...r.vals.map((v,i) => r.seen[i] ? v : ''), sum(r.vals)]);
+            r.vals.forEach((v,i) => { grand[i] += v; grandSeen[i] = grandSeen[i] || r.seen[i]; });
+        });
+    });
+
+    html += '<tr class="total-row"><td>Grand Total</td>' +
+        grand.map((v,i) => '<td>' + (grandSeen[i] ? fmt(v) : '') + '</td>').join('') +
+        '<td>' + fmt(sum(grand)) + '</td></tr>' +
+        '<tr><td colspan="' + cols + '" class="report-footer">Line Status: ' + filterText + ' &nbsp;|&nbsp; Values: ' + VAL_LABEL[state.value] + '</td></tr>' +
+        '</table></div>';
+    aoa.push(['Grand Total', ...grand.map((v,i) => grandSeen[i] ? v : ''), sum(grand)]);
+
+    area.innerHTML = html;
+    state.lastAoa = aoa; state.lastFilter = filterText;
+}
+
+function downloadXLSX(){
+    if(!state.lastAoa) return;
+    const top = [['Store', state.view], ['Line Status', state.lastFilter], ['Values', VAL_LABEL[state.value]], ['As of', asOfLabel()], []];
+    const ws = XLSX.utils.aoa_to_sheet([...top, ...state.lastAoa]);
+    ws['!cols'] = [{wch:16},{wch:12},{wch:12},{wch:12},{wch:12},{wch:13}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pivot');
+    XLSX.writeFile(wb, 'STO_Ageing_' + state.view.replace(/\s+/g,'_') + '_' + document.getElementById('asOf').value + '.xlsx');
+}
+
+function renderAll(){ renderStoreCards(); renderTabs(); renderChips(); renderPivot(); }
+
+/* ---------- init ---------- */
+window.addEventListener('load', () => {
+    const asOf = document.getElementById('asOf');
+    const t = new Date();
+    asOf.value = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+    const setAsOf = () => { const [y,m,d] = asOf.value.split('-').map(Number); state.asOf = dayNum(y,m,d); };
+    setAsOf();
+    asOf.addEventListener('change', () => { if(asOf.value){ setAsOf(); renderPivot(); } });
+    document.getElementById('valSel').addEventListener('change', e => { state.value = e.target.value; renderPivot(); });
+
+    STORES.forEach(store => {
+        const input = document.getElementById('file-' + store);
+        input.addEventListener('change', () => { if(input.files[0]) loadFile(store, input.files[0]); });
+        document.querySelector('[data-clear="' + store + '"]').addEventListener('click', () => {
+            delete state.data[store]; delete state.files[store];
+            input.value = '';
+            if(state.view === store) state.view = STORES.find(s => state.data[s]) || null;
+            if(!Object.keys(state.data).length) state.statuses = null;
+            setStatus('status-' + store, 'No file loaded yet.');
+            renderAll();
+        });
+    });
+
+    if(typeof XLSX === 'undefined'){
+        setStatus('status-Ghatkopar', 'The Excel reader could not load. Check your internet connection and reopen this file.', 'err');
+    }
+    renderAll();
+});
+</script>
+
+</body>
+</html>
