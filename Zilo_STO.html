@@ -139,12 +139,13 @@ tr:hover td{ background:#f8fbff; }
 .formula b{ color:var(--primary-900); }
 
 /* ---------- Report blocks ---------- */
-.report-block{ margin-bottom:40px; display:flex; flex-direction:column; align-items:center; }
+.report-block{ margin-bottom:40px; }
+.report-block .eod-table{ margin-left:auto; margin-right:auto; }
 .report-actions{ display:flex; justify-content:center; gap:12px; margin-bottom:10px; }
 .centered{ display:flex; justify-content:center; }
 
 .empty-state{
-    background:rgba(255,255,255,.85); padding:22px; border-radius:14px;
+    background:rgba(255,255,255,.85); padding:22px; border-radius:14px; max-width:520px; margin:0 auto;
     font-weight:700; color:#9b1c1c; text-align:center;
 }
 
@@ -270,11 +271,12 @@ tr:hover td{ background:#f8fbff; }
             <b>Pivot logic (same as the Excel helper columns):</b><br>
             <b>Days</b> = as-of date − STO date (dates only)<br>
             <b>Within 24</b> = 1 day or less &nbsp;|&nbsp; <b>Within 48</b> = 2 days &nbsp;|&nbsp; <b>Within 72</b> = 3 days &nbsp;|&nbsp; <b>Above 72</b> = more than 3 days<br>
-            <b>Rows</b> = STO No &nbsp;|&nbsp; <b>Filter</b> = Line Status (default: Allocated, Partially Shipped, Pick complete, Shipped complete)
+            <b>Rows</b> = STO No &nbsp;|&nbsp; <b>Filter</b> = Line Status (default: Partially Shipped, Shipped complete)<br>
+            <b>Columns</b> = only the age buckets that have values are shown
         </div>
 
         <!-- ================= REPORT ================= -->
-        <div class="table-box centered" id="reportArea">
+        <div class="table-box" id="reportArea">
             <div class="empty-state">Upload a store file to see its pivot.</div>
         </div>
 
@@ -338,7 +340,7 @@ function downloadPNG(elementId, fileName){
 const STORES = ['Ghatkopar','Malad','Vashi'];
 const BUCKETS = ['Within 24','Within 48','Within 72','Above 72'];
 const BUCKET_COLOUR = ['#90EE90','#FFFF00','#F4A460','#FF7F7F'];
-const DEFAULT_STATUS = ['Allocated','Partially Shipped','Pick complete','Shipped complete'];
+const DEFAULT_STATUS = ['Partially Shipped','Shipped complete'];
 const VAL_LABEL = {count:'Count of lines', qty:'Sum of Transfer Qty', diff:'Sum of Diff Qty'};
 
 const state = { data:{}, files:{}, view:null, statuses:null, value:'count', asOf:null, lastAoa:null };
@@ -525,8 +527,14 @@ function renderPivot(){
         state.lastAoa = null; return;
     }
 
-    const cols = BUCKETS.length + 2;
-    const aoa = [['Row Labels', ...BUCKETS, 'Grand Total']];
+    // Work out which age buckets actually have values, and show only those columns
+    const anySeen = [false,false,false,false];
+    groups.forEach(g => g.rows.forEach(r => r.seen.forEach((x,i) => { if(x) anySeen[i] = true; })));
+    const vis = BUCKETS.map((_,i) => i).filter(i => anySeen[i]);
+    const pick = arr => vis.map(i => arr[i]);
+
+    const cols = vis.length + 2;
+    const aoa = [['Row Labels', ...pick(BUCKETS), 'Grand Total']];
     let html = '<div class="report-block">' +
         '<div class="report-actions">' +
             '<button class="btn btn-sm" type="button" onclick="downloadPNG(\'pivotTable\',\'STO_Ageing_' + state.view.replace(/\s+/g,'_') + '\')">Download PNG</button>' +
@@ -534,35 +542,35 @@ function renderPivot(){
         '</div>' +
         '<table id="pivotTable" class="eod-table">' +
         '<tr><th colspan="' + cols + '" class="report-title">STO AGEING | ' + state.view.toUpperCase() + ' | ' + asOfLabel() + '</th></tr>' +
-        '<tr><td class="label-cell">Row Labels</td>' + BUCKETS.map(b => '<td class="label-cell">' + b + '</td>').join('') +
+        '<tr><td class="label-cell">Row Labels</td>' + vis.map(i => '<td class="label-cell">' + BUCKETS[i] + '</td>').join('') +
         '<td class="label-cell">Grand Total</td></tr>';
 
-    const grand = [0,0,0,0], grandSeen = [false,false,false,false];
+    const grand = [0,0,0,0];
     groups.forEach(g => {
         if(!g.rows.length) return;
         if(multi){
             const st = [0,0,0,0], ss = [false,false,false,false];
             g.rows.forEach(r => r.vals.forEach((v,i) => { st[i] += v; ss[i] = ss[i] || r.seen[i]; }));
             html += '<tr class="store-row"><td>' + g.store + '</td>' +
-                st.map((v,i) => '<td>' + (ss[i] ? fmt(v) : '') + '</td>').join('') +
+                vis.map(i => '<td>' + (ss[i] ? fmt(st[i]) : '') + '</td>').join('') +
                 '<td>' + fmt(sum(st)) + '</td></tr>';
-            aoa.push([g.store, ...st.map((v,i) => ss[i] ? v : ''), sum(st)]);
+            aoa.push([g.store, ...vis.map(i => ss[i] ? st[i] : ''), sum(st)]);
         }
         g.rows.forEach(r => {
             html += '<tr><td class="label-cell' + (multi ? ' indent' : '') + '">' + r.sto + '</td>' +
-                r.vals.map((v,i) => bucketCell(v, r.seen[i], i)).join('') +
+                vis.map(i => bucketCell(r.vals[i], r.seen[i], i)).join('') +
                 '<td class="gray"><b>' + fmt(sum(r.vals)) + '</b></td></tr>';
-            aoa.push([multi ? '   ' + r.sto : r.sto, ...r.vals.map((v,i) => r.seen[i] ? v : ''), sum(r.vals)]);
-            r.vals.forEach((v,i) => { grand[i] += v; grandSeen[i] = grandSeen[i] || r.seen[i]; });
+            aoa.push([multi ? '   ' + r.sto : r.sto, ...vis.map(i => r.seen[i] ? r.vals[i] : ''), sum(r.vals)]);
+            r.vals.forEach((v,i) => { grand[i] += v; });
         });
     });
 
     html += '<tr class="total-row"><td>Grand Total</td>' +
-        grand.map((v,i) => '<td>' + (grandSeen[i] ? fmt(v) : '') + '</td>').join('') +
+        vis.map(i => '<td>' + fmt(grand[i]) + '</td>').join('') +
         '<td>' + fmt(sum(grand)) + '</td></tr>' +
         '<tr><td colspan="' + cols + '" class="report-footer">Line Status: ' + filterText + ' &nbsp;|&nbsp; Values: ' + VAL_LABEL[state.value] + '</td></tr>' +
         '</table></div>';
-    aoa.push(['Grand Total', ...grand.map((v,i) => grandSeen[i] ? v : ''), sum(grand)]);
+    aoa.push(['Grand Total', ...vis.map(i => grand[i]), sum(grand)]);
 
     area.innerHTML = html;
     state.lastAoa = aoa; state.lastFilter = filterText;
@@ -572,7 +580,7 @@ function downloadXLSX(){
     if(!state.lastAoa) return;
     const top = [['Store', state.view], ['Line Status', state.lastFilter], ['Values', VAL_LABEL[state.value]], ['As of', asOfLabel()], []];
     const ws = XLSX.utils.aoa_to_sheet([...top, ...state.lastAoa]);
-    ws['!cols'] = [{wch:16},{wch:12},{wch:12},{wch:12},{wch:12},{wch:13}];
+    ws['!cols'] = [{wch:16}, ...state.lastAoa[0].slice(1).map(() => ({wch:13}))];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Pivot');
     XLSX.writeFile(wb, 'STO_Ageing_' + state.view.replace(/\s+/g,'_') + '_' + document.getElementById('asOf').value + '.xlsx');
