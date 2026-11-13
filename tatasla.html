@@ -121,8 +121,8 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
 /* Stores: matched on Warehouse Name. pincode:true = this store also gets the Pincode Breach report.
    Rohtas Nagar coordinates are approximate (Main Babarpur Road, East Gorakh Park, Shahdara 110032) — replace with the exact store pin if you have it. */
 const STORES=[
-  {key:"malad", name:"Malad",        file:"Malad",       match:/malad/i,  lat:19.1894167966443, lng:72.8387353346888, pincode:true},
-  {key:"rohtas",name:"Rohtas Nagar", file:"RohtasNagar", match:/rohtas/i, lat:28.6830,          lng:77.2890,          pincode:false}
+  {key:"malad", name:"Malad",        file:"Malad",       names:["ZD 1MG Malad","Tata 1MG - MALAD - MUMBAI"], match:/malad/i,  lat:19.1894167966443, lng:72.8387353346888, pincode:true},
+  {key:"rohtas",name:"Rohtas Nagar", file:"RohtasNagar", names:[],                                          match:/rohtas/i, lat:28.6830,          lng:77.2890,          pincode:false}
 ];
 const WEST=["400067","400064","400104","400095","400062","400091"];
 const EAST=["400097","400092","400101","400063"];
@@ -135,7 +135,13 @@ const pad2=n=>String(n).padStart(2,"0");
 const hhmm=m=>{m=((Math.round(m)%1440)+1440)%1440;return pad2(Math.floor(m/60))+":"+pad2(m%60)};
 function setStatus(id,html,cls){const el=$(id);el.className="status"+(cls?" "+cls:"");el.innerHTML=html;el.hidden=!html;}
 /* Warehouse Name → store. A blank Warehouse Name is treated as Malad (as before); an unknown one gets no store. */
-function storeOf(wh){if(!wh) return STORES[0];return STORES.find(s=>s.match.test(wh))||null;}
+const normWh=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,"");
+function storeOf(wh){
+  if(!wh) return STORES[0];
+  const n=normWh(wh);
+  return STORES.find(s=>s.names.some(x=>normWh(x)===n))
+      || STORES.find(s=>s.match.test(wh)) || null;
+}
 
 /* ---------- parsing ---------- */
 function parseCSV(text){
