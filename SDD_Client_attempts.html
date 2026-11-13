@@ -133,6 +133,13 @@ th{
   background:#062e44;
   color:white;
 }
+td.store{
+  font-weight:600;
+}
+tr.subtotal{
+  background:#f1f3f5;
+  font-weight:600;
+}
 #downloadArea{
   display:inline-block;
   width:700px;
@@ -175,6 +182,12 @@ th{
   margin:30px auto 0;
   border-radius:6px 6px 0 0;
   box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+.table-header-bar .sub{
+  font-size:13px;
+  font-weight:600;
+  margin-top:4px;
+  opacity:0.9;
 }
 .loading-overlay{
   position:fixed;
@@ -221,6 +234,67 @@ button:disabled{ opacity:0.5; cursor:not-allowed !important; }
   margin:10px auto 30px;
   text-align:center;
   font-weight:bold;
+}
+
+/* ===== EXPORT PAGES (used only for the downloaded image) =====
+   Rendered off-screen as ONE large image, with store blocks in side-by-side
+   columns so the numbers stay sharp after WhatsApp compresses it. */
+#exportHolder{
+  position:absolute;
+  left:-10000px;
+  top:0;
+}
+.export-page{
+  background:#ffffff;
+  font-family:"Segoe UI", Arial, sans-serif;
+}
+.export-page .table-header-bar{
+  max-width:none;
+  margin:0;
+  border-radius:0;
+  box-shadow:none;
+  font-size:38px;
+  padding:26px 0 22px;
+}
+.export-page .table-header-bar .sub{
+  font-size:24px;
+  margin-top:10px;
+  opacity:1;
+}
+.export-page table{
+  max-width:none;
+  width:100%;
+  margin:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.export-page th,
+.export-page td{
+  font-size:26px;
+  padding:12px 10px;
+  border:2px solid #c3cbd2;
+  color:#000;
+}
+.export-page th{
+  color:#fff;
+  font-size:24px;
+}
+.export-page td.store{
+  font-weight:700;
+}
+.export-cols{
+  display:flex;
+  align-items:flex-start;
+}
+.export-col{
+  flex:1 1 0;
+  min-width:0;
+}
+.export-page .watermark{
+  max-width:none;
+  margin:0;
+  padding:18px 0;
+  font-size:22px;
 }
 </style>
 
@@ -291,6 +365,9 @@ Download Filtered CSV
 
 </div>
 
+<!-- Off-screen area where the downloadable image pages are built -->
+<div id="exportHolder"></div>
+
 <script>
 
 /* ========================= CONFIG ========================= */
@@ -298,6 +375,7 @@ Download Filtered CSV
 // Store list comes from the published Google Sheet ("Brand Pendancy" tab).
 // Columns used: Stores (raw Warehouse Name), Rename (display name),
 // Cutoff (time of day, e.g. 16:00:00). Only stores listed there are shown.
+// Stores that share the same Rename are merged into one row group.
 // If this link stops working, paste the correct one in the box on the page.
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=1217247023&single=true&output=csv";
 
@@ -319,13 +397,26 @@ const statusesList = [
   "REACHED_DELIVERY"
 ];
 
+// Downloaded image settings (always ONE image).
+// A tall single-column table gets shrunk hard by WhatsApp and the numbers
+// blur. So the image lays store blocks out in side-by-side columns, picking
+// the column count that keeps the image close to EXPORT_TARGET_RATIO
+// (height / width). Set EXPORT_COLUMNS to 1, 2 or 3 to force a count,
+// or leave it as "auto".
+const EXPORT_COLUMNS = "auto";
+const EXPORT_MAX_COLUMNS = 3;
+const EXPORT_TARGET_RATIO = 1.25;
+// Render resolution multiplier. 3 = very sharp; it is lowered automatically
+// only if the image would exceed the browser's canvas size limit.
+const EXPORT_SCALE = 3;
+
 /* ========================= STATE ========================= */
 
 // fileName -> array of normalized rows. Re-uploading a file with the same
 // name replaces its rows instead of double-counting them.
 let loadedFiles = {};
 
-// lowercase warehouse name -> { name, cutoffMinutes, cutoffLabel }
+// lowercase warehouse name -> { name, cutoffMinutes }
 let storeConfig = {};
 let storeConfigLoaded = false;
 
@@ -439,9 +530,18 @@ async function loadStoreSheet(){
 
       storeConfig = cfg;
       storeConfigLoaded = true;
-      let names = Object.values(cfg).map(c => `${c.name} (${minutesLabel(c.cutoffMinutes)})`);
+
+      // Show each display name once, listing how many warehouses feed into it.
+      let byName = {};
+      Object.values(cfg).forEach(c=>{
+        let k = c.name.toLowerCase();
+        if(!byName[k]) byName[k] = { name: c.name, count: 0, cutoff: c.cutoffMinutes };
+        byName[k].count++;
+      });
+      let names = Object.values(byName).map(b =>
+        `${b.name}${b.count > 1 ? " ×" + b.count : ""} (${minutesLabel(b.cutoff)})`);
       statusEl.style.color = "#0a5c36";
-      statusEl.textContent = `Loaded ${names.length} stores: ${names.join(", ")}`;
+      statusEl.textContent = `Loaded ${Object.keys(cfg).length} warehouses as ${names.length} darkstores: ${names.join(", ")}`;
       hideLoading();
       setControlsEnabled(true);
       sheetLoading = false;
@@ -471,6 +571,12 @@ function prettifyStoreName(raw){
 function str(v){
   if(v === null || v === undefined) return "";
   return String(v).trim();
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  })[c]);
 }
 
 // Excel serial date (days since 1899-12-30) -> {y,m,d,frac}
@@ -552,6 +658,8 @@ function normalizeBoltRow(row, fileName){
 }
 
 // Shared filter used by both the table and the CSV export.
+// Cutoff is still checked per warehouse, even when several warehouses
+// are merged under one display name.
 function passesFilters(nrow, includeTrips){
   if(!nrow.store) return false;
   let cfg = storeConfig[storeKey(nrow.store)];
@@ -670,7 +778,7 @@ function refreshFileUI(errors){
   }
 
   document.getElementById("boltFileList").innerHTML = names.map(n=>`
-    <li><span>${n} (${loadedFiles[n].length} rows)</span>
+    <li><span>${esc(n)} (${loadedFiles[n].length} rows)</span>
     <button onclick="removeFile(${JSON.stringify(n).replace(/"/g,'&quot;')})">✕</button></li>
   `).join("");
 
@@ -692,14 +800,13 @@ function clearFiles(){
 /* ========================= FILTER UI ========================= */
 
 function createFilter(){
-  let html = "<b>Status Filter:</b><br>";
-
-  html += `
-  <br><b>Trip Filter:</b><br>
+  let html = `
+  <b>Trip Filter:</b><br>
   <label>
     <input type="checkbox" id="tripToggle" onchange="updateTable()">
     Include Trip Orders
   </label><br><br>
+  <b>Status Filter:</b><br>
   `;
 
   statusesList.forEach(s=>{
@@ -723,7 +830,7 @@ function updateTable(){
   renderTable(getSelectedStatuses());
 }
 
-/* ========================= RENDER ========================= */
+/* ========================= REPORT MODEL ========================= */
 
 // e.g. "02 Nov 2026, 03:20 PM"
 function reportTimestamp(){
@@ -733,113 +840,104 @@ function reportTimestamp(){
   }).replace(/\b(am|pm)\b/, m => m.toUpperCase());
 }
 
-function renderTable(statuses){
-
+// Groups orders by DISPLAY name (the sheet's Rename column), so every
+// warehouse that shares a Rename lands in one block.
+function buildModel(statuses){
   let deduped = getFilteredDeduped();
 
-  // store -> attempts -> status -> count
+  // displayKey -> { name, attempts: { n: { status: count } } }
   let grouped = {};
   deduped.forEach(nrow=>{
-    if(!grouped[nrow.store]) grouped[nrow.store] = {};
-    if(!grouped[nrow.store][nrow.attempts]) grouped[nrow.store][nrow.attempts] = {};
-    let cell = grouped[nrow.store][nrow.attempts];
-    cell[nrow.status] = (cell[nrow.status] || 0) + 1;
+    let name = prettifyStoreName(nrow.store);
+    let key = name.toLowerCase();
+    if(!grouped[key]) grouped[key] = { name, attempts: {} };
+    let att = grouped[key].attempts;
+    if(!att[nrow.attempts]) att[nrow.attempts] = {};
+    att[nrow.attempts][nrow.status] = (att[nrow.attempts][nrow.status] || 0) + 1;
   });
 
-  let html = `
-  <div id="downloadArea">
+  let gTotal = statuses.map(() => 0);
+  let grand = 0;
+  let blocks = [];
+
+  Object.values(grouped)
+    .sort((a,b) => a.name.localeCompare(b.name))
+    .forEach(g=>{
+      let rows = Object.keys(g.attempts)
+        .map(Number)
+        .sort((a,b) => a - b)
+        .map(attempt=>{
+          let vals = statuses.map(s => g.attempts[attempt][s] || 0);
+          return { attempt, vals, total: vals.reduce((a,b) => a + b, 0) };
+        })
+        .filter(r => r.total > 0);
+
+      if(!rows.length) return;
+
+      let sub = statuses.map((_, i) => rows.reduce((sum, r) => sum + r.vals[i], 0));
+      let total = sub.reduce((a,b) => a + b, 0);
+      sub.forEach((v, i) => gTotal[i] += v);
+      grand += total;
+      blocks.push({ name: g.name, rows, sub, total });
+    });
+
+  return { statuses, blocks, gTotal, grand };
+}
+
+function headerHTML(model, ts){
+  return `
   <div class="table-header-bar">
     Zippee &lt;&gt; PAN INDIA Pendency Report
-    <div style="font-size:13px;font-weight:600;margin-top:4px;opacity:0.9;">${reportTimestamp()}</div>
-  </div>
+    <div class="sub">${ts} &nbsp;|&nbsp; Total Pendency: ${model.grand}</div>
+  </div>`;
+}
+
+// One table. Each store block is its own <tbody> so its height can be measured.
+function tableHTML(model, blocks, showGrand){
+  let s = model.statuses;
+  // The Total column only adds information when 2+ statuses are ticked.
+  let showTotal = s.length > 1;
+  let totalCell = v => showTotal ? `<td>${v}</td>` : "";
+  let h = `
   <table>
-    <tr>
+    <thead><tr>
       <th>Darkstore</th>
       <th>No. of Attempts</th>
-      ${statuses.map(s=>`<th>${s}</th>`).join("")}
-      <th>Total</th>
-    </tr>
-  `;
+      ${s.map(x => `<th>${x.replace(/_/g, "_<wbr>")}</th>`).join("")}
+      ${showTotal ? "<th>Total</th>" : ""}
+    </tr></thead>`;
 
-  let gTotal = {};
-  statuses.forEach(s=>gTotal[s]=0);
-  let grand = 0;
-
-  let stores = Object.keys(grouped).sort((a,b)=>
-    prettifyStoreName(a).localeCompare(prettifyStoreName(b)));
-
-  stores.forEach(store=>{
-    let attemptsArr = Object.keys(grouped[store]).sort((a,b)=>a-b);
-
-    let validAttempts = attemptsArr.filter(attempt=>{
-      let rowData = grouped[store][attempt];
-      return statuses.some(s => (rowData[s] || 0) > 0);
+  blocks.forEach(b=>{
+    h += `<tbody class="store-block">`;
+    b.rows.forEach((r, i)=>{
+      h += "<tr>";
+      if(i === 0) h += `<td rowspan="${b.rows.length}" class="store">${esc(b.name)}</td>`;
+      h += `<td><b>${r.attempt} Attempts</b></td>`;
+      h += r.vals.map(v => `<td>${v}</td>`).join("");
+      h += `${totalCell(r.total)}</tr>`;
     });
-
-    if(validAttempts.length === 0) return;
-
-    let firstRow = true;
-    let storeTotal = 0;
-
-    validAttempts.forEach(attempt=>{
-      let rowData = grouped[store][attempt];
-      let rowTotal = 0;
-      statuses.forEach(s=>{ rowTotal += (rowData[s] || 0); });
-
-      html += `<tr>`;
-
-      if(firstRow){
-        html += `<td rowspan="${validAttempts.length}">
-          <span style="font-weight:600;font-size:12px;">${prettifyStoreName(store)}</span>
-        </td>`;
-        firstRow = false;
-      }
-
-      html += `<td><b>${attempt} Attempts</b></td>`;
-
-      statuses.forEach(s=>{
-        let val = rowData[s] || 0;
-        gTotal[s] += val;
-        html += `<td>${val}</td>`;
-      });
-
-      grand += rowTotal;
-      storeTotal += rowTotal;
-
-      html += `<td>${rowTotal}</td></tr>`;
-    });
-
-    if(storeTotal > 0){
-      html += `<tr style="background:#f1f3f5;font-weight:600;font-size:12px;">
-        <td colspan="2">Subtotal</td>`;
-
-      statuses.forEach(s=>{
-        let sub = validAttempts.reduce((sum, attempt)=>
-          sum + (grouped[store][attempt][s] || 0), 0);
-        html += `<td>${sub}</td>`;
-      });
-
-      html += `<td>${storeTotal}</td></tr>`;
-    }
+    h += `<tr class="subtotal"><td colspan="2">Subtotal</td>
+      ${b.sub.map(v => `<td>${v}</td>`).join("")}
+      ${totalCell(b.total)}</tr></tbody>`;
   });
 
-  html += `<tr class="total">
-    <td colspan="2"><b>Total</b></td>`;
+  if(showGrand){
+    h += `<tbody><tr class="total"><td colspan="2"><b>Total</b></td>
+      ${model.gTotal.map(v => `<td>${v}</td>`).join("")}
+      ${totalCell(model.grand)}</tr></tbody>`;
+  }
+  return h + `</table>`;
+}
 
-  statuses.forEach(s=>{
-    html += `<td>${gTotal[s]}</td>`;
-  });
+const WATERMARK_HTML = `<div class="watermark">Powered by SASA Automation | Zippee</div>`;
 
-  html += `<td>${grand}</td></tr></table>
+/* ========================= RENDER ========================= */
 
-  <div class="watermark">
-    Powered by SASA Automation | Zippee
-  </div>
-
-  </div>`;
-
-  document.getElementById("tableContainer").innerHTML = html;
-  renderDiagnostics(grand);
+function renderTable(statuses){
+  let model = buildModel(statuses);
+  document.getElementById("tableContainer").innerHTML =
+    `<div id="downloadArea">${headerHTML(model, reportTimestamp())}${tableHTML(model, model.blocks, true)}${WATERMARK_HTML}</div>`;
+  renderDiagnostics(model.grand);
 }
 
 // When the report comes out empty, explain why instead of showing just 0.
@@ -876,7 +974,7 @@ function renderDiagnostics(grand){
   });
 
   let top = Object.entries(unmatched).sort((a,b)=>b[1]-a[1]).slice(0,10)
-    .map(([k,v]) => `${k} (${v})`).join(", ");
+    .map(([k,v]) => `${esc(k)} (${v})`).join(", ");
 
   box.style.display = "block";
   box.innerHTML = `<b>No orders matched.</b> Of ${rows.length} uploaded rows:<br>
@@ -902,25 +1000,127 @@ function readyToDownload(){
   return true;
 }
 
-function downloadImage(){
-  if(!readyToDownload()) return;
-  updateTable(); // refresh the timestamp to the moment of download
-  let area = document.getElementById("downloadArea");
-  html2canvas(area, {
-    scale: 3,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    width: area.offsetWidth,
-    height: area.offsetHeight,
-    scrollX: 0,
-    scrollY: -window.scrollY,
-    windowWidth: document.documentElement.offsetWidth
-  }).then(canvas=>{
-    let link = document.createElement("a");
-    link.download = "report.png";
-    link.href = canvas.toDataURL();
-    link.click();
+// Splits blocks (in order) into k columns of roughly equal height.
+// A store block is never split between columns.
+function splitIntoColumns(blocks, heights, k){
+  let total = heights.reduce((x, y) => x + y, 0);
+  let cols = [];
+  let cur = [], curH = 0, done = 0;
+  blocks.forEach((b, i)=>{
+    let colsLeft = k - cols.length;
+    let target = (total - done) / colsLeft;
+    let h = heights[i];
+    // Start a new column when adding this block overshoots the target more
+    // than stopping short would, as long as columns remain.
+    if(cur.length && colsLeft > 1 && curH + h - target > target - curH){
+      cols.push(cur);
+      done += curH;
+      cur = []; curH = 0;
+    }
+    cur.push(b);
+    curH += h;
   });
+  cols.push(cur);
+  return cols;
+}
+
+function exportLayoutHTML(model, cols, ts, colWidth, gap){
+  let width = cols.length * colWidth + (cols.length + 1) * gap;
+  return `
+  <div class="export-page" style="width:${width}px">
+    ${headerHTML(model, ts)}
+    <div class="export-cols" style="gap:${gap}px;padding:${gap}px;">
+      ${cols.map((c, i) => `<div class="export-col">${tableHTML(model, c, i === cols.length - 1)}</div>`).join("")}
+    </div>
+    ${WATERMARK_HTML}
+  </div>`;
+}
+
+let exporting = false;
+
+async function downloadImage(){
+  if(exporting || !readyToDownload()) return;
+  exporting = true;
+
+  let btn = document.getElementById("imgBtn");
+  btn.disabled = true;
+  btn.textContent = "Preparing image…";
+  let holder = document.getElementById("exportHolder");
+
+  try{
+    updateTable();
+    let model = buildModel(getSelectedStatuses());
+    let ts = reportTimestamp();
+    let gap = 28;
+    let colWidth = Math.max(720, 400 + (model.statuses.length + (model.statuses.length > 1 ? 1 : 0)) * 160);
+
+    // 1) Render as a single column to measure each store block's height.
+    holder.innerHTML = exportLayoutHTML(model, [model.blocks], ts, colWidth, gap);
+    let heights = Array.from(holder.querySelectorAll(".store-block")).map(el => el.offsetHeight);
+    let page = holder.firstElementChild;
+    let tableEl = page.querySelector("table");
+    let fixedH = page.offsetHeight - tableEl.offsetHeight;   // header + padding + footer
+    let headRowH = tableEl.querySelector("thead").offsetHeight;
+    let grandH = tableEl.offsetHeight - headRowH - heights.reduce((x, y) => x + y, 0);
+
+    // 2) Pick the column count.
+    let k;
+    if(EXPORT_COLUMNS !== "auto"){
+      k = Math.max(1, Math.min(parseInt(EXPORT_COLUMNS) || 1, model.blocks.length || 1));
+    } else {
+      let best = Infinity;
+      k = 1;
+      for(let c = 1; c <= Math.min(EXPORT_MAX_COLUMNS, Math.max(1, model.blocks.length)); c++){
+        let cols = splitIntoColumns(model.blocks, heights, c);
+        let idx = 0;
+        let tallest = Math.max(...cols.map((col, ci)=>{
+          let h = headRowH + col.reduce((sum) => sum + heights[idx++], 0);
+          return ci === cols.length - 1 ? h + grandH : h;
+        }));
+        let w = c * colWidth + (c + 1) * gap;
+        let ratio = (fixedH + tallest) / w;
+        let score = Math.abs(Math.log(ratio / EXPORT_TARGET_RATIO));
+        if(score < best){ best = score; k = c; }
+      }
+    }
+
+    // 3) Render the final single image.
+    let cols = splitIntoColumns(model.blocks, heights, k);
+    holder.innerHTML = exportLayoutHTML(model, cols, ts, colWidth, gap);
+    page = holder.firstElementChild;
+
+    // Highest resolution the browser can safely draw (Chrome caps a canvas
+    // at ~16k px per side and ~268M pixels in total).
+    let w = page.offsetWidth, h = page.offsetHeight;
+    let scale = Math.min(
+      EXPORT_SCALE,
+      16000 / Math.max(w, h),
+      Math.sqrt(250e6 / (w * h))
+    );
+
+    let canvas = await html2canvas(page, {
+      scale,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      scrollX: 0,
+      scrollY: -window.scrollY
+    });
+
+    let blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Pendency_${ts.replace(/[^\w]+/g, "_")}.png`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  } catch(err){
+    console.error(err);
+    alert("Could not create the image: " + err.message);
+  } finally {
+    holder.innerHTML = "";
+    exporting = false;
+    btn.disabled = false;
+    btn.textContent = "Download Report";
+  }
 }
 
 function downloadCSV(){
