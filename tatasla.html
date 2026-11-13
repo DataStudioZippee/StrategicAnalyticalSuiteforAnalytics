@@ -113,9 +113,9 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
     <div class="formula">
       <b>Metrics Logic:</b><br>
       <b>Stores and reports</b> = from the store list Google Sheet. Each column is one store: <b>Darkstore</b> is matched to Warehouse Name in the file, <b>Rename</b> is the name used in the reports, and each report row says <b>Yes</b> or <b>No</b> for that store. The sheet is read again every time you upload a file.<br>
-      <b>Slot</b> = Ideal Delivery End − Marketplace Order Date. Up to 45 minutes is a <b>30-45</b> order, more than 45 and up to 60 minutes is a <b>45-60</b> order, and more than 60 minutes is an <b>Above 60</b> order.<br>
-      <b>Time Taken</b> = Reached Delivery At − Marketplace Order Date. <b>Breach</b> = the order reached the customer after its Ideal Delivery End (Time Taken is more than its slot).<br>
-      <b>Deep Pain (DP)</b> = the order reached the customer more than 15 minutes after its Ideal Delivery End. Breach counts in the KPI report leave DP orders out.<br>
+      <b>Slot</b> = Ideal Delivery End − Marketplace Order Date. Up to 50 minutes is a <b>45 Min</b> order, more than 50 minutes is a <b>60 Min</b> order.<br>
+      <b>Time Taken</b> = Reached Delivery At − Marketplace Order Date. <b>Breach</b> = Time Taken is more than 45 minutes for a 45 Min order, or more than 60 minutes for a 60 Min order.<br>
+      <b>Deep Pain (DP)</b> = Time Taken is more than 60 minutes for a 45 Min order, or more than 75 minutes for a 60 Min order. Breach counts in the KPI report leave DP orders out.<br>
       <b>Total Orders</b> counts every order. The slot groups in the KPI report count delivered orders only, so their total is the Delivered number.<br>
       <b>Hour</b> = hour of Creation Time. <b>Order Distance</b> = straight-line km from the order's own store, grouped &lt;3, 3–5 and &gt;5. In the hourly report, &lt;3 turns <b>green</b> when it is higher than 3–5, and 3–5 turns <b>yellow</b> when it is higher than &lt;3.<br>
       <b>Riders</b> = unique Rider User IDs in the hour. <b>Idle Riders</b> = riders who took orders before and after that hour but none in it.<br>
@@ -162,14 +162,14 @@ const DEFAULT_SHEET=[["Darkstore","ZD 1MG Rohtas Nagar","ZD 1MG Malad"],["Rename
   ["ZIPPEE <> TATA 1MG REPORT","Yes","Yes"],["ZIPPEE <> TATA 1MG HOURLY ORDER WISE REPORT","Yes","Yes"],
   ["ZIPPEE <> TATA 1MG HOURLY BREACH PINCODE WISE REPORT","No","Yes"],["ZIPPEE <> TATA 1MG BREACH ORDERS","Yes","Yes"]];
 let STORES=[];
-/* Slot groups from Ideal Delivery End − Marketplace Order Date (minutes): up to 45, more than 45 up to 60, more than 60 */
+/* Slot groups from Ideal Delivery End − Marketplace Order Date (minutes): up to 50 → 45 Min order, more than 50 → 60 Min order.
+   Each group is measured against its own SLA: breach after sla minutes, Deep Pain after sla + 15 minutes. */
 const SLOTS=[
-  {key:"30-45",   label:"30-45 Min Orders",    max:45},
-  {key:"45-60",   label:"45-60 Min Orders",    max:60},
-  {key:"Above 60",label:"Above 60 Min Orders", max:Infinity}
+  {key:"45 Min",label:"45 Min Orders",max:50,      sla:45},
+  {key:"60 Min",label:"60 Min Orders",max:Infinity,sla:60}
 ];
-const slotOf=win=>win==null?null:SLOTS.find(s=>win<=s.max).key;
-const DP_AFTER=15;   // Deep Pain = more than 15 minutes after Ideal Delivery End
+const slotOf=win=>win==null?null:SLOTS.find(s=>win<=s.max);
+const DP_AFTER=15;   // Deep Pain = more than 15 minutes after the SLA
 const WEST=["400067","400064","400104","400095","400062","400091"];
 const EAST=["400097","400092","400101","400063"];
 const STATUS_ROWS=["RTO","READY","DELIVERY_ATTEMPTED","PICKUP_COMPLETED","OUT_FOR_DELIVERY"];
@@ -302,17 +302,18 @@ function computeOrders(rows){
     const Y=parseTime(g("Actual Delivery Time"));
     const wh=g("Warehouse Name"),st=storeOf(wh);
     const o={awb:g("Zippee AWB"),orderNo:g("Order Number"),ship:g("Shipment Type").toUpperCase(),status:g("Current Status").toUpperCase(),
-      date:g("Creation Date"),wh,store:st?st.key:null,storeName:st?st.name:"",T,Y,win,hour:T==null?null:Math.floor(T/60),type:slotOf(win),
+      date:g("Creation Date"),wh,store:st?st.key:null,storeName:st?st.name:"",T,Y,win,hour:T==null?null:Math.floor(T/60),type:slotOf(win)?slotOf(win).key:null,
       pin:(g("Delivery Pincode").match(/\d{6}/)||[g("Delivery Pincode")])[0],rider:g("Rider User ID"),riderName:g("Rider Name"),
       reached:null,tat:null,late:null,sla:null,dpAt:null,breach:null,dp:null};
     if(mk!=null&&win!=null){
-      o.sla=end; o.dpAt=end+DP_AFTER;               // SLA time = Ideal Delivery End; DP time = 15 min after it
+      const slaMin=slotOf(win).sla;                 // 45 or 60
+      o.sla=mk+slaMin; o.dpAt=o.sla+DP_AFTER;       // SLA time and DP time
       o.reached=parseReached(g("Reached Delivery At"),mk);
       if(o.reached!=null){
         o.tat=Math.round((o.reached-mk)*100)/100;   // Reached Delivery At − Marketplace Order Date
-        o.late=Math.round((o.reached-end)*100)/100; // minutes after Ideal Delivery End (negative = early)
-        o.breach=o.tat<=win?"Not Breach":"Breach";
-        o.dp=o.tat<=win+DP_AFTER?"Not DP":"DP";
+        o.late=Math.round((o.tat-slaMin)*100)/100;  // minutes past the SLA (negative = early)
+        o.breach=o.tat<=slaMin?"Not Breach":"Breach";
+        o.dp=o.tat<=slaMin+DP_AFTER?"Not DP":"DP";
       }
     }
     o.dist=distKm(parseFloat(g("Delivery Lat")),parseFloat(g("Delivery Lng")),st);  // from the order's own store
@@ -337,8 +338,8 @@ function kpiModel(orders,meta,s){
     const n=String(3+i),g=grp(sl.key);
     add(n,sl.label,g.n);
     add(n+".1","No breach",g.nb,{tone:tone("good",g.nb)});
-    add(n+".2","Breach (late by up to 15 mins)",g.br,{tone:tone("warn",g.br)});
-    add(n+".3","Deep Pain (late by over 15 mins)",g.dp,{tone:tone("bad",g.dp)});
+    add(n+".2","Breach ("+sl.sla+"M < SLA < "+(sl.sla+DP_AFTER)+"M)",g.br,{tone:tone("warn",g.br)});
+    add(n+".3","Deep Pain (Above "+(sl.sla+DP_AFTER)+" mins)",g.dp,{tone:tone("bad",g.dp)});
     add(n+".4","DP%",g.pct,{fmt:"pct",tone:tone("bad",g.pct)});
   });
   const extra=[...new Set(orders.map(o=>o.status))].filter(x=>x&&x!=="DELIVERED"&&!STATUS_ROWS.includes(x)).sort();
