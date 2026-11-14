@@ -466,6 +466,11 @@ input[type=date]{
 
             <div style="margin-top:16px;">
                 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+                <div class="window-note" style="margin-top:8px;font-size:12px;">
+                    Upload the <b>Detailed Report</b> export (Warehouse Name, Zippee AWB, Creation Date + Creation Time,
+                    Total Attempt Count, Rider User ID). The older Bolt to Blaze export is still accepted &mdash;
+                    the format is detected automatically from the column names.
+                </div>
             </div>
 
             <div style="margin-top:16px;">
@@ -519,7 +524,7 @@ input[type=date]{
 
         <div class="formula">
             <b>Metrics Logic:</b><br><br>
-            <b>Report Window</b> = Creation Date after (D-1) &lt;brand's cutoff hour&gt; and up to and including (D) &lt;brand's cutoff hour&gt;.
+            <b>Report Window</b> = Creation Date + Creation Time after (D-1) &lt;brand's cutoff hour&gt; and up to and including (D) &lt;brand's cutoff hour&gt;.
             Each brand's cutoff hour comes from Column B of the Brand Sheet &mdash; see the window note above, or each report's header below, for the exact time used.<br>
             <b>Brand Rename</b> = every Brand Name is replaced by its Rename (Column C of the Brand Sheet), and all Brand Names with the same Rename
             are combined into one report titled with that Rename. A blank Rename keeps the Brand Name as-is. Each row still uses its own Cutoff from Column B.<br>
@@ -620,6 +625,38 @@ const DS_EOD_SHEET_EDIT_URL =
    "Billing Address Pincode" in the Kapiva order files. */
 const PINCODE_SHEET_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=890855388&single=true&output=csv";
+
+/* ------------------------------------------------------------
+   SHIPMENT FILE COLUMNS — two exports are accepted, detected
+   automatically from the header row:
+
+     NEW  "Detailed Report"  Warehouse Name, Zippee AWB, Creation Date
+                             + Creation Time (two columns, 24-hour),
+                             Total Attempt Count, Rider User ID
+     OLD  "Bolt to Blaze"    Darkstore, AWB Number, Creation Date (date
+                             and time in one cell), No. of Attempts,
+                             Rider ID
+
+   For each field, the first name in its list that exists in the
+   file is used. Headers are matched ignoring case, extra spaces and
+   a leading byte-order mark. If the export renames a column again,
+   add the new header name to the front of that field's list.
+   ------------------------------------------------------------ */
+const SHIPMENT_COLUMNS = {
+    darkstore:   ["Warehouse Name", "Darkstore"],
+    awb:         ["Zippee AWB", "AWB Number"],
+    brand:       ["Brand Name"],
+    status:      ["Current Status"],
+    createdDate: ["Creation Date"],
+    createdTime: ["Creation Time"],          // new export only
+    attempts:    ["Total Attempt Count", "No. of Attempts", "No. of Attemp", "No Of Attempts", "Attempt"],
+    riderId:     ["Rider User ID", "Rider ID"],
+    pincode:     ["Delivery Pincode"]
+};
+
+/* Without these the file is rejected with a clear message. Attempts and
+   Rider ID are optional (missing -> counted as 0 / blank, with a warning). */
+const SHIPMENT_REQUIRED = ["darkstore", "awb", "brand", "status", "createdDate", "pincode"];
 
 /* Fallback cutoff hour (24h clock) used only when:
      - a brand row in the sheet has a missing/invalid Cutoff value, or
@@ -734,15 +771,26 @@ const KAPIVA_COLUMN_ALIASES = {
 };
 
 /* ------------------------------------------------------------
-   AWB LOOKUP OVERRIDE — for these two Krishna Herbal warehouse
-   darkstores, a pasted AWB list matches orders by AWB number only,
-   ignoring the cutoff window entirely. With the box empty, these
-   two darkstores behave like any other (normal cutoff filtering).
+   AWB LOOKUP OVERRIDE — applies to every darkstore whose Name in
+   the Darkstore tab is Indore or Jodhpur. A pasted AWB list matches
+   those orders by AWB number only, ignoring the cutoff window.
    ------------------------------------------------------------ */
-const AWB_FILTER_STORES = new Set([
-    "zippee_krishna_herbal_indorewh",
-    "zippee_krishna_herbal_jodhpurwh"
+const AWB_FILTER_NAMES = new Set(["indore", "jodhpur"]);
+
+/* FALLBACK ONLY — used when the Darkstore tab can't be loaded */
+const AWB_FILTER_STORES_FALLBACK = new Set([
+    "zippee_krishna_herbal_indorewh", "zippee_krishna_herbal_jodhpurwh",
+    "zd khb indore", "zd khb jodhpur"
 ]);
+
+function isAwbStore(raw){
+    const low = String(raw).trim().toLowerCase();
+    if(darkstoreSheetLoaded){
+        const name = darkstoreRenames.get(low);
+        return !!name && AWB_FILTER_NAMES.has(name.toLowerCase());
+    }
+    return AWB_FILTER_STORES_FALLBACK.has(low);
+}
 
 /* ------------------------------------------------------------
    DARKSTORE-WISE REPORT (+ its Unique Rider companion) — a
@@ -886,6 +934,9 @@ let kapivaFileErrors  = [];   // messages for files that couldn't be used
 
 let awbPopupPending   = false; // true right after a shipment file is loaded -> check once for missing AWBs
 
+let shipmentFormatLabel     = ""; // which export was uploaded (shown in the status line)
+let shipmentMissingOptional = []; // optional columns the uploaded file doesn't have
+
 /* ============================================================
    HELPERS
    ============================================================ */
@@ -964,7 +1015,10 @@ function parseCSV(text){
      (b) real dates  a JS Date (from cellDates:true below)
      (c) serials     an Excel day-number, e.g. 46271.63
      (d) ISO text    "2026-09-07 10:15:00"
-   All four are handled. Anything else -> null, counted in the
+     (e) date only   "22/09/2026"  (new export; the time comes from
+                     the separate Creation Time column, see
+                     combineDateTime below)
+   All of these are handled. Anything else -> null, counted in the
    "unreadable Creation Date" status warning.
    ------------------------------------------------------------ */
 function parseCreationDate(v){
@@ -1024,16 +1078,83 @@ function parseCreationDate(v){
     return null;
 }
 
-/* Attempts as a number, tolerant of numeric or string cells */
-function parseAttempts(row){
-    const raw =
-        row["No. of Attempts"] ??
-        row["No. of Attemp"]   ??
-        row["No Of Attempts"]  ??
-        row["Attempt"]         ?? 0;
-
-    const n = parseInt(cleanCell(raw), 10);
+/* Whole-number attempt count, tolerant of numeric or string cells */
+function parseAttemptCount(v){
+    const n = parseInt(cleanCell(v), 10);
     return isNaN(n) ? 0 : n;
+}
+
+/* Time of day -> [hours, minutes, seconds], or null if unreadable.
+   Accepts "07:22", "13:23", "7:22 PM", "07:22:15", an Excel time
+   fraction (e.g. 0.3069 from an .xlsx cell) or a Date. */
+function parseTimeOfDay(v){
+
+    if(v instanceof Date && !isNaN(v)) return [v.getHours(), v.getMinutes(), v.getSeconds()];
+
+    const s = cleanCell(v);
+
+    if(typeof v === "number" || /^\d*\.\d+$/.test(s)){
+        const n = typeof v === "number" ? v : parseFloat(s);
+        if(!isFinite(n)) return null;
+        const secs = Math.min(Math.round((n % 1) * 86400), 86399);
+        return [Math.floor(secs / 3600), Math.floor((secs % 3600) / 60), secs % 60];
+    }
+
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+    if(!m) return null;
+
+    let   hh = +m[1];
+    const mi = +m[2];
+    const ss = m[3] !== undefined ? +m[3] : 0;
+    const ap = m[4] ? m[4].toUpperCase() : null;
+
+    if(ap === "PM" && hh !== 12) hh += 12;
+    if(ap === "AM" && hh === 12) hh  = 0;
+    if(hh > 23 || mi > 59 || ss > 59) return null;
+
+    return [hh, mi, ss];
+}
+
+/* Creation date-time of one shipment row.
+   New export: date and time are in two columns ("22/09/2026" + "07:22").
+   Old export: both are in the one Creation Date cell and timeVal is "".
+   Returns null if either part can't be read, so the row is counted in
+   the "unreadable Creation Date" warning instead of a wrong window. */
+function combineDateTime(dateVal, timeVal){
+
+    const d = parseCreationDate(dateVal);
+    if(!d) return null;
+
+    if(timeVal === null || timeVal === undefined || cleanCell(timeVal) === "") return d;
+
+    const t = parseTimeOfDay(timeVal);
+    if(!t) return null;
+
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), t[0], t[1], t[2], 0);
+}
+
+/* Header name for matching: no byte-order mark, single spaces, lowercase */
+function normHeader(h){
+    return String(h).replace(/^\uFEFF/, "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/* field -> column index in the header row (-1 if the file has none of
+   that field's names). Uses the first matching name in SHIPMENT_COLUMNS. */
+function resolveShipmentColumns(header){
+
+    const idx = new Map();
+    header.forEach((h, i) => {
+        const k = normHeader(h);
+        if(k && !idx.has(k)) idx.set(k, i);
+    });
+
+    const cols = {};
+    Object.entries(SHIPMENT_COLUMNS).forEach(([field, names]) => {
+        const hit = names.map(n => idx.get(normHeader(n))).find(i => i !== undefined);
+        cols[field] = hit === undefined ? -1 : hit;
+    });
+
+    return cols;
 }
 
 /* Cutoff hour for a given brand name.
@@ -1856,20 +1977,15 @@ document.getElementById("reloadBrands").addEventListener("click", loadSheets);
    AWB box is empty.
    ============================================================ */
 
-const AWB_STORE_LABELS = {
-    "zippee_krishna_herbal_indorewh":  "Indore warehouse",
-    "zippee_krishna_herbal_jodhpurwh": "Jodhpur warehouse"
-};
-
-/* rows per AWB-filter warehouse, e.g. Map{"Indore warehouse" -> 42} */
+/* rows per AWB-rule warehouse, labelled by its Darkstore-tab Name,
+   e.g. Map{"Indore warehouse" -> 42} */
 function countAwbStoreRows(rows){
     const counts = new Map();
     rows.forEach(r => {
-        const ds = String(r.darkstore).trim().toLowerCase();
-        if(AWB_FILTER_STORES.has(ds)){
-            const label = AWB_STORE_LABELS[ds] || r.darkstore;
-            counts.set(label, (counts.get(label) || 0) + 1);
-        }
+        if(!isAwbStore(r.darkstore)) return;
+        const raw   = String(r.darkstore).trim();
+        const label = (darkstoreRenames.get(raw.toLowerCase()) || cleanDarkstoreName(raw)) + " warehouse";
+        counts.set(label, (counts.get(label) || 0) + 1);
     });
     return counts;
 }
@@ -1923,27 +2039,56 @@ function handleFile(e){
     reader.onload = function(event){
 
         try{
-            const data = new Uint8Array(event.target.result);
+            const data  = new Uint8Array(event.target.result);
+            const isCSV = /\.csv$/i.test(file.name);
 
-            /* cellDates:true -> real date cells arrive as JS Date objects
-               instead of raw Excel serial numbers */
-            const workbook = XLSX.read(data, { type:"array", cellDates:true });
+            /* CSV: raw:true keeps every cell as plain text, so a day-first
+               date like "05/10/2026" is never re-read US-style as 10 May.
+               Excel: no cellDates, so real date/time cells arrive as Excel
+               serial numbers, which combineDateTime() converts exactly. */
+            const workbook = XLSX.read(data, { type:"array", raw:isCSV });
 
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json  = XLSX.utils.sheet_to_json(sheet, { raw:true });
+            const aoa   = XLSX.utils.sheet_to_json(sheet, { header:1, raw:true, defval:"", blankrows:false });
+
+            if(aoa.length < 2) throw new Error("the file has no data rows.");
+
+            /* find each field's column by header name (new or old export) */
+            const cols = resolveShipmentColumns(aoa[0]);
+
+            const missing = SHIPMENT_REQUIRED.filter(f => cols[f] === -1);
+            if(missing.length){
+                throw new Error("missing column(s): " +
+                    missing.map(f => SHIPMENT_COLUMNS[f].map(n => '"' + n + '"').join(" or ")).join("; ") +
+                    ". Is this the shipment export?");
+            }
+
+            shipmentFormatLabel = cols.createdTime !== -1
+                ? "Detailed Report (new format)"
+                : "Bolt to Blaze (old format)";
+
+            shipmentMissingOptional = ["attempts", "riderId"]
+                .filter(f => cols[f] === -1)
+                .map(f => SHIPMENT_COLUMNS[f][0]);
+
+            const get = (row, f) => cols[f] === -1 ? "" : row[cols[f]];
 
             /* every row is kept; the test and pincode exclusions are applied
                at render time so a Reload Sheets takes effect immediately */
-            allRows = json.map(row => ({
-                pincode:   normPincode(row["Delivery Pincode"]),
-                brand:     cleanCell(row["Brand Name"]),
-                darkstore: cleanCell(row["Darkstore"]),
-                status:    cleanCell(row["Current Status"]).toUpperCase(),
-                attempts:  parseAttempts(row),
-                created:   parseCreationDate(row["Creation Date"]),
-                awb:       cleanCell(row["AWB Number"]).toUpperCase(),
-                riderId:   cleanCell(row["Rider ID"])
-            }));
+            allRows = [];
+            for(let i = 1; i < aoa.length; i++){
+                const row = aoa[i];
+                allRows.push({
+                    pincode:   normPincode(get(row, "pincode")),
+                    brand:     cleanCell(get(row, "brand")),
+                    darkstore: cleanCell(get(row, "darkstore")),
+                    status:    cleanCell(get(row, "status")).toUpperCase(),
+                    attempts:  parseAttemptCount(get(row, "attempts")),
+                    created:   combineDateTime(get(row, "createdDate"), get(row, "createdTime")),
+                    awb:       cleanCell(get(row, "awb")).toUpperCase(),
+                    riderId:   cleanCell(get(row, "riderId"))
+                });
+            }
 
             fileLoaded = true;
             awbPopupPending = true;   // check for missing Indore/Jodhpur AWBs on this render
@@ -2041,9 +2186,7 @@ function render(){
        cutoff window is skipped entirely for those rows. */
     const rows = baseRows.filter(r => {
 
-        const dsLower = String(r.darkstore).trim().toLowerCase();
-
-        if(AWB_FILTER_STORES.has(dsLower) && awbSet){
+        if(awbSet && isAwbStore(r.darkstore)){
             return awbSet.has(r.awb);
         }
 
@@ -2094,6 +2237,7 @@ function render(){
         setStatus("dataStatus",
             "Loaded <b>" + allRows.length + "</b> rows — <b>0</b> inside the " +
             esc(formattedDate) + " window(s)." +
+            "<br>File format: <b>" + esc(shipmentFormatLabel) + "</b>" +
             (unparsed ? "<br><b>" + unparsed +
              "</b> row(s) had an unreadable Creation Date." : "") +
             (testRowCount ? "<br><b>" + testRowCount +
@@ -2375,9 +2519,16 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
     /* ---- status line ---- */
     let msg = "Loaded <b>" + allRows.length + "</b> rows | <b>" + total +
               "</b> inside brand-specific windows for " + esc(formattedDate) + " | <b>" +
-              rendered + "</b> report(s) built.";
+              rendered + "</b> report(s) built." +
+              "<br>File format: <b>" + esc(shipmentFormatLabel) + "</b>";
 
     let cls = "ok";
+
+    if(shipmentMissingOptional.length){
+        msg += "<br>Column(s) not found in the file, counted as blank/0: <b>" +
+               esc(shipmentMissingOptional.join(", ")) + "</b>";
+        cls = "warn";
+    }
 
     if(!darkstoreSheetLoaded){
         msg += "<br>Darkstore rename sheet not loaded &mdash; using the built-in darkstore grouping.";
