@@ -115,7 +115,7 @@ table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant
       <b>Stores and reports</b> = from the store list Google Sheet. Each column is one store: <b>Darkstore</b> is matched to Warehouse Name in the file, <b>Rename</b> is the name used in the reports, and each report row says <b>Yes</b> or <b>No</b> for that store. The sheet is read again every time you upload a file.<br>
       <b>Slot</b> = Ideal Delivery End − Marketplace Order Date. Up to 50 minutes is a <b>45 Min</b> order, more than 50 minutes is a <b>60 Min</b> order.<br>
       <b>Time Taken</b> = Reached Delivery At − Marketplace Order Date. <b>Breach</b> = Time Taken is more than 45 minutes for a 45 Min order, or more than 60 minutes for a 60 Min order.<br>
-      <b>Deep Pain (DP)</b> = Time Taken is more than 60 minutes for a 45 Min order, or more than 75 minutes for a 60 Min order. Breach counts in the KPI report leave DP orders out.<br>
+      <b>Deep Pain (DP)</b> = Time Taken is more than 60 minutes for a 45 Min order, or more than 75 minutes for a 60 Min order. DP orders are also breaches, so <b>Total Breach</b> includes them. <b>Breach%</b> = Total Breach ÷ the slot's delivered orders, and <b>DP%</b> = Deep Pain ÷ the slot's delivered orders.<br>
       <b>Total Orders</b> counts every order. The slot groups in the KPI report count delivered orders only, so their total is the Delivered number.<br>
       <b>Hour</b> = hour of Creation Time. <b>Order Distance</b> = straight-line km from the order's own store, grouped &lt;3, 3–5 and &gt;5. In the hourly report, &lt;3 turns <b>green</b> when it is higher than 3–5, and 3–5 turns <b>yellow</b> when it is higher than &lt;3.<br>
       <b>Riders</b> = unique Rider User IDs in the hour. <b>Idle Riders</b> = riders who took orders before and after that hour but none in it.<br>
@@ -329,8 +329,11 @@ const tag=s=>" | "+s.name.toUpperCase()+" | ";
 function kpiModel(orders,meta,s){
   const del=orders.filter(o=>o.status==="DELIVERED");
   const fwd=orders.filter(o=>o.ship==="FORWARD").length;
-  const grp=t=>{const g=del.filter(o=>o.type===t);const dp=g.filter(o=>o.dp==="DP").length;
-    return{n:g.length,nb:g.filter(o=>o.breach==="Not Breach").length,br:g.filter(o=>o.breach==="Breach").length-dp,dp,pct:g.length?dp/g.length:0};};
+  const grp=t=>{const g=del.filter(o=>o.type===t);
+    const br=g.filter(o=>o.breach==="Breach").length;   // every order past the SLA, DP included
+    const dp=g.filter(o=>o.dp==="DP").length;            // past SLA + 15 min
+    return{n:g.length,nb:g.filter(o=>o.breach==="Not Breach").length,br,dp,
+      brPct:g.length?br/g.length:0,dpPct:g.length?dp/g.length:0};};
   const tone=(k,v)=>v>0?k:null,rows=[];
   const add=(no,label,v,o={})=>rows.push({kind:Number.isInteger(+no)?"main":"sub",cells:[C(no),C(label,{cls:"lab"}),C(v,o)]});
   add("1","Total Orders",fwd);add("2","Delivered",del.length);add("2.1","Delivery %",fwd?del.length/fwd:0,{fmt:"pct"});
@@ -338,9 +341,10 @@ function kpiModel(orders,meta,s){
     const n=String(3+i),g=grp(sl.key);
     add(n,sl.label,g.n);
     add(n+".1","No breach",g.nb,{tone:tone("good",g.nb)});
-    add(n+".2","Breach ("+sl.sla+"M < SLA < "+(sl.sla+DP_AFTER)+"M)",g.br,{tone:tone("warn",g.br)});
-    add(n+".3","Deep Pain (Above "+(sl.sla+DP_AFTER)+" mins)",g.dp,{tone:tone("bad",g.dp)});
-    add(n+".4","DP%",g.pct,{fmt:"pct",tone:tone("bad",g.pct)});
+    add(n+".2","Total Breach",g.br,{tone:tone("warn",g.br)});
+    add(n+".3","Breach%",g.brPct,{fmt:"pct",tone:tone("warn",g.brPct)});
+    add(n+".4","Deep Pain (Above "+(sl.sla+DP_AFTER)+" mins)",g.dp,{tone:tone("bad",g.dp)});
+    add(n+".5","DP%",g.dpPct,{fmt:"pct",tone:tone("bad",g.dpPct)});
   });
   const extra=[...new Set(orders.map(o=>o.status))].filter(x=>x&&x!=="DELIVERED"&&!STATUS_ROWS.includes(x)).sort();
   [...STATUS_ROWS,...extra].forEach((x,i)=>add(String(3+SLOTS.length+i),x,orders.filter(o=>o.status===x).length));
