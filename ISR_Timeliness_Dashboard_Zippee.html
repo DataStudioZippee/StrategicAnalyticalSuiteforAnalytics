@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ISR Timeliness Dashboard · Zippee</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+    --zippee-primary:#00305E;
+    --zippee-secondary:#0078D4;
+    --card-bg:rgba(255,255,255,.92);
+    --bg:#EEF1F6;
+    --ink:#14233B;
+    --mute:#6B7A90;
+    --line:#E1E6EE;
+    --ok:#12997F;
+    --bad:#E5484D;
+    --amb:#F2A33A;
+    --blu:#0078D4;
+    --track:#EDF0F5;
+}
+body.dark{
+    --card-bg:rgba(19,29,49,.92);
+    --bg:#0B1220;
+    --ink:#E7ECF5;
+    --mute:#93A1B8;
+    --line:#24304A;
+    --ok:#2BC4A5;
+    --bad:#FF6B70;
+    --amb:#F6B25A;
+    --blu:#6B9BFF;
+    --track:#1E2A44;
+    background:#0b1320 !important;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+    font-size:14px;
+    min-height:100vh;
+}
+header{
+    background:rgba(0,48,94,.92);
+    color:#fff;
+    padding:14px 28px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    justify-content:space-between;
+    align-items:center;
+    position:sticky;
+    top:0;
+    z-index:20;
+    box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 -1px 0 rgba(0,0,0,.4) inset,0 10px 24px rgba(0,0,0,.25);
+}
+body.dark header{background:rgba(10,23,48,.95)}
+header h1{font-size:20px;font-weight:600;margin:0;text-shadow:0 1px 0 rgba(0,0,0,.45)}
+header p{margin:3px 0 0;font-size:12.5px;color:#9FB2D0}
+.pills{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:5px 12px;font-size:12px}
+.btn{
+    background:linear-gradient(160deg,#2b8cff,#0a63c9 55%,#0757ad);
+    color:#fff;border:none;border-radius:10px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 -2px 0 rgba(0,0,0,.28) inset,0 4px 0 #063f7d,0 8px 16px rgba(0,0,0,.25);
+    transition:transform .2s ease,box-shadow .2s ease;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 -2px 0 rgba(0,0,0,.28) inset,0 6px 0 #063f7d,0 12px 22px rgba(0,0,0,.3)}
+.btn:active{transform:translateY(2px)}
+.toggle-dark{
+    position:fixed;top:14px;right:18px;background:white;border-radius:50px;padding:6px 12px;cursor:pointer;font-size:14px;z-index:50;
+    box-shadow:0 3px 0 rgba(0,0,0,.25),0 8px 16px rgba(0,0,0,.3);
+}
+body.dark .toggle-dark{background:#1E2A44;color:#E7ECF5}
+main{padding:24px 28px 40px;max-width:1500px;margin:auto}
+
+/* UPLOAD ZONE */
+.upload-zone{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:420px;border:2px dashed var(--line);border-radius:16px;background:var(--card-bg);
+    margin:40px auto;max-width:640px;padding:40px 24px;text-align:center;cursor:pointer;
+    transition:border-color .2s,background .2s,box-shadow .2s;
+    box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 8px 24px rgba(15,36,66,.08);
+}
+.upload-zone:hover,.upload-zone.dragover{
+    border-color:var(--blu);
+    background:color-mix(in srgb,var(--blu) 6%,var(--card-bg));
+    box-shadow:0 0 0 4px color-mix(in srgb,var(--blu) 18%,transparent);
+}
+.upload-zone .icon{font-size:48px;margin-bottom:12px;opacity:.85}
+.upload-zone h2{margin:0 0 6px;font-size:18px;font-weight:600;color:var(--ink)}
+.upload-zone p{margin:0 0 18px;color:var(--mute);font-size:13.5px;line-height:1.45}
+.upload-zone .formats{font-size:12px;color:var(--mute);margin-top:14px}
+
+#dashboard{display:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--card-bg);border-radius:12px;padding:14px 16px;border-left:5px solid var(--blu);box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 6px 18px rgba(15,36,66,.10)}
+body.dark .kpi{box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 6px 18px rgba(0,0,0,.35)}
+.kpi b{display:block;font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--mute);font-size:12.5px}
+.kpi i{font-style:normal;font-size:12px;color:var(--mute);display:block;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{background:var(--card-bg);border-radius:12px;padding:16px;box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 8px 24px rgba(15,36,66,.10);min-width:0}
+body.dark .card{box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 8px 24px rgba(0,0,0,.35)}
+.card h2{font-size:14px;font-weight:600;margin:0 0 2px;color:var(--ink)}
+.card .sub{color:var(--mute);font-size:12px;margin-bottom:10px}
+.c6{grid-column:span 6}.c12{grid-column:span 12}
+.box{position:relative;height:270px}.box.t{height:330px}
+.tw{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{position:sticky;top:0;background:var(--track);color:var(--mute);font-weight:600;font-size:12px;cursor:pointer}
+tr+tr td{border-top:1px solid var(--line)}
+.bar{display:inline-block;height:8px;border-radius:4px;background:var(--bad);vertical-align:middle;margin-left:8px}
+.tag{padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:600}
+.g{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.r{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.ins{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.ins div{background:var(--track);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45}
+.foot{margin-top:16px;color:var(--mute);font-size:12px;text-align:center}
+.status{font-size:12px;color:#9FB2D0;margin-left:8px}
+@media(max-width:1000px){.c6{grid-column:span 12}header,main{padding-left:16px;padding-right:16px}.toggle-dark{top:70px;right:12px}}
+</style>
+</head>
+<body>
+
+<div class="toggle-dark" onclick="document.body.classList.toggle('dark');if(window.O&&O.length)setTimeout(draw,30)" title="Toggle dark mode">🌙 / ☀️</div>
+
+<header>
+  <div>
+    <h1>ISR Timeliness Dashboard</h1>
+    <p>RM/PM &amp; premix indent submissions against outlet cut-off times · all times IST</p>
+  </div>
+  <div class="pills" id="headerPills" style="display:none">
+    <span class="pill" id="pill-range">—</span>
+    <span class="pill" id="pill-isrs">0 ISRs</span>
+    <span class="pill" id="pill-outlets">0 outlets</span>
+    <label class="btn" style="cursor:pointer">
+      Load new data
+      <input type="file" id="fileInputHeader" accept=".csv,.json,.xlsx,.xls,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none">
+    </label>
+    <span class="status" id="loadStatus"></span>
+  </div>
+</header>
+
+<main>
+  <!-- EMPTY STATE -->
+  <div class="upload-zone" id="uploadZone">
+    <div class="icon">📁</div>
+    <h2>Upload ISR data</h2>
+    <p>Drag &amp; drop your Excel / CSV / JSON file here<br>or click to choose a file</p>
+    <label class="btn" style="cursor:pointer">
+      Choose file
+      <input type="file" id="fileInput" accept=".csv,.json,.xlsx,.xls,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none">
+    </label>
+    <div class="formats">
+      Works with your ISR Excel/CSV · columns: <b>Outlet Name</b>, <b>Cutoff Day</b>, <b>Received Date/Time</b>, <b>Delay (hrs)</b>
+    </div>
+  </div>
+
+  <!-- DASHBOARD (hidden until data loaded) -->
+  <div id="dashboard">
+    <section class="kpis">
+      <div class="kpi"><span>Total ISRs received</span><b id="kpi-total">0</b><i id="kpi-total-sub">—</i></div>
+      <div class="kpi" style="border-color:var(--ok)"><span>On-time ISRs</span><b id="kpi-ontime">0</b><i id="kpi-ontime-sub">—</i></div>
+      <div class="kpi" style="border-color:var(--bad)"><span>Delayed ISRs</span><b id="kpi-delayed">0</b><i id="kpi-delayed-sub">—</i></div>
+      <div class="kpi" style="border-color:var(--amb)"><span>Avg delay (delayed ISRs)</span><b id="kpi-avg">—</b><i id="kpi-avg-sub">—</i></div>
+      <div class="kpi" style="border-color:var(--bad)"><span>Most delayed outlet</span><b id="kpi-most">—</b><i id="kpi-most-sub">—</i></div>
+      <div class="kpi" style="border-color:var(--amb)"><span>Total delay hours</span><b id="kpi-sumdelay">—</b><i id="kpi-sumdelay-sub">—</i></div>
+      <div class="kpi"><span>Outlets with ≥1 delay</span><b id="kpi-outlets-delay">—</b><i id="kpi-outlets-delay-sub">—</i></div>
+    </section>
+
+    <section class="grid">
+      <div class="card c6"><h2>On-time vs delayed</h2><div class="sub">Share of all ISRs</div><div class="box"><canvas id="ch1"></canvas></div></div>
+      <div class="card c6"><h2>Performance by cut-off day</h2><div class="sub">ISR count (bars) and delay rate % (line)</div><div class="box"><canvas id="ch3"></canvas></div></div>
+      <div class="card c6"><h2>Delay severity</h2><div class="sub">Delayed ISRs grouped by hours past cut-off</div><div class="box"><canvas id="ch4"></canvas></div></div>
+      <div class="card c6"><h2>Top 10 outlets by delayed ISRs</h2><div class="sub">Count of delayed ISRs</div><div class="box t"><canvas id="ch5"></canvas></div></div>
+      <div class="card c12"><h2>Arrival hour of ISRs</h2><div class="sub">Hour received (IST)</div><div class="box t"><canvas id="ch6"></canvas></div></div>
+      <div class="card c12"><h2>Key takeaways</h2><div class="ins" id="takeaways"></div></div>
+      <div class="card c12"><h2>Outlet scorecard</h2><div class="sub">All outlets · click a column header to sort</div>
+      <div class="tw"><table id="tb"><thead><tr>
+        <th data-k="0">Outlet</th><th data-k="5">Cut-off day</th><th data-k="1">ISRs</th>
+        <th data-k="2">Delayed</th><th data-k="6">Delay rate</th><th data-k="3">Total delay (h)</th>
+        <th data-k="4">Max delay (h)</th><th>Status</th>
+      </tr></thead><tbody></tbody></table></div></div>
+    </section>
+    <p class="foot">Source data loaded client-side · Part of SASA – Zippee Strategic Analytics Suite</p>
+  </div>
+</main>
+
+<script>
+let O=[], CD=[], H={}, charts=[], sortKey=2, sortDir=-1;
+
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const dayMap={mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday',sat:'Saturday',sun:'Sunday',
+monday:'Monday',tuesday:'Tuesday',wednesday:'Wednesday',thursday:'Thursday',friday:'Friday',saturday:'Saturday',sunday:'Sunday'};
+
+function normalizeDay(d){if(!d)return'Unknown';const k=String(d).trim().toLowerCase();return dayMap[k]||(k.charAt(0).toUpperCase()+k.slice(1))}
+function median(arr){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2}
+
+function processRaw(rows){
+  if(!rows||!rows.length)throw new Error('No valid rows found');
+  document.getElementById('uploadZone').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('headerPills').style.display='flex';
+
+  const total=rows.length;
+  const delayedRows=rows.filter(r=>(r.delayHours||0)>0);
+  const onTime=total-delayedRows.length;
+  const totalDelay=delayedRows.reduce((s,r)=>s+(+r.delayHours||0),0);
+  const avgDelay=delayedRows.length?totalDelay/delayedRows.length:0;
+  const medDelay=median(delayedRows.map(r=>+r.delayHours||0));
+
+  const oMap={};
+  rows.forEach(r=>{
+    const name=(r.outlet||'Unknown').trim();
+    if(!oMap[name])oMap[name]={isrs:0,delayed:0,totalDelay:0,maxDelay:0,cutoffDay:normalizeDay(r.cutoffDay)};
+    const o=oMap[name];o.isrs++;
+    const dh=+r.delayHours||0;
+    if(dh>0){o.delayed++;o.totalDelay+=dh;o.maxDelay=Math.max(o.maxDelay,dh)}
+  });
+  O=Object.entries(oMap).map(([name,o])=>{
+    const rate=o.isrs?o.delayed/o.isrs:0;
+    return[name,o.isrs,o.delayed,+o.totalDelay.toFixed(2),+o.maxDelay.toFixed(2),o.cutoffDay,rate];
+  }).sort((a,b)=>b[2]-a[2]||b[3]-a[3]);
+
+  const cdMap={};
+  rows.forEach(r=>{
+    const d=normalizeDay(r.cutoffDay);
+    if(!cdMap[d])cdMap[d]={total:0,delayed:0};
+    cdMap[d].total++;
+    if((r.delayHours||0)>0)cdMap[d].delayed++;
+  });
+  const order=['Monday','Thursday','Friday','Saturday','Sunday','Wednesday','Tuesday'];
+  CD=order.filter(d=>cdMap[d]).map(d=>[d.slice(0,3),cdMap[d].total,cdMap[d].delayed]);
+  Object.keys(cdMap).forEach(d=>{if(!order.includes(d))CD.push([d.slice(0,3),cdMap[d].total,cdMap[d].delayed])});
+
+  H={};for(let h=0;h<24;h++)H[h]=[0,0];
+  rows.forEach(r=>{
+    let hour=0;try{const dt=new Date(r.received);if(!isNaN(dt))hour=dt.getHours()}catch(e){}
+    const isDel=(r.delayHours||0)>0;
+    if(!H[hour])H[hour]=[0,0];
+    if(isDel)H[hour][1]++;else H[hour][0]++;
+  });
+
+  let minD=null,maxD=null;
+  rows.forEach(r=>{try{const dt=new Date(r.received);if(!isNaN(dt)){if(!minD||dt<minD)minD=dt;if(!maxD||dt>maxD)maxD=dt}}catch(e){}});
+
+  const most=O[0]||['—',0,0,0,0,'—',0];
+  const outletsWithDelay=O.filter(r=>r[2]>0).length;
+  const totalOutlets=O.length;
+
+  document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-total-sub').textContent=total+' unique ISR / SO numbers';
+  document.getElementById('kpi-ontime').textContent=onTime;
+  document.getElementById('kpi-ontime-sub').textContent=(onTime/total*100).toFixed(1)+'% on-time rate';
+  document.getElementById('kpi-delayed').textContent=delayedRows.length;
+  document.getElementById('kpi-delayed-sub').textContent=(delayedRows.length/total*100).toFixed(1)+'% delay rate';
+  document.getElementById('kpi-avg').textContent=avgDelay.toFixed(2)+' h';
+  document.getElementById('kpi-avg-sub').textContent='Median '+medDelay.toFixed(2)+' h';
+  document.getElementById('kpi-most').textContent=most[0];
+  document.getElementById('kpi-most-sub').textContent=most[2]+' delayed ISRs · '+most[3].toFixed(1)+' h total delay';
+  document.getElementById('kpi-sumdelay').textContent=totalDelay.toFixed(1)+' h';
+  document.getElementById('kpi-sumdelay-sub').textContent='Sum across '+delayedRows.length+' delayed ISRs';
+  document.getElementById('kpi-outlets-delay').textContent=outletsWithDelay+' / '+totalOutlets;
+  document.getElementById('kpi-outlets-delay-sub').textContent=(totalOutlets-outletsWithDelay)+' outlets fully on time';
+
+  const fmt=d=>d?d.getDate()+' '+d.toLocaleString('en',{month:'short'})+' '+d.getFullYear():'—';
+  document.getElementById('pill-range').textContent=minD&&maxD?(fmt(minD)+' – '+fmt(maxD)):'—';
+  document.getElementById('pill-isrs').textContent=total+' ISRs';
+  document.getElementById('pill-outlets').textContent=totalOutlets+' outlets';
+
+  const topOutlets=O.filter(r=>r[2]>0).slice(0,5).map(r=>r[0]).join(', ');
+  const worstDay=CD.slice().sort((a,b)=>(b[2]/b[1])-(a[2]/a[1]))[0];
+  const volumeDay=CD.slice().sort((a,b)=>b[1]-a[1])[0];
+  const sev=[0,0,0,0,0];
+  delayedRows.forEach(r=>{const h=+r.delayHours||0;if(h<=1)sev[0]++;else if(h<=2)sev[1]++;else if(h<=4)sev[2]++;else if(h<=6)sev[3]++;else sev[4]++});
+  window._sev=sev;
+
+  document.getElementById('takeaways').innerHTML=`
+    <div><b>Delays are concentrated.</b> ${outletsWithDelay} outlets account for all ${delayedRows.length} delays; ${topOutlets||'—'} lead on repeat delays.</div>
+    <div><b>${volumeDay?volumeDay[0]:'—'} drives volume.</b> ${volumeDay?volumeDay[1]:0} ISRs (${volumeDay?(volumeDay[1]/total*100).toFixed(1):0}%) on that cut-off day, with ${volumeDay?volumeDay[2]:0} delayed.</div>
+    <div><b>${worstDay?worstDay[0]:'—'} is the weakest day.</b> ${worstDay?worstDay[2]:0} of ${worstDay?worstDay[1]:0} ISRs delayed (${worstDay?(worstDay[2]/worstDay[1]*100).toFixed(1):0}%).</div>
+    <div><b>Most delays are moderate.</b> ${sev[0]+sev[1]+sev[2]} of ${delayedRows.length} delays are 4 hours or less; ${sev[4]} exceed 6 hours.</div>`;
+
+  table(sortKey,sortDir);
+  draw();
+}
+
+function table(k=2,dir=-1){
+  const rows=[...O].sort((a,b)=>{const av=a[k],bv=b[k];if(typeof av==='string')return av.localeCompare(bv)*dir||b[3]-a[3];return(av-bv)*dir||b[3]-a[3]});
+  document.querySelector('#tb tbody').innerHTML=rows.map(r=>`<tr>
+    <td>${r[0]}</td><td>${r[5]}</td><td>${r[1]}</td><td>${r[2]}</td>
+    <td>${(r[6]*100).toFixed(1)}%<span class="bar" style="width:${Math.min(r[6]*60,60)}px"></span></td>
+    <td>${r[3].toFixed(2)}</td><td>${r[4].toFixed(2)}</td>
+    <td><span class="tag ${r[2]?'r':'g'}">${r[2]?'Delays':'On time'}</span></td></tr>`).join('');
+}
+
+function draw(){
+  charts.forEach(c=>c.destroy());charts=[];
+  const ok=css('--ok'),bad=css('--bad'),amb=css('--amb'),mute=css('--mute'),line=css('--line'),ink=css('--ink');
+  Chart.defaults.font.family="'IBM Plex Sans','Segoe UI',sans-serif";Chart.defaults.color=mute;
+  const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8}}}};
+  const sc=(o={})=>({grid:{color:line},border:{display:false},...o});
+  const nog={grid:{display:false}};
+  const add=(id,cfg)=>charts.push(new Chart(document.getElementById(id),cfg));
+
+  const total=O.reduce((s,r)=>s+r[1],0);
+  const delayed=O.reduce((s,r)=>s+r[2],0);
+  const onTime=total-delayed;
+
+  add('ch1',{type:'doughnut',data:{labels:['On time','Delayed'],datasets:[{data:[onTime,delayed],backgroundColor:[ok,bad],borderWidth:0}]},
+    options:{...base,cutout:'66%',plugins:{...base.plugins,tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw} (${total?(c.raw/total*100).toFixed(1):0}%)`}}}},
+    plugins:[{id:'ct',afterDraw(c){const{ctx,chartArea:a}=c,x=(a.left+a.right)/2,y=(a.top+a.bottom)/2;ctx.save();ctx.textAlign='center';ctx.fillStyle=ink;ctx.font='700 30px IBM Plex Sans';ctx.fillText(total?(onTime/total*100).toFixed(1)+'%':'—',x,y+6);ctx.font='12px IBM Plex Sans';ctx.fillStyle=mute;ctx.fillText('on time',x,y+26);ctx.restore()}}]});
+
+  add('ch3',{data:{labels:CD.map(c=>c[0]),datasets:[
+    {type:'line',label:'Delay rate %',data:CD.map(c=>c[1]?(c[2]/c[1]*100).toFixed(1):0),borderColor:amb,backgroundColor:amb,yAxisID:'y1',tension:.2,pointRadius:4,borderWidth:2},
+    {type:'bar',label:'On time',data:CD.map(c=>c[1]-c[2]),backgroundColor:ok,stack:'s'},
+    {type:'bar',label:'Delayed',data:CD.map(c=>c[2]),backgroundColor:bad,stack:'s'}]},
+    options:{...base,scales:{x:{...nog,stacked:true},y:sc({stacked:true}),y1:{position:'right',grid:{display:false},min:0,max:40,ticks:{callback:v=>v+'%'}}}}});
+
+  const sevData=window._sev||[0,0,0,0,0];
+  add('ch4',{type:'bar',data:{labels:['≤ 1 h','1–2 h','2–4 h','4–6 h','> 6 h'],datasets:[{label:'Delayed ISRs',data:sevData,backgroundColor:[amb,amb,bad,bad,bad],borderRadius:4}]},
+    options:{...base,plugins:{legend:{display:false}},scales:{x:nog,y:sc()}}});
+
+  const t=O.slice(0,10);
+  add('ch5',{type:'bar',data:{labels:t.map(r=>r[0]),datasets:[{label:'Delayed ISRs',data:t.map(r=>r[2]),backgroundColor:bad,borderRadius:3}]},
+    options:{...base,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:sc({ticks:{precision:0}}),y:nog}}});
+
+  const hrs=[...Array(24).keys()];
+  add('ch6',{type:'bar',data:{labels:hrs.map(h=>String(h).padStart(2,'0')),datasets:[
+    {label:'On time',data:hrs.map(h=>H[h]?H[h][0]:0),backgroundColor:ok,stack:'s'},
+    {label:'Delayed',data:hrs.map(h=>H[h]?H[h][1]:0),backgroundColor:bad,stack:'s'}]},
+    options:{...base,scales:{x:{...nog,stacked:true,title:{display:true,text:'Hour of day'}},y:sc({stacked:true})}}});
+}
+
+function mapRow(r){
+  const keys=Object.keys(r);
+  const find=(...cands)=>{
+    for(const c of cands){
+      const k=keys.find(k=>k.toLowerCase().replace(/[\s_\-\(\)]/g,'')===c.toLowerCase().replace(/[\s_\-\(\)]/g,''));
+      if(k!=null && r[k]!=='' && r[k]!=null) return r[k];
+    }
+    return '';
+  };
+  let received = find('actualreceivingdaydateandtime','ReceivedDateTime','received_datetime','Received','DateTime','datetime','Actual receiving Day, date and time');
+  if(!received){
+    const d = find('receiveddateist','Received Date (IST)','Received Date','receiveddate');
+    const t = find('receivedtimeist','Received Time (IST)','Received Time','receivedtime');
+    if(d && t) received = String(d).trim() + ' ' + String(t).trim();
+    else if(d) received = String(d).trim();
+  }
+  // Excel may store date as number – convert if needed
+  if(typeof received === 'number' && received > 30000){
+    const excelEpoch = new Date(Date.UTC(1899,11,30));
+    const dt = new Date(excelEpoch.getTime() + received * 86400000);
+    received = dt.toISOString();
+  }
+  return {
+    outlet: String(find('outletname','Outlet Name','outlet','Outlet','OUTLET')||'').trim(),
+    cutoffDay: String(find('cutoffday','Cutoff Day','CutOffDay','Cut-off day','cutoff_day','Day')||'').trim(),
+    received: received,
+    delayHours: +(find('delayhrs','Delay (hrs)','delayhours','DelayHours','delay_hours','Delay','delay')||0)
+  };
+}
+
+function handleFile(file){
+  if(!file)return;
+  const status=document.getElementById('loadStatus');
+  if(status)status.textContent='Loading…';
+  const name = file.name.toLowerCase();
+  const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls') || file.type.includes('spreadsheet') || file.type.includes('excel');
+
+  const finish = (rows) => {
+    try{
+      if(!rows.length) throw new Error('No valid rows found in file');
+      const sev=[0,0,0,0,0];
+      rows.filter(r=>(r.delayHours||0)>0).forEach(r=>{const h=+r.delayHours||0;if(h<=1)sev[0]++;else if(h<=2)sev[1]++;else if(h<=4)sev[2]++;else if(h<=6)sev[3]++;else sev[4]++});
+      window._sev=sev;
+      processRaw(rows);
+      if(status){status.textContent=`Loaded ${rows.length} rows from ${file.name}`;setTimeout(()=>status.textContent='',4000)}
+    }catch(err){
+      console.error(err);
+      if(status)status.textContent='Error: '+err.message;
+      alert('Could not load file: '+err.message);
+    }
+  };
+
+  if(isExcel){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, {defval:'', raw:false});
+        const rows = json.map(mapRow).filter(r => r.outlet);
+        finish(rows);
+      }catch(err){
+        console.error(err);
+        if(status)status.textContent='Error: '+err.message;
+        alert('Could not read Excel file: '+err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        let rows = [];
+        const text = ev.target.result;
+        if(name.endsWith('.json') || file.type.includes('json')){
+          const data = JSON.parse(text);
+          const arr = Array.isArray(data) ? data : (data.rows || data.data || []);
+          rows = arr.map(mapRow).filter(r => r.outlet);
+        } else {
+          const parsed = Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:false});
+          if(parsed.errors.length) console.warn(parsed.errors);
+          rows = parsed.data.map(mapRow).filter(r => r.outlet);
+        }
+        finish(rows);
+      }catch(err){
+        console.error(err);
+        if(status)status.textContent='Error: '+err.message;
+        alert('Could not load file: '+err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+}
+
+document.getElementById('fileInput').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value=''});
+document.getElementById('fileInputHeader').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value=''});
+
+const zone=document.getElementById('uploadZone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover')});
+zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)handleFile(f)});
+zone.addEventListener('click',e=>{if(e.target.closest('label.btn'))return;document.getElementById('fileInput').click()});
+
+document.querySelectorAll('th[data-k]').forEach(h=>{
+  h.onclick=()=>{const k=+h.dataset.k;sortDir=k===sortKey?-sortDir:-1;sortKey=k;table(k,sortDir)};
+});
+</script>
+</body>
+</html>
