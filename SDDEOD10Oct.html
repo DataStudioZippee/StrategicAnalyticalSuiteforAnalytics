@@ -531,7 +531,8 @@ input[type=date]{
             <b>Darkstore Columns</b> (brand-wise reports) = every darkstore in the file appears. Darkstores listed in the Darkstore Sheet are renamed to their Name,
             and darkstores sharing a Name are combined into one column. Darkstores not in the sheet keep their usual label.<br>
             <b>Darkstore-Wise Report</b> = only darkstores listed in the DS EOD tab appear, renamed to their Name; darkstores sharing a Name are merged into one row.
-            Rows follow the order of the DS EOD tab. Uses a fixed 4:00 PM &rarr; 4:00 PM window for every brand.<br>
+            Rows follow the order of the DS EOD tab. Uses a fixed 4:00 PM &rarr; 4:00 PM window for every brand.
+            HealthKart orders are left out of the Darkstore-Wise and Unique Rider reports.<br>
             <b>Test Orders</b> = any row whose Darkstore or Brand Name starts or ends with "test" (any case) is removed from every report.<br>
             <b>Excluded Pincodes</b> = every pincode in the Pincode Sheet is removed from both uploads
             &mdash; Delivery Pincode in the shipment file and Billing Address Pincode in the Kapiva order files &mdash; before any count.<br>
@@ -764,10 +765,11 @@ const KAPIVA_FACILITY_COLUMNS = {
 };
 
 /* Other spellings a report column might carry for the same city
-   (e.g. "Topsia" when the Darkstore sheet can't load). */
+   (e.g. "Topsia" when the Darkstore sheet can't load, "Bangluru"
+   as used in the Darkstore sheet). */
 const KAPIVA_COLUMN_ALIASES = {
     "kolkata":  ["topsia"],
-    "banglore": ["bangalore", "bengaluru"]
+    "banglore": ["bangalore", "bengaluru", "bangluru"]
 };
 
 /* ------------------------------------------------------------
@@ -802,6 +804,14 @@ function isAwbStore(raw){
    DS EOD tab (DS_EOD_SHEET_URL).
    ------------------------------------------------------------ */
 const DARKSTORE_WISE_CUTOFF_HOUR = 16;
+
+/* Brands left out of the Darkstore-Wise and Unique Rider reports
+   (lowercase, matched against Brand Name). The brand-wise reports
+   and the summary table are not affected. To exclude another brand,
+   add its Brand Name in lowercase, e.g. "healthkart", "tata 1mg". */
+const DARKSTORE_WISE_EXCLUDED_BRANDS = new Set([
+    "healthkart"
+]);
 
 /* FALLBACK ONLY — used when the DS EOD tab can't be loaded. */
 const DARKSTORE_WISE_ALLOWLIST = new Set([
@@ -2598,9 +2608,10 @@ ${isKapiva ? `<button class="btn btn-sm" data-generate-table="${tableId}">Genera
 /* ============================================================
    DARKSTORE-WISE REPORT + UNIQUE RIDER REPORT
 
-   Groups every row in the file by darkstore (no brand filter,
-   no Brand Sheet involved), using a fixed cutoff window,
-   independent of the per-brand cutoffs used above.
+   Groups every row in the file by darkstore (no Brand Sheet
+   involved), using a fixed cutoff window, independent of the
+   per-brand cutoffs used above. Brands listed in
+   DARKSTORE_WISE_EXCLUDED_BRANDS are left out of both tables.
 
    DS EOD tab loaded:
      - only darkstores listed in the tab are included
@@ -2631,16 +2642,21 @@ function renderDarkstoreWiseReport(dateVal, baseRows){
 
     /* darkstores in the window that the report leaves out (for the status line) */
     const leftOut = new Map(); // raw -> order count
+    let excludedBrandRows = 0; // orders dropped because their brand is excluded
 
     const rows = baseRows.filter(r => {
         if(!(r.created && r.created > win.start && r.created <= win.end)) return false;
+        if(DARKSTORE_WISE_EXCLUDED_BRANDS.has(String(r.brand).trim().toLowerCase())){
+            excludedBrandRows++;
+            return false;
+        }
         const raw = String(r.darkstore).trim();
         if(isIncluded(raw)) return true;
         if(raw) leftOut.set(raw, (leftOut.get(raw) || 0) + 1);
         return false;
     });
 
-    updateDsEodStatusForReport(leftOut, useSheet);
+    updateDsEodStatusForReport(leftOut, useSheet, excludedBrandRows);
 
     if(!rows.length){
         mainBox.innerHTML =
@@ -2814,12 +2830,18 @@ function renderDarkstoreWiseReport(dateVal, baseRows){
     riderBox.innerHTML = riderHtml;
 }
 
-/* Adds "which darkstores in this window are NOT in the DS EOD tab"
-   to the DS EOD status line, so a renamed store (like Koregaon
-   Park) is easy to spot and add. */
-function updateDsEodStatusForReport(leftOut, useSheet){
+/* Adds to the DS EOD status line: how many orders were dropped for
+   an excluded brand, and which darkstores in this window are NOT in
+   the DS EOD tab (so a renamed store is easy to spot and add). */
+function updateDsEodStatusForReport(leftOut, useSheet, excludedBrandRows){
 
     let msg = dsEodStatusMsg, cls = dsEodStatusCls;
+
+    if(excludedBrandRows){
+        msg += "<br><b>" + excludedBrandRows + "</b> order(s) from excluded brand(s) (" +
+               esc([...DARKSTORE_WISE_EXCLUDED_BRANDS].join(", ")) +
+               ") left out of the Darkstore-Wise and Unique Rider reports.";
+    }
 
     if(useSheet && leftOut.size){
         const list = [...leftOut].sort((a, b) => b[1] - a[1])
