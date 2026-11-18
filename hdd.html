@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Haldiram logistics report – SASA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@property --depth{ syntax:'<length>'; inherits:false; initial-value:6px; }
+
+:root{
+  /* SASA palette */
+  --zippee-primary:#00305E; --zippee-secondary:#0078D4;
+  --page-a:#e9f2fc; --page-b:#c9def5;
+  --card-bg:rgba(255,255,255,.55);
+  --surface:#FFFFFF; --ink:#1d2a38; --muted:#4f5f72; --line:rgba(0,48,94,.14);
+  --heading:#00305E;
+  /* status colours used by the report */
+  --haldi:#0078D4; --haldi-soft:#dcecfb;
+  --chilli:#C0392B; --chilli-soft:#f9e0dd;
+  --leaf:#1f8a4c; --leaf-soft:#dbf1e3;
+  --slate:#8b96a7; --slate-soft:#e9edf2;
+  --focus:#ffb400;
+  /* 3D tile system */
+  --edge-top:#2b8cff; --edge-bottom:#063f7d; --edge-depth:6px; --edge-depth-hover:11px;
+  --glare:rgba(255,255,255,.5); --stage:900px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --zippee-primary:#dce9ff; --page-a:#0b1320; --page-b:#0b1320;
+    --card-bg:rgba(0,0,0,.35); --surface:#142033; --ink:#f5f5f5; --muted:#a9b6c8; --line:rgba(160,200,255,.16);
+    --heading:#dce9ff; --haldi:#4ea6ff; --haldi-soft:#13304f;
+    --chilli:#ff8a7e; --chilli-soft:#3c1f1f; --leaf:#6fd39a; --leaf-soft:#173527; --slate:#8f9bb0; --slate-soft:#232f42;
+    --edge-top:#1e6fd9; --edge-bottom:#03203f; --glare:rgba(160,205,255,.32);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --zippee-primary:#dce9ff; --page-a:#0b1320; --page-b:#0b1320;
+  --card-bg:rgba(0,0,0,.35); --surface:#142033; --ink:#f5f5f5; --muted:#a9b6c8; --line:rgba(160,200,255,.16);
+  --heading:#dce9ff; --haldi:#4ea6ff; --haldi-soft:#13304f;
+  --chilli:#ff8a7e; --chilli-soft:#3c1f1f; --leaf:#6fd39a; --leaf-soft:#173527; --slate:#8f9bb0; --slate-soft:#232f42;
+  --edge-top:#1e6fd9; --edge-bottom:#03203f; --glare:rgba(160,205,255,.32);
+  color-scheme:dark;
+}
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+html{ scroll-padding-top:calc(env(safe-area-inset-top,0px) + 80px); }
+*,*::before,*::after{ box-sizing:inherit; }
+body{
+  margin:0; min-height:100vh; overflow-x:hidden;
+  font-family:"Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size:15px; line-height:1.5; font-variant-numeric:tabular-nums; color:var(--ink);
+  background:radial-gradient(circle at 15% 0%, var(--page-a), var(--page-b) 70%) fixed;
+  background-color:var(--page-b);
+}
+button,input,select{ font:inherit; color:inherit; }
+:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; }
+.wrap{ max-width:1180px; margin:0 auto; padding:0 20px; }
+
+/* HEADER — navy bar on a thin bevel */
+.bar{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  background:rgba(0,48,94,.88); color:#fff; backdrop-filter:blur(8px);
+  box-shadow:0 1px 0 rgba(255,255,255,.22) inset, 0 -1px 0 rgba(0,0,0,.4) inset, 0 10px 24px rgba(0,0,0,.3);
+}
+body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:10; background:rgba(0,48,94,.88); }
+.bar .wrap{ display:flex; align-items:center; gap:14px; min-height:62px; flex-wrap:wrap; padding-top:10px; padding-bottom:10px; }
+.brand{ display:flex; align-items:center; gap:10px; margin-right:auto; }
+.brand .stripe{ width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font-size:16px;
+  background:linear-gradient(160deg,#2b8cff,#0757ad); box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 3px 0 #063f7d; }
+.brand h1{ margin:0; font-size:20px; font-weight:700; color:#fff; text-shadow:0 1px 0 rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3); }
+.brand small{ display:block; font-size:12px; font-weight:500; opacity:.8; text-shadow:none; }
+.fileinfo{ color:rgba(255,255,255,.8); font-size:13px; }
+
+/* 3D TILES — same system as the SASA home page */
+.tool-button{
+  --rx:0deg; --ry:0deg; --mx:50%; --my:50%; --lift:0px; --depth:var(--edge-depth);
+  position:relative; overflow:hidden; border:none; cursor:pointer;
+  background:linear-gradient(160deg,var(--edge-top),#0a63c9 55%,#0757ad);
+  color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; font-weight:700; white-space:nowrap;
+  display:inline-flex; gap:8px; justify-content:center; align-items:center;
+  transform-style:preserve-3d;
+  transform:perspective(var(--stage)) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(var(--lift));
+  box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.28) inset,
+    0 var(--depth) 0 var(--edge-bottom), 0 calc(var(--depth) + 6px) 20px rgba(0,0,0,.32);
+  transition:transform .45s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease, --depth .3s ease;
+  margin-bottom:var(--edge-depth);
+}
+.tool-button.is-tilting{ transition:box-shadow .3s ease; }
+.tool-button::after{ content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease;
+  background:radial-gradient(circle at var(--mx) var(--my), var(--glare), rgba(255,255,255,0) 58%); }
+@media (hover:hover) and (pointer:fine){
+  .tool-button:hover{ --lift:16px; --depth:var(--edge-depth-hover); }
+  .tool-button:hover::after{ opacity:1; }
+}
+.tool-button:active{ --lift:2px; --depth:2px; transition:transform .08s ease, box-shadow .08s ease; }
+.tool-button.big{ font-size:16px; padding:14px 22px; min-width:250px; }
+.tool-button[hidden]{ display:none; }
+
+/* dark / light toggle pill */
+.toggle-dark{ background:#fff; color:#00305E; border:none; border-radius:50px; padding:6px 12px; cursor:pointer; font-size:14px;
+  box-shadow:0 3px 0 rgba(0,0,0,.25), 0 8px 16px rgba(0,0,0,.3); transition:transform .18s ease, box-shadow .18s ease; margin-bottom:3px; }
+.toggle-dark:hover{ transform:translateY(-2px); box-shadow:0 5px 0 rgba(0,0,0,.25), 0 12px 22px rgba(0,0,0,.35); }
+.toggle-dark:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.25), 0 4px 10px rgba(0,0,0,.3); }
+
+/* GLASS CARD the report sits on */
+main.wrap{
+  margin:28px auto 90px; padding:26px 22px; border-radius:18px; max-width:1180px; width:calc(100% - 24px);
+  background:var(--card-bg); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 -1px 0 rgba(0,0,0,.14) inset, 0 18px 50px rgba(0,0,0,.22);
+}
+h2{ color:var(--heading); text-shadow:0 1px 0 rgba(255,255,255,.6), 0 4px 10px rgba(0,0,0,.12); }
+:root[data-theme="dark"] h2{ text-shadow:0 1px 0 rgba(0,0,0,.6), 0 2px 12px rgba(120,180,255,.28); }
+
+/* dropzone */
+.drop{ margin:30px auto; max-width:760px; border:2px dashed var(--haldi); border-radius:16px; background:var(--surface); padding:50px 28px; text-align:center;
+  transition:background .15s, transform .15s; box-shadow:0 1px 0 rgba(255,255,255,.75) inset, 0 4px 0 rgba(0,0,0,.08), 0 14px 26px rgba(0,0,0,.14); }
+.drop.over{ background:var(--haldi-soft); transform:translateY(-3px); }
+.drop h2{ font-size:clamp(24px,3.6vw,34px); margin:0 0 8px; line-height:1.15; }
+.drop p{ color:var(--muted); margin:0 auto 24px; max-width:52ch; }
+.rulesnote{ max-width:760px; margin:0 auto 20px; color:var(--muted); font-size:13.5px; background:var(--surface); border-radius:12px; padding:12px 16px;
+  box-shadow:0 3px 0 rgba(0,0,0,.06), 0 10px 20px rgba(0,0,0,.08); }
+.rulesnote summary{ cursor:pointer; color:var(--ink); font-weight:600; }
+.rulesnote ul{ padding-left:18px; margin:10px 0 0; }
+.rulesnote li{ margin:4px 0; }
+
+/* filters */
+.filters{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin:0 0 20px; }
+.filters label{ display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--muted); font-weight:600; }
+.filters input,.filters select{ border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:0 10px; height:38px; min-width:140px;
+  box-shadow:0 2px 0 rgba(0,0,0,.05) inset; }
+.filters .grow{ flex:1 1 200px; }
+.filters .grow input{ width:100%; }
+.linkbtn{ background:none; border:none; color:var(--muted); text-decoration:underline; cursor:pointer; padding:8px 4px; font-size:13px; }
+
+/* summary tiles — raised, like the SASA cards */
+.band{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+@media (max-width:1180px){ .band{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.subhead{ font-size:15px; color:var(--heading); margin:18px 0 10px; }
+.subhead:first-child{ margin-top:4px; }
+.panel{ padding:20px 22px 18px; min-width:0; background:var(--surface); border-radius:14px;
+  box-shadow:0 1px 0 rgba(255,255,255,.75) inset, 0 4px 0 rgba(0,48,94,.12), 0 14px 26px rgba(0,0,0,.14); }
+.panel h3{ margin:0; font-size:14px; font-weight:700; color:var(--heading); }
+.big{ font-size:38px; font-weight:800; letter-spacing:-.02em; line-height:1.05; margin:6px 0 2px; color:var(--ink); }
+.bigcap{ font-size:13px; color:var(--muted); margin-bottom:14px; }
+.meter{ height:7px; background:var(--slate-soft); border-radius:4px; overflow:hidden; margin-bottom:14px; box-shadow:0 1px 2px rgba(0,0,0,.12) inset; }
+.meter i{ display:block; height:100%; background:var(--haldi); border-radius:4px; }
+.kv{ display:grid; grid-template-columns:1fr auto; margin:0; }
+.kv dt,.kv dd{ padding:6px 0; border-top:1px solid var(--line); margin:0; font-size:14px; }
+.kv dd{ text-align:right; font-weight:700; }
+.kv .sub{ padding-left:14px; color:var(--muted); }
+
+/* chart */
+.section{ margin-top:30px; }
+.section h2{ font-size:19px; margin:0 0 4px; }
+.section .hint{ color:var(--muted); font-size:13px; margin:0 0 12px; }
+.chartbox{ background:var(--surface); border-radius:14px; padding:16px 16px 8px; position:relative;
+  box-shadow:0 1px 0 rgba(255,255,255,.75) inset, 0 4px 0 rgba(0,48,94,.10), 0 14px 26px rgba(0,0,0,.12); }
+.legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-bottom:8px; }
+.legend span::before{ content:""; display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; background:var(--c); }
+#chart svg{ display:block; width:100%; }
+.tip{ position:absolute; pointer-events:none; background:#00305E; color:#fff; font-size:12.5px; padding:6px 9px; border-radius:8px; white-space:nowrap; opacity:0; transition:opacity .1s; z-index:5; box-shadow:0 6px 16px rgba(0,0,0,.3); }
+
+/* tabs + tables */
+.tabs{ display:flex; gap:6px; margin-top:30px; overflow-x:auto; padding-bottom:4px; }
+.tab{ border:none; background:var(--surface); padding:9px 16px; cursor:pointer; font-weight:700; color:var(--muted); border-radius:10px;
+  box-shadow:0 3px 0 rgba(0,48,94,.14); white-space:nowrap; margin-bottom:3px; transition:transform .15s ease; }
+.tab:hover{ transform:translateY(-1px); }
+.tab[aria-selected="true"]{ background:linear-gradient(160deg,var(--edge-top),#0757ad); color:#fff; box-shadow:0 3px 0 var(--edge-bottom); }
+.tab .count{ font-weight:500; opacity:.8; margin-left:4px; }
+.tabpanel{ padding:14px 0 8px; }
+.tablebar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+.chips{ display:flex; gap:6px; flex-wrap:wrap; }
+.chip{ border:1px solid var(--line); background:var(--surface); border-radius:20px; padding:4px 12px; cursor:pointer; font-size:13px; font-weight:600; }
+.chip[aria-pressed="true"]{ background:#00305E; color:#fff; border-color:#00305E; }
+:root[data-theme="dark"] .chip[aria-pressed="true"]{ background:#1e6fd9; border-color:#1e6fd9; }
+.scroll{ overflow-x:auto; background:var(--surface); border-radius:14px; box-shadow:0 4px 0 rgba(0,48,94,.10), 0 14px 26px rgba(0,0,0,.12); }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; }
+th,td{ padding:8px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+th{ font-weight:700; color:#fff; font-size:12.5px; background:#00305E; position:sticky; top:0; cursor:pointer; user-select:none; }
+:root[data-theme="dark"] th{ background:#0b2747; }
+th.num,td.num{ text-align:right; }
+tbody tr:nth-child(even) td{ background:rgba(0,120,212,.04); }
+tbody tr:hover td{ background:rgba(0,120,212,.09); }
+tbody tr:last-child td{ border-bottom:none; }
+td.wrapcell{ white-space:normal; min-width:220px; max-width:360px; }
+.st{ display:inline-block; padding:1px 8px; border-radius:6px; font-size:12.5px; font-weight:700; }
+.st.on{ background:var(--leaf-soft); color:var(--leaf); }
+.st.del{ background:var(--chilli-soft); color:var(--chilli); }
+.st.pen{ background:var(--slate-soft); color:var(--muted); }
+.st.chk{ background:var(--haldi-soft); color:var(--ink); }
+.pager{ display:flex; align-items:center; gap:10px; justify-content:flex-end; padding:12px 0; font-size:13px; color:var(--muted); }
+.pager .tool-button{ padding:6px 12px; font-size:13px; }
+.pager .tool-button[disabled]{ opacity:.45; cursor:default; }
+.empty{ padding:28px; text-align:center; color:var(--muted); }
+a{ color:var(--zippee-secondary); font-weight:600; }
+:root[data-theme="dark"] a{ color:#9ecbff; }
+.toast{ position:fixed; left:50%; bottom:calc(64px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:#00305E; color:#fff; padding:10px 16px; border-radius:10px; font-size:14px; z-index:50; max-width:90vw; opacity:0; transition:opacity .2s; pointer-events:none; box-shadow:0 10px 24px rgba(0,0,0,.35); }
+.toast.show{ opacity:1; }
+.err{ color:var(--chilli); font-weight:700; margin-top:16px; }
+footer{ color:var(--muted); font-size:12.5px; padding:24px 0 0; text-align:center; }
+
+/* floating particles */
+.particle{ position:fixed; border-radius:50%; background:rgba(255,255,255,.35); animation:floatUp 12s linear infinite; pointer-events:none; z-index:0; }
+@keyframes floatUp{ from{ transform:translateY(100vh) scale(.6); opacity:.8 } to{ transform:translateY(-10vh) scale(1.2); opacity:0 } }
+
+/* ticker */
+.ticker-bar{ position:fixed; bottom:env(safe-area-inset-bottom,0px); left:0; right:0; background:rgba(0,48,94,.92); color:#fff; padding:7px 0; overflow:hidden; z-index:15;
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset, 0 -8px 20px rgba(0,0,0,.3); font-size:13.5px; }
+.ticker-content{ white-space:nowrap; display:inline-block; padding-left:100%; animation:marq 35s linear infinite; }
+@keyframes marq{ to{ transform:translateX(-100%) } }
+
+@media (max-width:860px){
+  .band{ grid-template-columns:1fr; }
+  .big{ font-size:36px; }
+  .bar{ position:static; }
+  main.wrap{ padding:18px 14px; margin-top:16px; }
+  .tool-button.big{ min-width:210px; }
+}
+@media (prefers-reduced-motion: reduce){
+  .particle,.ticker-content{ animation:none !important; }
+  .particle{ display:none; }
+  .tool-button{ transition:box-shadow .2s ease; }
+  *{ scroll-behavior:auto; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <div class="brand"><span class="stripe" aria-hidden="true">🚚</span><h1>Haldiram logistics report<small>SASA – Zippee Strategic Analytics Suite</small></h1></div>
+    <span class="fileinfo" id="fileinfo"></span>
+    <button class="tool-button" id="addBtn" hidden>Add more rows</button>
+    <button class="tool-button" id="replaceBtn" hidden>Upload new report</button>
+    <button class="tool-button" id="exportBtn" hidden>Download Excel</button>
+    <button class="toggle-dark" id="themeBtn" aria-label="Switch dark or light mode">🌙 / ☀️</button>
+  </div>
+</header>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
+
+<main class="wrap">
+  <section id="start">
+    <div class="drop" id="drop">
+      <h2>Drop your logistics report here</h2>
+      <p>Excel or CSV with the same columns as the Logistics Report sheet. Every rule from the sheet is applied the moment the file lands.</p>
+      <button class="tool-button big" id="chooseBtn">📂 Choose file</button>
+      <div class="err" id="err" role="alert"></div>
+    </div>
+    <details class="rulesnote">
+      <summary>Rules this page applies</summary>
+      <ul>
+        <li>Unloading time = delivery complete time − vehicle reporting time (overnight handled).</li>
+        <li>Flag: Local over 1 hr or Outstation over 2 hr → Delay, otherwise Not Delay.</li>
+        <li>ETA is cleaned from entries like “7 :00 Am” or “8;30 Pm”; anything unreadable is marked Check ETA.</li>
+        <li>Reporting status: vehicle reported at or before ETA → On Time, after → Delayed, no time yet → Pending.</li>
+        <li>Unloading status: Local ≥ 1 hr or Outstation ≥ 2 hr → Delayed; other routes → Check Route.</li>
+        <li>Dispatch dates without a year (“24-Oct”) are read as <span id="yearNote"></span>.</li>
+        <li>Short shipment: total of Sum of Gross SHORT amount, invoices with a POD shortage noted, split by controllable / non-controllable.</li>
+        <li>POD, OTD and unloading summaries, and outlet-wise OTD, use the same counts as the Summary sheet.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="report" hidden>
+    <div class="filters">
+      <label>From<input type="date" id="fFrom"></label>
+      <label>To<input type="date" id="fTo"></label>
+      <label>Route<select id="fRoute"><option value="">All routes</option></select></label>
+      <label class="grow">Outlet, invoice or vehicle<input type="search" id="fText" placeholder="Search"></label>
+      <button class="linkbtn" id="fClear">Clear filters</button>
+    </div>
+
+    <div class="band" id="band"></div>
+
+    <div class="section">
+      <h2>Reporting by dispatch day</h2>
+      <p class="hint">Invoices reported on time vs. delayed against ETA. Pending ones have no reporting time yet.</p>
+      <div class="chartbox">
+        <div class="legend"><span style="--c:var(--leaf)">On time</span><span style="--c:var(--chilli)">Delayed</span><span style="--c:var(--slate)">Pending</span></div>
+        <div id="chart"></div>
+        <div class="tip" id="tip"></div>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="outlets">Outlet-wise OTD<span class="count" id="cOutlets"></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="rows">All invoices<span class="count" id="cRows"></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="short">Short shipment<span class="count" id="cShort"></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="checks">Needs attention<span class="count" id="cChecks"></span></button>
+    </div>
+    <div class="tabpanel" id="panel"></div>
+  </section>
+
+  <footer>Your last upload stays in this browser until you upload a new report.</footer>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<div class="ticker-bar" aria-hidden="true"><div class="ticker-content">Haldiram logistics report, part of SASA – Zippee Strategic Analytics Suite. Upload the daily logistics sheet and every rule from the Excel report is applied automatically. For suggestions or feedback, please contact the Zippee analytics team.</div></div>
+<script>
+/* Rules engine — mirrors the formulas in the "Logistics Report" and "Summary" sheets */
+var Core = (function () {
+  var DEFAULT_YEAR = 2026;
+  var EPS = 1e-9;
+  var MONTHS = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,SEPT:8,OCT:9,NOV:10,DEC:11 };
+
+  var FIELDS = [
+    ['invoiceDate', ['invoicedate']],
+    ['dispatchDate', ['dispatchdate']],
+    ['plant', ['supplyingplant']],
+    ['so', ['sonumber']],
+    ['invoice', ['invoicenumber']],
+    ['eway', ['ewaybillnumber']],
+    ['soldTo', ['soldtopartyoutlet', 'soldtoparty']],
+    ['outlet', ['outletname', 'storename']],
+    ['route', ['route']],
+    ['vehicle', ['vehiclenumber', 'vehicleno']],
+    ['seal', ['vehiclesealnumber']],
+    ['qty', ['sumofactualbilledquantity']],
+    ['gross', ['sumofgrossamount']],
+    ['shortAmt', ['sumofgrossshortamount']],
+    ['dispatchWH', ['vehicledispatchfromwh']],
+    ['etaRaw', ['etaatstores']],
+    ['reporting', ['vehiclereportingtimestores']],
+    ['complete', ['deliverycompletetime']],
+    ['deliveryDate', ['deliverydate']],
+    ['onTimeCol', ['ontime']],
+    ['onTimeRemarks', ['ontimeremarks']],
+    ['delayRemark', ['delayremark']],
+    ['delayCtrl', ['remarkscontrollablenoncontrollable']],
+    ['podRemarks', ['podremarks']],
+    ['podShortage', ['podshortage']],
+    ['podCtrl', ['controllablenoncontrollable']],
+    ['podMissing', ['podmissing']],
+    ['invoiceLink', ['invoicelink']],
+    ['podLink', ['podlink']]
+  ];
+
+  /* same as spreadsheet MOD(x,1), without disturbing values already in [0,1) */
+  function mod1(x) { if (x >= 0 && x < 1) return x; var m = x - Math.floor(x); return m >= 1 ? 0 : m; }
+  function norm(s) { return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  function blank(v) { return v == null || (typeof v === 'string' && v.trim() === ''); }
+  function up(v) { return blank(v) ? '' : String(v).trim().toUpperCase(); }
+
+  function findHeader(rows) {
+    for (var i = 0; i < Math.min(rows.length, 30); i++) {
+      var r = rows[i] || [];
+      for (var j = 0; j < r.length; j++) if (norm(r[j]) === 'invoicenumber') return i;
+    }
+    return -1;
+  }
+
+  function mapColumns(header) {
+    var map = {}, used = {};
+    var normed = header.map(norm);
+    FIELDS.forEach(function (f) {
+      var key = f[0], names = f[1];
+      for (var n = 0; n < names.length; n++) {
+        for (var c = 0; c < normed.length; c++) {
+          if (!used[c] && normed[c] === names[n]) { map[key] = c; used[c] = true; return; }
+        }
+      }
+    });
+    return map;
+  }
+
+  /* Time of day as a fraction of 24h, or null if blank, or NaN if unreadable */
+  function timeFrac(v) {
+    if (blank(v)) return null;
+    if (typeof v === 'number') return mod1(v);
+    if (v instanceof Date) return (v.getHours() * 3600 + v.getMinutes() * 60 + v.getSeconds()) / 86400;
+    var s = String(v).trim().toUpperCase();
+    if (/^-?\d+(\.\d+)?$/.test(s)) return mod1(parseFloat(s));
+    s = s.replace(/\s*:\s*/g, ':').replace(/;/g, ':').replace(/\./g, ':');
+    s = s.replace(/\s+/g, ' ').replace(/\s*(A\.?M\.?|P\.?M\.?)$/, function (m, ap) { return ' ' + ap.replace(/\./g, ''); });
+    var m = s.match(/^(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?(?: (AM|PM))?$/);
+    if (!m) return NaN;
+    var h = +m[1], mi = +(m[2] || 0), se = +(m[3] || 0), ap = m[4];
+    if (mi > 59 || se > 59) return NaN;
+    if (ap) { if (h < 1 || h > 12) return NaN; if (ap === 'AM' && h === 12) h = 0; if (ap === 'PM' && h !== 12) h += 12; }
+    else if (h > 24) return NaN;
+    return ((h * 3600 + mi * 60 + se) / 86400) % 1;
+  }
+
+  /* Excel serial date (days) or null / NaN */
+  function dateSerial(v, year) {
+    if (blank(v)) return null;
+    if (typeof v === 'number') return Math.floor(v);
+    if (v instanceof Date) return Math.round((Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) - Date.UTC(1899, 11, 30)) / 864e5);
+    var s = String(v).trim().toUpperCase(), d, mo, y;
+    var m = s.match(/^(\d{1,2})[-\/ ]([A-Z]{3,4})[A-Z]*(?:[-\/ ,]+(\d{2,4}))?$/);
+    if (m && MONTHS[m[2]] != null) { d = +m[1]; mo = MONTHS[m[2]]; y = m[3] ? +m[3] : year; }
+    else if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/))) { d = +m[1]; mo = +m[2] - 1; y = +m[3]; }
+    else if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) { y = +m[1]; mo = +m[2] - 1; d = +m[3]; }
+    else return NaN;
+    if (y < 100) y += 2000;
+    if (mo < 0 || mo > 11 || d < 1 || d > 31) return NaN;
+    return Math.round((Date.UTC(y, mo, d) - Date.UTC(1899, 11, 30)) / 864e5);
+  }
+
+  function idText(v) {
+    if (blank(v)) return '';
+    if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v));
+    return String(v).trim();
+  }
+  function num(v) {
+    if (blank(v)) return null;
+    if (typeof v === 'number') return v;
+    var n = parseFloat(String(v).replace(/[₹,\s]/g, ''));
+    return isNaN(n) ? null : n;
+  }
+  function cell(row, map, key) { return map[key] == null ? null : row[map[key]]; }
+
+  /* Apply the sheet's per-row rules */
+  function computeRow(r, year) {
+    var route = up(r.route);
+    var q = timeFrac(r.reporting), rr = timeFrac(r.complete);
+    var qOk = typeof q === 'number' && !isNaN(q), rOk = typeof rr === 'number' && !isNaN(rr);
+
+    // S: Unloading time = MOD(R - Q, 1)
+    var unload = (qOk && rOk) ? mod1(rr - q) : null;
+    // T: Flag
+    var flag = '';
+    if (unload != null) {
+      /* sheet: S > TIME(1,0,0) for LOCAL, S > TIME(2,0,0) for OUTSTATION, compared exactly as the sheet does */
+      flag = ((route === 'LOCAL' && unload > 1 / 24) || (route === 'OUTSTATION' && unload > 2 / 24)) ? 'Delay' : 'Not Delay';
+    }
+    // AF: ETA (clean)
+    var eta = timeFrac(r.etaRaw);
+    var etaClean = eta == null ? null : (isNaN(eta) ? 'Check ETA' : eta);
+    // AG: Reporting status
+    var reportStatus;
+    if (!qOk || typeof etaClean !== 'number') reportStatus = 'Pending';
+    else reportStatus = etaClean >= q - EPS ? 'On Time' : 'Delayed';
+    // AH: Unloading hours
+    var unloadHrs = unload == null ? null : Math.round(unload * 24 * 100) / 100;
+    // AI: Unloading status
+    var unloadStatus;
+    if (unloadHrs == null) unloadStatus = 'Pending';
+    else if (route === 'LOCAL') unloadStatus = unloadHrs >= 1 ? 'Delayed' : 'On Time';
+    else if (route.indexOf('OUT') >= 0) unloadStatus = unloadHrs >= 2 ? 'Delayed' : 'On Time';
+    else unloadStatus = 'Check Route';
+    // AJ: Dispatch date (clean)
+    var ds = dateSerial(r.dispatchDate, year);
+    var dispatchClean = ds == null ? null : (isNaN(ds) ? 'Check Date' : ds);
+
+    r.routeU = route;
+    r.reportingT = qOk ? q : null;
+    r.completeT = rOk ? rr : null;
+    r.unload = unload; r.flag = flag; r.eta = etaClean; r.reportStatus = reportStatus;
+    r.unloadHrs = unloadHrs; r.unloadStatus = unloadStatus; r.dispatch = dispatchClean;
+    return r;
+  }
+
+  function parseRows(rows, year) {
+    year = year || DEFAULT_YEAR;
+    var h = findHeader(rows);
+    if (h < 0) throw new Error('No "Invoice Number" column found in the first 30 rows.');
+    var map = mapColumns(rows[h]);
+    var missing = ['dispatchDate', 'outlet', 'route', 'etaRaw', 'reporting', 'complete'].filter(function (k) { return map[k] == null; });
+    var out = [];
+    for (var i = h + 1; i < rows.length; i++) {
+      var row = rows[i] || [];
+      var inv = idText(cell(row, map, 'invoice'));
+      if (norm(inv) === 'invoicenumber') continue;
+      if (!inv) {
+        var hasData = ['outlet', 'soldTo', 'podShortage', 'vehicle', 'so'].some(function (k) { return !blank(cell(row, map, k)); });
+        if (!hasData) continue;
+      }
+      var r = { invoice: inv, noInvoice: !inv };
+      FIELDS.forEach(function (f) { if (f[0] !== 'invoice') r[f[0]] = cell(row, map, f[0]); });
+      r.so = idText(r.so); r.eway = idText(r.eway); r.soldTo = idText(r.soldTo);
+      r.outlet = blank(r.outlet) ? '' : String(r.outlet).trim();
+      r.qty = num(r.qty); r.gross = num(r.gross); r.shortAmt = num(r.shortAmt);
+      computeRow(r, year);
+      if (r.noInvoice) { r.reportStatus = ''; r.unloadStatus = ''; }
+      out.push(r);
+    }
+    return { rows: out, missing: missing };
+  }
+
+  /* a POD shortage is noted when the POD shortage cell has anything other than blank / 0 */
+  function hasShort(r) { var sh = r.podShortage; return !blank(sh) && !(num(sh) === 0 && /^[\s0.]*$/.test(String(sh))); }
+  function ctrlKind(r) { var pc = up(r.podCtrl); return pc === 'CONTROLLABLE' ? 'ctrl' : pc.indexOf('NON') === 0 ? 'nonCtrl' : 'untagged'; }
+
+  /* Short shipment: built from Sum of Gross SHORT amount, POD shortage and controllable/Non-controllable */
+  function shortSummary(rows) {
+    var s = { invoices: 0, gross: 0, shortInv: 0, withValue: 0, noValue: 0, value: 0, ctrlValue: 0, nonCtrlValue: 0, untaggedValue: 0, ctrlInv: 0, nonCtrlInv: 0, untaggedInv: 0 };
+    var outlets = {};
+    rows.forEach(function (r) {
+      if (!r.noInvoice) { s.invoices++; s.gross += r.gross || 0; }
+      var amt = r.shortAmt > 0 ? r.shortAmt : 0;
+      if (!hasShort(r) && !amt) return;
+      s.shortInv++;
+      if (amt) { s.withValue++; s.value += amt; } else s.noValue++;
+      var k = ctrlKind(r); s[k + 'Value'] += amt; s[k + 'Inv']++;
+      if (r.outlet) outlets[r.outlet.toUpperCase()] = 1;
+    });
+    s.outlets = Object.keys(outlets).length;
+    s.valuePct = s.gross ? s.value / s.gross : 0;
+    s.invPct = s.invoices ? s.shortInv / s.invoices : 0;
+    s.avg = s.withValue ? s.value / s.withValue : 0;
+    return s;
+  }
+  function shortOutletwise(rows) {
+    var g = {};
+    rows.forEach(function (r) {
+      if (r.noInvoice) return;
+      var k = (r.soldTo || '—') + '|' + (r.outlet || '—').toUpperCase();
+      var o = g[k] || (g[k] = { soldTo: r.soldTo || '—', outlet: r.outlet || '—', invoices: 0, gross: 0, shortInv: 0, noValue: 0, value: 0, ctrlValue: 0, nonCtrlValue: 0 });
+      o.invoices++; o.gross += r.gross || 0;
+      var amt = r.shortAmt > 0 ? r.shortAmt : 0;
+      if (!hasShort(r) && !amt) return;
+      o.shortInv++; if (!amt) o.noValue++; o.value += amt;
+      var kd = ctrlKind(r); if (kd === 'ctrl') o.ctrlValue += amt; else if (kd === 'nonCtrl') o.nonCtrlValue += amt;
+    });
+    return Object.keys(g).map(function (k) { var o = g[k]; o.valuePct = o.gross ? o.value / o.gross : null; return o; })
+      .filter(function (o) { return o.shortInv > 0; });
+  }
+
+  /* Summary sheet */
+  function summarize(rows) {
+    var outlets = {}, s = {
+      invoices: 0, podMissing: 0, podRemarks: 0, ctrl: 0, nonCtrl: 0,
+      otdOn: 0, otdDelay: 0, otdPending: 0, ctrlDelay: 0, nonCtrlDelay: 0,
+      unOn: 0, unDelLocal: 0, unDelOut: 0, unPending: 0, unCheckRoute: 0
+    };
+    rows.forEach(function (r) {
+      if (r.outlet) outlets[r.outlet.toUpperCase()] = 1;
+      if (!r.noInvoice) s.invoices++;
+      if (up(r.podMissing) === 'YES') s.podMissing++;
+      if (hasShort(r)) s.podRemarks++;
+      var pc = up(r.podCtrl);
+      if (pc === 'CONTROLLABLE') s.ctrl++;
+      if (pc.indexOf('NON') === 0) s.nonCtrl++;
+      var dc = up(r.delayCtrl);
+      if (r.reportStatus === 'On Time') s.otdOn++;
+      else if (r.reportStatus === 'Delayed') {
+        s.otdDelay++;
+        if (dc === 'CONTROLLABLE') s.ctrlDelay++;
+        if (dc.indexOf('NON') === 0) s.nonCtrlDelay++;
+      } else if (r.reportStatus === 'Pending') s.otdPending++;
+      if (r.unloadStatus === 'On Time') s.unOn++;
+      else if (r.unloadStatus === 'Delayed') {
+        if (r.routeU === 'LOCAL') s.unDelLocal++;
+        else if (r.routeU === 'OUTSTATION') s.unDelOut++;
+      } else if (r.unloadStatus === 'Pending') s.unPending++;
+      else if (r.unloadStatus === 'Check Route') s.unCheckRoute++;
+    });
+    s.outlets = Object.keys(outlets).length;
+    s.podReceived = s.invoices - s.podMissing;
+    s.cleanPod = s.podReceived - s.podRemarks;
+    s.cleanPodPct = s.invoices ? s.cleanPod / s.invoices : 0;
+    s.otdTotal = s.otdOn + s.otdDelay;
+    s.otdPct = s.otdTotal ? s.otdOn / s.otdTotal : 0;
+    s.unTotal = s.unOn + s.unDelLocal + s.unDelOut;
+    s.unDelayPct = s.unTotal ? (s.unDelLocal + s.unDelOut) / s.unTotal : 0;
+    return s;
+  }
+
+  /* OTD Outletwise sheet */
+  function outletwise(rows) {
+    var g = {};
+    rows.forEach(function (r) {
+      if (r.noInvoice) return;
+      var k = (r.soldTo || '—') + '|' + (r.outlet || '—').toUpperCase();
+      var o = g[k] || (g[k] = { soldTo: r.soldTo || '—', outlet: r.outlet || '—', delay: 0, onTime: 0, pending: 0, ctrl: 0, nonCtrl: 0, remarks: {} });
+      if (r.reportStatus === 'Delayed') {
+        o.delay++;
+        var dc = up(r.delayCtrl);
+        if (dc === 'CONTROLLABLE') o.ctrl++; else if (dc.indexOf('NON') === 0) o.nonCtrl++;
+        var rm = blank(r.delayRemark) ? '' : String(r.delayRemark).trim();
+        if (rm) o.remarks[rm] = (o.remarks[rm] || 0) + 1;
+      } else if (r.reportStatus === 'On Time') o.onTime++;
+      else o.pending++;
+    });
+    return Object.keys(g).map(function (k) {
+      var o = g[k]; o.total = o.delay + o.onTime;
+      o.delayPct = o.total ? o.delay / o.total : null;
+      var best = '', bc = 0;
+      Object.keys(o.remarks).forEach(function (rm) { if (o.remarks[rm] > bc) { bc = o.remarks[rm]; best = rm; } });
+      o.topRemark = best;
+      return o;
+    });
+  }
+
+  return { parseRows: parseRows, summarize: summarize, outletwise: outletwise, shortSummary: shortSummary, shortOutletwise: shortOutletwise, hasShort: hasShort, timeFrac: timeFrac, dateSerial: dateSerial, computeRow: computeRow, DEFAULT_YEAR: DEFAULT_YEAR };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+</script>
+<script>
+(function () {
+  var STORE_KEY = 'haldiram-logistics-v1';
+  var PAGE = 50;
+  var state = { rows: [], files: [], tab: 'outlets', chip: 'all', page: 0, sort: { outlets: { k: 'delayPct', d: -1 }, rows: { k: 'dispatch', d: 1 }, checks: { k: 'issue', d: 1 }, short: { k: 'value', d: -1 }, shortInv: { k: 'shortAmt', d: -1 } }, appendNext: false };
+  var downloads = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function h(tag, attrs, kids) {
+    var el = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === 'text') el.textContent = attrs[k];
+      else if (k === 'cls') el.className = attrs[k];
+      else if (k.indexOf('on') === 0) el.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] != null && attrs[k] !== false) el.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c != null) el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return el;
+  }
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 3200); }
+
+  /* formatting */
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function serialToDate(s) { return new Date(Date.UTC(1899, 11, 30) + s * 864e5); }
+  function fmtDate(s, withYear) {
+    if (s == null || s === '') return '';
+    if (typeof s !== 'number') return String(s);
+    var d = serialToDate(s);
+    return String(d.getUTCDate()).padStart(2, '0') + '-' + MON[d.getUTCMonth()] + (withYear ? '-' + d.getUTCFullYear() : '');
+  }
+  function fmtTime(f) {
+    if (f == null || f === '') return '';
+    if (typeof f !== 'number') return String(f);
+    var m = Math.round(f * 1440) % 1440;
+    return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  }
+  function pct(x) { return x == null ? '—' : (Math.round(x * 1000) / 10).toFixed(1) + '%'; }
+  function int(n) { return n == null ? '' : Number(n).toLocaleString('en-IN'); }
+  function money(n) { return n == null ? '' : '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+  function raw(v) { return v == null ? '' : (typeof v === 'number' && !Number.isInteger(v) ? String(Math.round(v * 100) / 100) : String(v)); }
+  function isoToSerial(iso) { if (!iso) return null; var p = iso.split('-'); return Math.round((Date.UTC(+p[0], +p[1] - 1, +p[2]) - Date.UTC(1899, 11, 30)) / 864e5); }
+  function serialToIso(s) { var d = serialToDate(s); return d.toISOString().slice(0, 10); }
+  function statusPill(s) {
+    if (!s) return h('span', { text: '' });
+    var c = s === 'On Time' || s === 'Not Delay' ? 'on' : s === 'Delayed' || s === 'Delay' ? 'del' : s === 'Pending' ? 'pen' : 'chk';
+    return h('span', { cls: 'st ' + c, text: s });
+  }
+
+  /* storage */
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ files: state.files, rows: state.rows })); }
+    catch (e) { /* storage full or blocked: page still works for this session */ }
+  }
+  function restore() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+      if (s && s.rows && s.rows.length) { state.rows = s.rows; state.files = s.files || []; return true; }
+    } catch (e) {}
+    return false;
+  }
+
+  /* reading files */
+  function readFile(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error('Could not read ' + file.name)); };
+      fr.onload = function () {
+        try {
+          var wb = XLSX.read(new Uint8Array(fr.result), { type: 'array', cellDates: false });
+          var names = wb.SheetNames.slice();
+          names.sort(function (a, b) { return (b.trim().toLowerCase() === 'logistics report') - (a.trim().toLowerCase() === 'logistics report'); });
+          for (var i = 0; i < names.length; i++) {
+            var rows = XLSX.utils.sheet_to_json(wb.Sheets[names[i]], { header: 1, raw: true, defval: null, blankrows: false });
+            try { var res = Core.parseRows(rows, Core.DEFAULT_YEAR); res.sheet = names[i]; return resolve(res); } catch (e) {}
+          }
+          reject(new Error(file.name + ': no sheet with an "Invoice Number" column. Use the Logistics Report column headings.'));
+        } catch (e) { reject(new Error(file.name + ' is not a readable Excel or CSV file.')); }
+      };
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  function handleFiles(list) {
+    var files = Array.prototype.slice.call(list || []);
+    if (!files.length) return;
+    $('err').textContent = '';
+    Promise.all(files.map(readFile)).then(function (results) {
+      var incoming = [], missing = {};
+      results.forEach(function (r) { incoming = incoming.concat(r.rows); r.missing.forEach(function (m) { missing[m] = 1; }); });
+      var base = state.appendNext ? state.rows.slice() : [];
+      var byInv = {};
+      base.forEach(function (r, i) { if (r.invoice) byInv[r.invoice] = i; });
+      var added = 0, updated = 0;
+      /* only rows already on the page are replaced by a matching invoice; rows inside the new files are all kept, as in the sheet */
+      var replaced = {};
+      incoming.forEach(function (r) {
+        var at = r.invoice ? byInv[r.invoice] : null;
+        if (at != null && !replaced[at]) { base[at] = r; replaced[at] = 1; updated++; }
+        else { base.push(r); added++; }
+      });
+      state.rows = base;
+      state.files = (state.appendNext ? state.files : []).concat(files.map(function (f) { return f.name; }));
+      state.page = 0;
+      save();
+      showReport(true);
+      var inv = incoming.filter(function (r) { return !r.noInvoice; }).length, noInv = incoming.length - inv;
+      var msg = state.appendNext ? int(added) + ' rows added, ' + int(updated) + ' updated' : int(inv) + ' invoices loaded';
+      if (noInv) msg += ' (' + noInv + ' rows without invoice number, see Needs attention)';
+      var miss = Object.keys(missing);
+      if (miss.length) msg += '. Columns not found: ' + miss.join(', ');
+      toast(msg);
+      state.appendNext = false;
+    }).catch(function (e) {
+      state.appendNext = false;
+      if ($('report').hidden) $('err').textContent = e.message; else toast(e.message);
+    });
+  }
+
+  /* filtering */
+  function filtered() {
+    var from = isoToSerial($('fFrom').value), to = isoToSerial($('fTo').value);
+    var route = $('fRoute').value, q = $('fText').value.trim().toLowerCase();
+    return state.rows.filter(function (r) {
+      if (from != null || to != null) {
+        if (typeof r.dispatch !== 'number') return false;
+        if (from != null && r.dispatch < from) return false;
+        if (to != null && r.dispatch > to) return false;
+      }
+      if (route && r.routeU !== route) return false;
+      if (q) {
+        var hay = [r.outlet, r.invoice, r.vehicle, r.soldTo, r.so].join(' ').toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+  }
+
+  function setupFilters() {
+    var routes = {}, min = null, max = null;
+    state.rows.forEach(function (r) {
+      if (r.routeU) routes[r.routeU] = 1;
+      if (typeof r.dispatch === 'number') { if (min == null || r.dispatch < min) min = r.dispatch; if (max == null || r.dispatch > max) max = r.dispatch; }
+    });
+    var sel = $('fRoute'), cur = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    Object.keys(routes).sort().forEach(function (r) { sel.appendChild(h('option', { value: r, text: r.charAt(0) + r.slice(1).toLowerCase() })); });
+    if (routes[cur]) sel.value = cur;
+    if (min != null) { $('fFrom').min = $('fTo').min = serialToIso(min); $('fFrom').max = $('fTo').max = serialToIso(max); }
+  }
+
+  /* summary band */
+  function kv(rows) {
+    var dl = h('dl', { cls: 'kv' });
+    rows.forEach(function (r) {
+      dl.appendChild(h('dt', { cls: r[2] ? 'sub' : null, text: r[0] }));
+      dl.appendChild(h('dd', { text: int(r[1]) }));
+    });
+    return dl;
+  }
+  function panel(title, big, cap, meterVal, meterColor, rows) {
+    var meter = h('div', { cls: 'meter', 'aria-hidden': 'true' }, [h('i')]);
+    meter.firstChild.style.width = Math.max(0, Math.min(1, meterVal || 0)) * 100 + '%';
+    if (meterColor) meter.firstChild.style.background = meterColor;
+    return h('div', { cls: 'panel' }, [h('h3', { text: title }), h('div', { cls: 'big', text: big }), h('div', { cls: 'bigcap', text: cap }), meter, kv(rows)]);
+  }
+  function renderBand(s, sh) {
+    var band = $('band'); band.textContent = '';
+    band.appendChild(panel('POD', pct(s.cleanPodPct), 'Clean POD of ' + int(s.invoices) + ' invoices', s.cleanPodPct, 'var(--leaf)', [
+      ['Outlets', s.outlets], ['Invoices', s.invoices], ['POD received', s.podReceived], ['POD not received', s.podMissing],
+      ['POD with remarks', s.podRemarks], ['Controllable', s.ctrl, 1], ['Non-controllable', s.nonCtrl, 1], ['Clean POD', s.cleanPod]
+    ]));
+    band.appendChild(panel('On-time delivery', pct(s.otdTotal ? s.otdPct : null), 'Reported by ETA, of ' + int(s.otdTotal) + ' deliveries', s.otdPct, 'var(--haldi)', [
+      ['Total deliveries', s.otdTotal], ['On time', s.otdOn], ['Delayed', s.otdDelay], ['Controllable delay', s.ctrlDelay, 1],
+      ['Non-controllable delay', s.nonCtrlDelay, 1], ['Pending reporting time', s.otdPending]
+    ]));
+    band.appendChild(panel('Unloading', pct(s.unTotal ? s.unDelayPct : null), 'Unloading delayed, of ' + int(s.unTotal) + ' unloaded', s.unDelayPct, 'var(--chilli)', [
+      ['Total unloaded', s.unTotal], ['On time', s.unOn], ['Delayed, Local (≥ 1 hr)', s.unDelLocal], ['Delayed, Outstation (≥ 2 hr)', s.unDelOut],
+      ['Pending entry', s.unPending], ['Check route', s.unCheckRoute]
+    ]));
+    var p4 = panel('Short shipment', money(sh.value), (sh.valuePct * 100).toFixed(2) + '% of ' + money(sh.gross) + ' gross; ' + pct(sh.invPct) + ' of invoices short', sh.invPct, 'var(--chilli)', [
+      ['Invoices with shortage', sh.shortInv], ['With ₹ value', sh.withValue, 1], ['₹ value not entered', sh.noValue, 1],
+      ['Outlets affected', sh.outlets], ['Controllable', sh.ctrlInv, 1], ['Non-controllable', sh.nonCtrlInv, 1], ['Not tagged', sh.untaggedInv, 1]
+    ]);
+    var dl = p4.querySelector('dl');
+    [['Controllable value', sh.ctrlValue], ['Non-controllable value', sh.nonCtrlValue], ['Not tagged value', sh.untaggedValue], ['Average per short invoice', sh.avg]].forEach(function (r) {
+      dl.appendChild(h('dt', { text: r[0] })); dl.appendChild(h('dd', { text: money(r[1]) }));
+    });
+    band.appendChild(p4);
+  }
+
+  /* chart */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function sv(tag, a) { var e = document.createElementNS(SVGNS, tag); for (var k in a) e.setAttribute(k, a[k]); return e; }
+  function renderChart(rows) {
+    var box = $('chart'); box.textContent = '';
+    var g = {};
+    rows.forEach(function (r) {
+      if (typeof r.dispatch !== 'number' || r.noInvoice) return;
+      var d = g[r.dispatch] || (g[r.dispatch] = { on: 0, del: 0, pen: 0 });
+      if (r.reportStatus === 'On Time') d.on++; else if (r.reportStatus === 'Delayed') d.del++; else d.pen++;
+    });
+    var days = Object.keys(g).map(Number).sort(function (a, b) { return a - b; });
+    if (!days.length) { box.appendChild(h('div', { cls: 'empty', text: 'No dispatch dates in the current filter.' })); return; }
+    var W = Math.max(280, box.clientWidth || 600), H = 240, pl = 34, pr = 6, pt = 18, pb = 28;
+    var max = 1; days.forEach(function (d) { var t = g[d].on + g[d].del + g[d].pen; if (t > max) max = t; });
+    var step = Math.pow(10, Math.floor(Math.log10(max))); var nice = Math.ceil(max / step) * step; if (nice / step > 5 && step > 1) step *= 2; if (nice / step < 3 && step >= 2) step /= 2;
+    var bw = (W - pl - pr) / days.length, gap = Math.min(10, bw * 0.25);
+    var y = function (v) { return pt + (H - pt - pb) * (1 - v / nice); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Daily reporting status' });
+    for (var t = 0; t <= nice + 1e-9; t += step) {
+      svg.appendChild(sv('line', { x1: pl, x2: W - pr, y1: y(t), y2: y(t), stroke: 'var(--line)' }));
+      var tx = sv('text', { x: pl - 6, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = t; svg.appendChild(tx);
+    }
+    var every = Math.ceil(days.length / Math.max(1, Math.floor((W - pl) / 52)));
+    var tip = $('tip');
+    days.forEach(function (d, i) {
+      var v = g[d], x = pl + i * bw + gap / 2, w = Math.max(2, bw - gap), base = 0;
+      var grp = sv('g', {});
+      [['on', 'var(--leaf)'], ['del', 'var(--chilli)'], ['pen', 'var(--slate)']].forEach(function (p) {
+        var n = v[p[0]]; if (!n) return;
+        grp.appendChild(sv('rect', { x: x, y: y(base + n), width: w, height: y(base) - y(base + n), fill: p[1] }));
+        base += n;
+      });
+      var tot = v.on + v.del;
+      if (w >= 26 && tot) { var lab = sv('text', { x: x + w / 2, y: y(base) - 4, 'text-anchor': 'middle', 'font-size': 10.5, fill: 'var(--muted)' }); lab.textContent = Math.round(v.on / tot * 100) + '%'; grp.appendChild(lab); }
+      var hit = sv('rect', { x: pl + i * bw, y: pt, width: bw, height: H - pt - pb, fill: 'transparent' });
+      var show = function (ev) {
+        tip.textContent = fmtDate(d) + ' · on time ' + v.on + ', delayed ' + v.del + ', pending ' + v.pen;
+        var r = box.parentNode.getBoundingClientRect(), px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+        tip.style.opacity = 1;
+        var tw = tip.offsetWidth; tip.style.left = Math.max(4, Math.min(r.width - tw - 4, px - tw / 2)) + 'px'; tip.style.top = '8px';
+      };
+      hit.addEventListener('mousemove', show); hit.addEventListener('touchstart', show, { passive: true });
+      hit.addEventListener('mouseleave', function () { tip.style.opacity = 0; });
+      grp.appendChild(hit);
+      svg.appendChild(grp);
+      if (i % every === 0) { var dl = sv('text', { x: pl + i * bw + bw / 2, y: H - 9, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); dl.textContent = fmtDate(d); svg.appendChild(dl); }
+    });
+    box.appendChild(svg);
+  }
+
+  /* checks */
+  function checks(rows) {
+    var out = [];
+    rows.forEach(function (r) {
+      var add = function (issue, seen) { out.push({ issue: issue, invoice: r.invoice || '—', outlet: r.outlet, dispatch: r.dispatch, seen: seen, r: r }); };
+      if (r.noInvoice) add('Invoice number missing', r.outlet || r.soldTo || '');
+      if (r.eta === 'Check ETA') add('Check ETA', raw(r.etaRaw));
+      if (r.dispatch === 'Check Date') add('Check dispatch date', raw(r.dispatchDate));
+      if (r.unloadStatus === 'Check Route') add('Check route', raw(r.route));
+      else if (r.routeU && r.routeU !== 'LOCAL' && r.routeU !== 'OUTSTATION') add('Route is not Local or Outstation', raw(r.route));
+      if (String(r.podMissing || '').trim().toUpperCase() === 'YES') add('POD not received', 'POD missing = YES');
+      if (Core.hasShort(r) && !(r.shortAmt > 0)) add('Short amount not entered', raw(r.podShortage));
+      if (r.reporting != null && r.reporting !== '' && r.reportingT == null) add('Reporting time unreadable', raw(r.reporting));
+      if (r.complete != null && r.complete !== '' && r.completeT == null) add('Delivery complete time unreadable', raw(r.complete));
+    });
+    return out;
+  }
+
+  /* tables */
+  function sortRows(list, sort) {
+    var k = sort.k, d = sort.d;
+    return list.slice().sort(function (a, b) {
+      var x = a[k], y = b[k];
+      var xn = typeof x === 'number', yn = typeof y === 'number';
+      if (x == null || x === '') return 1; if (y == null || y === '') return -1;
+      if (xn && yn) return (x - y) * d;
+      if (xn !== yn) return xn ? -1 : 1;
+      return String(x).localeCompare(String(y), undefined, { numeric: true }) * d;
+    });
+  }
+  function table(cols, list, sortKey) {
+    var sort = state.sort[sortKey];
+    var thead = h('tr', {}, cols.map(function (c) {
+      var lab = c.label + (sort.k === c.key ? (sort.d > 0 ? ' ↑' : ' ↓') : '');
+      return h('th', { cls: c.num ? 'num' : null, text: lab, scope: 'col', tabindex: 0, 'aria-sort': sort.k === c.key ? (sort.d > 0 ? 'ascending' : 'descending') : null,
+        onclick: function () { if (sort.k === c.key) sort.d = -sort.d; else { sort.k = c.key; sort.d = c.num ? -1 : 1; } state.page = 0; renderTab(); },
+        onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); } } });
+    }));
+    var tb = h('tbody');
+    list.forEach(function (row) {
+      tb.appendChild(h('tr', {}, cols.map(function (c) {
+        var v = c.render ? c.render(row) : row[c.key];
+        return h('td', { cls: (c.num ? 'num' : '') + (c.wrap ? ' wrapcell' : '') }, [v instanceof Node ? v : String(v == null ? '' : v)]);
+      })));
+    });
+    return h('div', { cls: 'scroll' }, [h('table', {}, [h('thead', {}, [thead]), tb])]);
+  }
+  function pager(total) {
+    var pages = Math.ceil(total / PAGE);
+    if (pages <= 1) return null;
+    return h('div', { cls: 'pager' }, [
+      h('span', { text: (state.page * PAGE + 1) + '–' + Math.min(total, (state.page + 1) * PAGE) + ' of ' + int(total) }),
+      h('button', { cls: 'tool-button', text: 'Previous', disabled: state.page === 0 ? 'disabled' : null, onclick: function () { state.page--; renderTab(); } }),
+      h('button', { cls: 'tool-button', text: 'Next', disabled: state.page >= pages - 1 ? 'disabled' : null, onclick: function () { state.page++; renderTab(); } })
+    ]);
+  }
+
+  var current = [];
+  function renderTab() {
+    var p = $('panel'); p.textContent = '';
+    document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', t.dataset.tab === state.tab ? 'true' : 'false'); });
+    if (state.tab === 'outlets') {
+      var ow = Core.outletwise(current);
+      if (!ow.length) { p.appendChild(h('div', { cls: 'empty', text: 'No invoices match the filters.' })); return; }
+      ow.forEach(function (o) { o.onPct = o.total ? o.onTime / o.total : null; });
+      p.appendChild(table([
+        { key: 'soldTo', label: 'Sold-to' }, { key: 'outlet', label: 'Outlet' },
+        { key: 'delay', label: 'Delayed', num: 1 }, { key: 'onTime', label: 'On time', num: 1 }, { key: 'total', label: 'Total shipments', num: 1 },
+        { key: 'delayPct', label: 'Delay %', num: 1, render: function (o) { return pct(o.delayPct); } },
+        { key: 'onPct', label: 'On-time %', num: 1, render: function (o) { return pct(o.onPct); } },
+        { key: 'pending', label: 'Pending', num: 1 },
+        { key: 'ctrl', label: 'Controllable', num: 1 }, { key: 'nonCtrl', label: 'Non-controllable', num: 1 },
+        { key: 'topRemark', label: 'Main delay remark', wrap: 1 }
+      ], sortRows(ow, state.sort.outlets), 'outlets'));
+    } else if (state.tab === 'rows') {
+      var chips = [['all', 'All'], ['repDel', 'Reporting delayed'], ['unDel', 'Unloading delayed'], ['pending', 'Pending'], ['short', 'POD shortage'], ['podMiss', 'POD missing']];
+      p.appendChild(h('div', { cls: 'tablebar' }, [h('div', { cls: 'chips' }, chips.map(function (c) {
+        return h('button', { cls: 'chip', 'aria-pressed': state.chip === c[0] ? 'true' : 'false', text: c[1], onclick: function () { state.chip = c[0]; state.page = 0; renderTab(); } });
+      }))]));
+      var list = current.filter(function (r) {
+        switch (state.chip) {
+          case 'repDel': return r.reportStatus === 'Delayed';
+          case 'unDel': return r.unloadStatus === 'Delayed';
+          case 'pending': return r.reportStatus === 'Pending' || r.unloadStatus === 'Pending';
+          case 'short': return r.podShortage != null && String(r.podShortage).trim() !== '' && String(r.podShortage).trim() !== '0';
+          case 'podMiss': return String(r.podMissing || '').trim().toUpperCase() === 'YES';
+        }
+        return true;
+      });
+      list = sortRows(list, state.sort.rows);
+      if (!list.length) { p.appendChild(h('div', { cls: 'empty', text: 'No invoices match.' })); return; }
+      var pageRows = list.slice(state.page * PAGE, (state.page + 1) * PAGE);
+      p.appendChild(table([
+        { key: 'dispatch', label: 'Dispatch', render: function (r) { return fmtDate(r.dispatch); } },
+        { key: 'invoice', label: 'Invoice', render: function (r) { return r.invoiceLink ? h('a', { href: String(r.invoiceLink), target: '_blank', rel: 'noopener', text: r.invoice || '—' }) : (r.invoice || '—'); } },
+        { key: 'soldTo', label: 'Sold-to' }, { key: 'outlet', label: 'Outlet' }, { key: 'routeU', label: 'Route' }, { key: 'vehicle', label: 'Vehicle' },
+        { key: 'gross', label: 'Gross', num: 1, render: function (r) { return money(r.gross); } },
+        { key: 'eta', label: 'ETA', render: function (r) { return typeof r.eta === 'number' ? fmtTime(r.eta) : statusPill(r.eta || ''); } },
+        { key: 'reportingT', label: 'Reported', render: function (r) { return fmtTime(r.reportingT); } },
+        { key: 'completeT', label: 'Completed', render: function (r) { return fmtTime(r.completeT); } },
+        { key: 'reportStatus', label: 'Reporting', render: function (r) { return statusPill(r.reportStatus); } },
+        { key: 'unloadHrs', label: 'Unloading hrs', num: 1, render: function (r) { return r.unloadHrs == null ? '' : r.unloadHrs.toFixed(2); } },
+        { key: 'unloadStatus', label: 'Unloading', render: function (r) { return statusPill(r.unloadStatus); } },
+        { key: 'flag', label: 'Flag', render: function (r) { return statusPill(r.flag); } },
+        { key: 'podShortage', label: 'POD shortage', wrap: 1, render: function (r) { return raw(r.podShortage) === '0' ? '' : raw(r.podShortage); } },
+        { key: 'podMissing', label: 'POD missing', render: function (r) { return raw(r.podMissing); } }
+      ], pageRows, 'rows'));
+      var pg = pager(list.length); if (pg) p.appendChild(pg);
+    } else if (state.tab === 'short') {
+      var so = Core.shortOutletwise(current);
+      if (!so.length) { p.appendChild(h('div', { cls: 'empty', text: 'No short shipments in the current filter.' })); return; }
+      p.appendChild(h('h3', { cls: 'subhead', text: 'Outlet-wise' }));
+      p.appendChild(table([
+        { key: 'soldTo', label: 'Sold-to' }, { key: 'outlet', label: 'Outlet' },
+        { key: 'invoices', label: 'Invoices', num: 1 }, { key: 'shortInv', label: 'Short invoices', num: 1 },
+        { key: 'gross', label: 'Gross', num: 1, render: function (o) { return money(o.gross); } },
+        { key: 'value', label: 'Short value', num: 1, render: function (o) { return money(o.value); } },
+        { key: 'valuePct', label: 'Short % of gross', num: 1, render: function (o) { return o.valuePct == null ? '—' : (o.valuePct * 100).toFixed(2) + '%'; } },
+        { key: 'ctrlValue', label: 'Controllable', num: 1, render: function (o) { return money(o.ctrlValue); } },
+        { key: 'nonCtrlValue', label: 'Non-controllable', num: 1, render: function (o) { return money(o.nonCtrlValue); } },
+        { key: 'noValue', label: '₹ not entered', num: 1 }
+      ], sortRows(so, state.sort.short), 'short'));
+      var si = current.filter(function (r) { return Core.hasShort(r) || r.shortAmt > 0; });
+      p.appendChild(h('h3', { cls: 'subhead', text: 'Invoice-wise (' + si.length + ')' }));
+      p.appendChild(table([
+        { key: 'dispatch', label: 'Dispatch', render: function (r) { return fmtDate(r.dispatch); } },
+        { key: 'invoice', label: 'Invoice', render: function (r) { return r.podLink ? h('a', { href: String(r.podLink), target: '_blank', rel: 'noopener', text: r.invoice || '—' }) : (r.invoice || '—'); } },
+        { key: 'outlet', label: 'Outlet' }, { key: 'vehicle', label: 'Vehicle' },
+        { key: 'gross', label: 'Gross', num: 1, render: function (r) { return money(r.gross); } },
+        { key: 'shortAmt', label: 'Short value', num: 1, render: function (r) { return r.shortAmt > 0 ? money(r.shortAmt) : statusPill('Not entered'); } },
+        { key: 'podCtrl', label: 'Controllable?', render: function (r) { return raw(r.podCtrl); } },
+        { key: 'podShortage', label: 'Items short', wrap: 1, render: function (r) { return raw(r.podShortage) === '0' ? '' : raw(r.podShortage); } }
+      ], sortRows(si, state.sort.shortInv), 'shortInv'));
+    } else {
+      var cl = sortRows(checks(current), state.sort.checks);
+      if (!cl.length) { p.appendChild(h('div', { cls: 'empty', text: 'Nothing needs attention in this data.' })); return; }
+      p.appendChild(table([
+        { key: 'issue', label: 'Issue', render: function (c) { return statusPill(c.issue); } },
+        { key: 'invoice', label: 'Invoice' }, { key: 'outlet', label: 'Outlet' },
+        { key: 'dispatch', label: 'Dispatch', render: function (c) { return fmtDate(c.dispatch); } },
+        { key: 'seen', label: 'Value in file', wrap: 1 }
+      ], cl.slice(state.page * PAGE, (state.page + 1) * PAGE), 'checks'));
+      var pg2 = pager(cl.length); if (pg2) p.appendChild(pg2);
+    }
+  }
+
+  function render() {
+    current = filtered();
+    var s = Core.summarize(current);
+    renderBand(s, Core.shortSummary(current));
+    renderChart(current);
+    $('cOutlets').textContent = Core.outletwise(current).length;
+    $('cRows').textContent = s.invoices;
+    $('cChecks').textContent = checks(current).length;
+    $('cShort').textContent = Core.shortSummary(current).shortInv;
+    renderTab();
+  }
+
+  function showReport(fresh) {
+    $('start').hidden = true; $('report').hidden = false;
+    $('addBtn').hidden = false; $('replaceBtn').hidden = false; $('exportBtn').hidden = !downloads;
+    var f = state.files;
+    $('fileinfo').textContent = f.length ? (f.length === 1 ? f[0] : f[0] + ' + ' + (f.length - 1) + ' more') : '';
+    if (fresh) { $('fFrom').value = ''; $('fTo').value = ''; $('fText').value = ''; $('fRoute').value = ''; }
+    setupFilters();
+    render();
+  }
+
+  /* Excel export */
+  var OUT_COLS = [
+    ['Invoice Date', 'invoiceDate'], ['Dispatch date', 'dispatchDate'], ['Supplying Plant', 'plant'], ['SO number', 'so'], ['Invoice Number', 'invoice'],
+    ['EwayBill number', 'eway'], ['Sold-To Party (outlet)', 'soldTo'], ['Outlet Name', 'outlet'], ['Route', 'route'], ['Vehicle Number', 'vehicle'],
+    ['Vehicle Seal number', 'seal'], ['Sum of Actual billed quantity', 'qty'], ['Sum of Gross amount', 'gross'], ['Sum of Gross SHORT amount', 'shortAmt'],
+    ['Vehicle Dispatch from WH', 'dispatchWH', 't'], ['ETA at Stores', 'etaRaw', 't'], ['Vehicle Reporting time stores', 'reporting', 't'], ['Delivery Complete time', 'complete', 't'],
+    ['Unloading (Hours) Time', 'unload', 't'], ['Flag', 'flag'], ['Delivery Date', 'deliveryDate', 'd'], ['On time', 'onTimeCol'], ['ON TIME REMARKS', 'onTimeRemarks'],
+    ['Delay Remark', 'delayRemark'], ['Remarks (Controllable/Non-controllable)', 'delayCtrl'], ['POD REMARKS', 'podRemarks'], ['POD shortage', 'podShortage'],
+    ['controllable/Non-controllable', 'podCtrl'], ['POD missing', 'podMissing'], ['Invoice link', 'invoiceLink'], ['POD link', 'podLink'],
+    ['ETA', 'eta', 't'], ['Reporting Status', 'reportStatus'], ['Unloading Hours', 'unloadHrs'], ['Unloading Status', 'unloadStatus'], ['Dispatch Date (Clean)', 'dispatch', 'd']
+  ];
+  function buildWorkbook(rows) {
+    var wb = XLSX.utils.book_new();
+    var aoa = [OUT_COLS.map(function (c) { return c[0]; })];
+    rows.forEach(function (r) { aoa.push(OUT_COLS.map(function (c) { var v = r[c[1]]; return v == null ? '' : v; })); });
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    OUT_COLS.forEach(function (c, ci) {
+      if (!c[2]) return;
+      for (var ri = 1; ri < aoa.length; ri++) {
+        var cellRef = XLSX.utils.encode_cell({ r: ri, c: ci }), cl = ws[cellRef];
+        if (cl && cl.t === 'n') cl.z = c[2] === 't' ? 'hh:mm' : 'dd-mmm-yyyy';
+      }
+    });
+    ws['!cols'] = OUT_COLS.map(function (c) { return { wch: Math.max(10, Math.min(28, c[0].length + 2)) }; });
+    XLSX.utils.book_append_sheet(wb, ws, 'Logistics Report');
+
+    var s = Core.summarize(rows);
+    var sum = [
+      ['POD SUMMARY', ''], ['No of outlet', s.outlets], ['No of invoice', s.invoices], ['Total POD received', s.podReceived], ['POD not received', s.podMissing],
+      ['Clean POD', s.cleanPod], ['Clean POD %', s.cleanPodPct], ['POD with remarks', s.podRemarks], ['Controllable', s.ctrl], ['Non controllable', s.nonCtrl], [],
+      ['OTD SUMMARY', ''], ['No of outlet', s.outlets], ['Total no. of delivery', s.otdTotal], ['On time delivery', s.otdOn], ['Delay delivery', s.otdDelay],
+      ['On time %', s.otdPct], ['Controllable delay', s.ctrlDelay], ['Non controllable delay', s.nonCtrlDelay], [],
+      ['UNLOADING SUMMARY', ''], ['Total unloaded', s.unTotal], ['On time unloading', s.unOn], ['Delayed – Local (≥1 hr)', s.unDelLocal],
+      ['Delayed – Outstation (≥2 hr)', s.unDelOut], ['Unloading delay %', s.unDelayPct], ['Pending entry (unloading)', s.unPending], ['Check route (non Local/Outstation)', s.unCheckRoute]
+    ];
+    var ws2 = XLSX.utils.aoa_to_sheet(sum);
+    ['B7', 'B17', 'B26'].forEach(function (a) { if (ws2[a]) ws2[a].z = '0.0%'; });
+    ws2['!cols'] = [{ wch: 36 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+
+    var sh = Core.shortSummary(rows);
+    var shortRows = [[], ['SHORT SHIPMENT SUMMARY', ''], ['Invoices with shortage', sh.shortInv], ['  with ₹ value', sh.withValue], ['  ₹ value not entered', sh.noValue],
+      ['Outlets affected', sh.outlets], ['Total short value (₹)', Math.round(sh.value * 100) / 100], ['Total gross (₹)', Math.round(sh.gross * 100) / 100], ['Short % of gross', sh.valuePct],
+      ['Controllable value (₹)', Math.round(sh.ctrlValue * 100) / 100], ['Non-controllable value (₹)', Math.round(sh.nonCtrlValue * 100) / 100], ['Not tagged value (₹)', Math.round(sh.untaggedValue * 100) / 100],
+      ['Controllable invoices', sh.ctrlInv], ['Non-controllable invoices', sh.nonCtrlInv], ['Not tagged invoices', sh.untaggedInv]];
+    XLSX.utils.sheet_add_aoa(ws2, shortRows, { origin: -1 });
+    var pr = sum.length + 9; if (ws2['B' + pr]) ws2['B' + pr].z = '0.00%';
+
+    var aoaS = [['Sold-To Party', 'Outlet', 'Invoices', 'Short invoices', 'Gross (₹)', 'Short value (₹)', 'Short % of gross', 'Controllable (₹)', 'Non-controllable (₹)', '₹ not entered']];
+    sortRows(Core.shortOutletwise(rows), { k: 'value', d: -1 }).forEach(function (o) {
+      aoaS.push([o.soldTo, o.outlet, o.invoices, o.shortInv, Math.round(o.gross * 100) / 100, Math.round(o.value * 100) / 100, o.valuePct == null ? '' : o.valuePct, Math.round(o.ctrlValue * 100) / 100, Math.round(o.nonCtrlValue * 100) / 100, o.noValue]);
+    });
+    aoaS.push([]); aoaS.push(['Dispatch', 'Invoice', 'Outlet', 'Vehicle', 'Gross (₹)', 'Short value (₹)', 'Controllable?', 'Items short', 'POD link']);
+    rows.filter(function (r) { return Core.hasShort(r) || r.shortAmt > 0; }).forEach(function (r) {
+      aoaS.push([fmtDate(r.dispatch, true), r.invoice || '—', r.outlet, r.vehicle || '', r.gross == null ? '' : r.gross, r.shortAmt > 0 ? Math.round(r.shortAmt * 100) / 100 : 'Not entered', raw(r.podCtrl), raw(r.podShortage), r.podLink || '']);
+    });
+    var wsS = XLSX.utils.aoa_to_sheet(aoaS);
+    for (var si2 = 1; si2 < aoaS.length; si2++) { var cg = wsS[XLSX.utils.encode_cell({ r: si2, c: 6 })]; if (cg && cg.t === 'n') cg.z = '0.00%'; }
+    wsS['!cols'] = [{ wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 14 }, { wch: 13 }, { wch: 15 }, { wch: 16 }, { wch: 16 }, { wch: 60 }, { wch: 14 }];
+
+    var ow = sortRows(Core.outletwise(rows), { k: 'delayPct', d: -1 });
+    var aoa3 = [['Sold-To Party', 'Store Name', 'Delay', 'On Time', 'Total Shipment', 'Percentage (delay)', 'Pending', 'Controllable', 'Non-controllable', 'Delay Remark']];
+    ow.forEach(function (o) { aoa3.push([o.soldTo, o.outlet, o.delay, o.onTime, o.total, o.delayPct == null ? '' : o.delayPct, o.pending, o.ctrl, o.nonCtrl, o.topRemark]); });
+    var ws3 = XLSX.utils.aoa_to_sheet(aoa3);
+    for (var i = 1; i < aoa3.length; i++) { var c5 = ws3[XLSX.utils.encode_cell({ r: i, c: 5 })]; if (c5 && c5.t === 'n') c5.z = '0.0%'; }
+    ws3['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 8 }, { wch: 9 }, { wch: 15 }, { wch: 17 }, { wch: 9 }, { wch: 13 }, { wch: 17 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, ws3, 'OTD Outletwise');
+    XLSX.utils.book_append_sheet(wb, wsS, 'Short Shipment');
+
+    var aoa4 = [['Issue', 'Invoice', 'Outlet', 'Dispatch', 'Value in file']];
+    checks(rows).forEach(function (c) { aoa4.push([c.issue, c.invoice, c.outlet, fmtDate(c.dispatch, true), c.seen]); });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa4), 'Needs attention');
+    return wb;
+  }
+  function exportExcel() {
+    if (!downloads) return;
+    var wb = buildWorkbook(current);
+    var buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    var d = new Date(), stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    downloads.save({ filename: 'Haldiram_Logistics_Report_' + stamp + '.xlsx', data: new Blob([buf]) })
+      .then(function (r) { if (r && r.status === 'saved') toast('Saved ' + int(current.length) + ' rows with summaries'); })
+      .catch(function (e) {
+        if (e && e.code === 'declined') return;
+        if (e && e.code === 'rate_limited') { toast('A save prompt is already open'); return; }
+        toast('Download is not available here');
+        $('exportBtn').hidden = true;
+      });
+  }
+
+  /* wiring */
+  function pick(append) { state.appendNext = !!append; $('fileInput').value = ''; $('fileInput').click(); }
+  $('chooseBtn').addEventListener('click', function () { pick(false); });
+  $('replaceBtn').addEventListener('click', function () { pick(false); });
+  $('addBtn').addEventListener('click', function () { pick(true); });
+  $('exportBtn').addEventListener('click', exportExcel);
+  $('fileInput').addEventListener('change', function (e) { handleFiles(e.target.files); });
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); if (!$('start').hidden) drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); if (ev === 'drop' || e.target === drop) drop.classList.remove('over'); }); });
+  document.addEventListener('drop', function (e) {
+    if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+    state.appendNext = false;
+    handleFiles(e.dataTransfer.files);
+  });
+  ['fFrom', 'fTo', 'fRoute'].forEach(function (id) { $(id).addEventListener('change', function () { state.page = 0; render(); }); });
+  var tmr; $('fText').addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(function () { state.page = 0; render(); }, 180); });
+  $('fClear').addEventListener('click', function () { $('fFrom').value = ''; $('fTo').value = ''; $('fRoute').value = ''; $('fText').value = ''; state.page = 0; render(); });
+  document.querySelectorAll('.tab').forEach(function (t) { t.addEventListener('click', function () { state.tab = t.dataset.tab; state.page = 0; renderTab(); }); });
+  var rw; window.addEventListener('resize', function () { clearTimeout(rw); rw = setTimeout(function () { if (!$('report').hidden) renderChart(current); }, 150); });
+  $('yearNote').textContent = Core.DEFAULT_YEAR;
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('downloads').then(function (d) { downloads = d; if (!$('report').hidden) $('exportBtn').hidden = !d; }).catch(function () {});
+  } else {
+    /* standalone (e.g. inside the SASA portal): normal browser download */
+    downloads = {
+      save: function (o) {
+        var url = URL.createObjectURL(o.data), a = document.createElement('a');
+        a.href = url; a.download = o.filename; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        return Promise.resolve({ status: 'saved' });
+      }
+    };
+  }
+
+  /* SASA: dark / light toggle (remembered in this browser) */
+  (function () {
+    var root = document.documentElement;
+    try { var saved = localStorage.getItem('sasa-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+    $('themeBtn').addEventListener('click', function () {
+      var cur = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var next = cur === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('sasa-theme', next); } catch (e) {}
+      if (!$('report').hidden) renderChart(current);
+    });
+  })();
+
+  /* SASA: floating particles */
+  (function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < 18; i++) {
+      var p = document.createElement('div'), size = Math.random() * 8 + 4;
+      p.className = 'particle';
+      p.style.width = p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.animationDuration = 10 + Math.random() * 10 + 's';
+      p.style.animationDelay = (-Math.random() * 12) + 's';
+      p.style.filter = 'blur(' + (2.4 - size / 6).toFixed(2) + 'px)';
+      p.style.opacity = (0.25 + size / 24).toFixed(2);
+      frag.appendChild(p);
+    }
+    document.body.insertBefore(frag, document.body.firstChild);
+  })();
+
+  /* SASA: pointer-tracked 3D tilt on every tile */
+  (function () {
+    var MAX_TILT = 9;
+    if (!window.matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var cur = null, rect = null, frame = null, pending = null;
+    function paint() {
+      frame = null;
+      if (!cur || !rect || !pending) return;
+      var px = (pending.clientX - rect.left) / rect.width, py = (pending.clientY - rect.top) / rect.height, s = cur.style;
+      s.setProperty('--ry', ((px - .5) * 2 * MAX_TILT).toFixed(2) + 'deg');
+      s.setProperty('--rx', ((.5 - py) * 2 * MAX_TILT).toFixed(2) + 'deg');
+      s.setProperty('--mx', (px * 100).toFixed(1) + '%');
+      s.setProperty('--my', (py * 100).toFixed(1) + '%');
+    }
+    function release(el) { if (!el) return; el.classList.remove('is-tilting'); el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); }
+    document.addEventListener('pointermove', function (e) {
+      var tile = e.target.closest ? e.target.closest('.tool-button') : null;
+      if (tile && tile.disabled) tile = null;
+      if (tile !== cur) { release(cur); cur = tile; if (cur) { rect = cur.getBoundingClientRect(); cur.classList.add('is-tilting'); } }
+      if (!cur) return;
+      pending = e;
+      if (!frame) frame = requestAnimationFrame(paint);
+    }, { passive: true });
+    window.addEventListener('scroll', function () { release(cur); cur = null; }, { passive: true });
+  })();
+
+  if (restore()) showReport(true);
+})();
+</script>
+</body></html>
