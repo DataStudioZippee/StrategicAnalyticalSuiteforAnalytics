@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tata 1MG SLA Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* Layout: matches the Zippee SDD EOD Dashboard — navy header bar, frosted main card, centered report tables with a title row and a SASA footer row */
+:root{
+  --primary-900:#003f8c; --primary-700:#0059b3; --title-band:#4ea6d8; --total-row:#d9edf7; --footer-row:#D3D3D3;
+  --cell-border:#808080; --glass-bg:rgba(255,255,255,0.16); --card-shadow:0 8px 30px rgba(0,0,0,0.25);
+  --good:#90EE90; --warn:#FFFF00; --bad:#FF7F7F; --ink:#000000; --text:#333333;
+  color-scheme:light;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",Arial,sans-serif}
+html{background:#3a5a9a}
+body{background:linear-gradient(135deg,#2b5876 0%,#4e4376 45%,#3a7bd5 100%) fixed #3a5a9a;min-height:100vh;color:var(--text);
+  padding-block:30px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0;background:rgba(255,255,255,.22);backdrop-filter:blur(7px);z-index:-1}
+.container{max-width:1500px;margin:auto}
+.header{background:linear-gradient(90deg,rgba(0,63,140,.88),rgba(0,89,179,.88));color:#fff;padding:20px 35px;border-radius:18px;
+  display:flex;justify-content:space-between;align-items:center;gap:14px;box-shadow:var(--card-shadow);margin-bottom:28px}
+.header h1{font-size:30px;font-weight:800}
+.header .tag{font-size:14px;font-weight:700;opacity:.9}
+.main-card{background:var(--glass-bg);backdrop-filter:blur(10px) saturate(120%);border-radius:22px;padding:30px;box-shadow:var(--card-shadow)}
+.upload-title{font-size:22px;font-weight:700;color:var(--primary-900);margin-bottom:16px}
+input[type=file]{width:100%;padding:16px;border-radius:14px;border:2px dashed #5b7cff;background:rgba(255,255,255,0.55);font-size:15px;cursor:pointer}
+input[type=file].over{background:rgba(255,255,255,.85);border-color:var(--primary-900)}
+.window-note{margin-top:10px;font-size:12px;font-weight:600;color:var(--primary-900);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:10px;display:inline-block;line-height:1.7}
+.status{margin-top:14px;padding:13px 16px;border-radius:12px;font-size:14px;font-weight:600;line-height:1.6;background:rgba(255,255,255,0.8);color:#333}
+.status.err{background:#ffe2e2;color:#9b1c1c}
+.status.ok{background:#e3f7e8;color:#14632b}
+.status.warn{background:#fff4d6;color:#8a5a00}
+.sheet-src{margin-top:12px;background:rgba(255,255,255,.7);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--primary-900)}
+.sheet-src summary{cursor:pointer;font-weight:700}
+.sheet-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.sheet-row input{flex:1 1 380px;min-width:0;padding:9px 12px;border-radius:10px;border:1px solid #9fb3d9;font-size:13px}
+.sheet-help{margin-top:8px;font-weight:600;line-height:1.6}
+.formula{margin-top:24px;background:rgba(255,255,255,0.72);padding:20px;border-radius:16px;line-height:1.9;box-shadow:0 6px 18px rgba(0,0,0,0.08);font-size:14px}
+.formula b{color:var(--primary-900)}
+.btn{background:var(--primary-900);color:#fff;border:none;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+.btn:hover{background:var(--primary-700)}
+.btn:focus-visible{outline:3px solid #5b7cff;outline-offset:2px}
+.btn[disabled]{opacity:.6;cursor:wait}
+.btn-sm{padding:9px 16px;font-size:13px}
+.btn-secondary{background:#e6ebf3;color:var(--primary-900)}
+.btn-secondary:hover{background:#d3dcea}
+.btn-icon{display:inline-flex;align-items:center;justify-content:center;padding:7px 12px}
+.btn-icon svg{display:block}
+.all-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px;margin:24px 0 15px}
+.store-head{margin-top:48px;padding:14px 22px;border-radius:14px;background:linear-gradient(90deg,rgba(0,63,140,.9),rgba(0,89,179,.9));
+  color:#fff;font-size:22px;font-weight:800;text-align:center;box-shadow:var(--card-shadow)}
+.store-head span{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:2px}
+.report-block{display:flex;flex-direction:column;align-items:center;margin-top:40px;min-width:0}
+.report-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.table-box{overflow:auto;max-width:100%;min-width:0}
+table.eod-table{border-collapse:collapse;background:#fff;width:auto;font-variant-numeric:tabular-nums;color:var(--ink)}
+.eod-table th,.eod-table td{min-width:56px;padding:4px 12px;line-height:1.35;border:1px solid var(--cell-border);text-align:center;font-size:14px;white-space:nowrap}
+.eod-table th{background:var(--primary-900);color:#fff;font-weight:700}
+.eod-table th.title{background:var(--title-band);color:#000;font-size:22px;font-weight:800;padding:8px 16px;white-space:normal;line-height:1.25}
+/* the title takes no width of its own, so every column is only as wide as its own text */
+.eod-table .title-in{width:0;min-width:100%}
+.eod-table .title-in .t2{display:block;font-size:16px;font-weight:700;margin-top:2px}
+.eod-table th.grp{background:#00336f;letter-spacing:.06em}
+.eod-table td.first{text-align:left}
+.eod-table td.key{font-weight:700}
+.eod-table tr.main td{font-weight:700}
+.eod-table tr.sub td.lab{padding-left:30px;font-weight:400}
+.eod-table tr.total td{background:var(--total-row);font-weight:700}
+.eod-table td.powered{background:var(--footer-row);font-weight:700;font-size:13px;letter-spacing:.5px;padding:6px 12px}
+.eod-table td.t-good{background:var(--good);font-weight:700}
+.eod-table td.t-warn{background:var(--warn);font-weight:700}
+.eod-table td.t-bad{background:var(--bad);font-weight:700}
+.eod-table td.zero{color:#8a8a8a}
+.footer{text-align:center;margin-top:28px;color:#fff;font-weight:700;font-size:13px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:#003f8c;color:#fff;
+  padding:11px 18px;border-radius:10px;font-size:14px;font-weight:600;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:var(--card-shadow)}
+#toast.show{opacity:1}
+@media(max-width:768px){.header{flex-direction:column;text-align:center;padding:18px}.header h1{font-size:24px}.main-card{padding:18px}.all-actions{justify-content:center}.store-head{font-size:19px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="container">
+  <div class="header">
+    <h1>Zippee – Tata 1MG SLA Dashboard</h1>
+    <div class="tag" id="storeTag">Stores from the store list sheet</div>
+  </div>
+
+  <div class="main-card">
+    <div class="upload-title">Upload Detailed Report CSV</div>
+    <input type="file" id="fileInput" accept=".csv,text/csv" aria-label="Upload Detailed Report CSV">
+    <div class="window-note">Upload the <b>Detailed Report</b> export (Warehouse Name, Current Status, Creation Time, Marketplace Order Date, Ideal Delivery End,
+      Reached Delivery At, Delivery Pincode, Delivery Lat/Lng, Rider User ID). Orders are split by store using Warehouse Name. The file is read in this browser and is not uploaded anywhere.</div>
+
+    <div class="status" id="dataStatus">No file loaded yet. Upload the Detailed Report CSV to build the reports.</div>
+    <div class="status" id="pinStatus" hidden></div>
+    <div class="status err" id="errStatus" hidden></div>
+    <div class="status" id="storeStatus">Loading the store list from Google Sheets&hellip;</div>
+    <details class="sheet-src">
+      <summary>Store list sheet and road distance links</summary>
+      <div class="sheet-row">
+        <input type="url" id="sheetUrl" aria-label="Published CSV link of the store list sheet" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?gid=…&amp;single=true&amp;output=csv">
+        <button class="btn btn-sm" id="sheetSave" type="button">Save and reload</button>
+        <button class="btn btn-sm btn-secondary" id="sheetReload" type="button">Reload store list</button>
+      </div>
+      <div class="sheet-help">Paste the link from Google Sheets → File → Share → Publish to the web → the store list tab → Comma-separated values (.csv). The link is saved in this browser.</div>
+      <div class="sheet-row">
+        <input type="url" id="roadUrl" aria-label="Road distance web app link" placeholder="https://script.google.com/macros/s/…/exec">
+        <button class="btn btn-sm" id="roadSave" type="button">Save road distance link</button>
+      </div>
+      <div class="sheet-help">Road distance: paste the Web app link (ending in /exec) from Apps Script → Deploy → Manage deployments. The dashboard already has the Zippee link built in; paste a link here only to use a different one (saved in this browser). Click Save with the box empty to go back to the built-in link.</div>
+    </details>
+
+    <div class="formula">
+      <b>Metrics Logic:</b><br>
+      <b>Stores and reports</b> = from the store list Google Sheet. Each column is one store: <b>Darkstore</b> is matched to Warehouse Name in the file, <b>Rename</b> is the name used in the reports, and each report row says <b>Yes</b> or <b>No</b> for that store. The sheet is read again every time you upload a file.<br>
+      <b>Slot</b> = Ideal Delivery End − Marketplace Order Date. Up to 50 minutes is a <b>45 Min</b> order, more than 50 minutes is a <b>60 Min</b> order.<br>
+      <b>Time Taken</b> = Reached Delivery At − Marketplace Order Date. <b>Breach</b> = Time Taken is more than 45 minutes for a 45 Min order, or more than 60 minutes for a 60 Min order.<br>
+      <b>Long Tail</b> = Time Taken is more than 2× the slot: more than 90 minutes for a 45 Min order, or more than 120 minutes for a 60 Min order. Long Tail orders are also breaches, so <b>Total Breach</b> includes them. <b>Breach%</b> = Total Breach ÷ the slot's delivered orders, and <b>Long Tail %</b> = Long Tail ÷ the slot's delivered orders.<br>
+      <b>Total Orders</b> counts every order. The slot groups in the KPI report count delivered orders only, so their total is the Delivered number.<br>
+      <b>Hour</b> = hour of Creation Time. <b>Order Distance</b> = road km by the shortest driving route from the order's own store (Google Maps, through the Apps Script web app), grouped &lt;3, 3–5 and &gt;5. Distances already found are remembered in this browser, so only new locations are looked up. If a road distance can't be found, straight-line km is used for that order and the status box says how many. In the hourly report, &lt;3 turns <b>green</b> when it is higher than 3–5, and 3–5 turns <b>yellow</b> when it is higher than &lt;3.<br>
+      <b>Riders</b> = unique Rider User IDs in the hour. <b>Idle Riders</b> = riders who took orders before and after that hour but none in it.<br>
+      <b>Breach Orders Report</b> = every delivered order that breached, with its Zippee AWB, slot and minutes late, listed by creation time. Long Tail orders are marked in red. The <b>copy icon</b> copies the header and order rows as plain cells (only the Delay colours are kept) so you can paste them straight into Excel.<br>
+      <b>Pincode Breach Report</b> = breached orders by hour and Delivery Pincode. Malad splits pincodes into West and East, and any pincode not in the usual list is added to <b>West</b> automatically. Other stores show every pincode they delivered to in the file.<br>
+      <b>Hours shown</b> = for today's file, from 07:00 up to the hour the report is made (the time is in each report heading). For an older file, the full day up to 22:00.
+    </div>
+
+    <div class="all-actions" id="allActions" hidden>
+      <button class="btn" id="allPng" type="button">Download All PNG</button>
+      <button class="btn btn-secondary" id="allXlsx" type="button">Download All Excel</button>
+    </div>
+
+    <div id="reports"></div>
+  </div>
+
+  <div class="footer">Powered by SASA Automation | Harshit Saini – Data Analyst, Zippee</div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+/* Store list: read from the published "Tata 1mg" tab of the SDD Brand EOD sheet.
+   Row "Darkstore" = Warehouse Name, row "Rename" = name in the reports, one row per report with Yes / No, one column per store. */
+const SHEET_URL_DEFAULT="https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0iMEN2NXUcFO1w5NpZ8-UvoaKSWsC9kLAb95lBsgG3VchCyzBSaIB4XT4BHUCVsXapsL3vIz-MegJ/pub?gid=836957642&single=true&output=csv";
+/* Report rows in the sheet, matched on their text (checked in this order) */
+const REPORTS=[
+  {key:"pin",    match:/PINCODE/i},
+  {key:"hourly", match:/HOURLY/i},
+  {key:"breach", match:/BREACH\s*ORDERS/i},
+  {key:"kpi",    match:/REPORT/i}
+];
+/* Backup store locations (for order distance) and Malad's West / East pincode lists, keyed by Warehouse Name.
+   The sheet's "Latitude" and "Longitude" rows take priority; these match the sheet as of 23/11/2026.
+   A store with no location gets no distance groups. */
+const STORE_EXTRA={
+  ZD1MGMALAD:      {lat:19.1894167966443,lng:72.8387353346888,
+                    zones:{West:["400067","400064","400104","400095","400062","400091"],East:["400097","400092","400101","400063"]}},
+  ZD1MGROHTASNAGAR:{lat:28.6828,lng:77.2843},
+  ZD1MGDWARKA:     {lat:28.6065,lng:77.0296}
+};
+/* Used only when the sheet can't be read and this browser has no saved copy of it (same as the sheet on 23/11/2026) */
+const DEFAULT_SHEET=[["Darkstore","ZD 1MG Malad","ZD 1MG Rohtas Nagar","ZD 1MG Dwarka"],["Rename","Malad","Rohtas Nagar","Dwarka"],
+  ["ZIPPEE <> TATA 1MG REPORT","Yes","Yes","Yes"],["ZIPPEE <> TATA 1MG HOURLY ORDER WISE REPORT","Yes","Yes","Yes"],
+  ["ZIPPEE <> TATA 1MG HOURLY BREACH PINCODE WISE REPORT","Yes","No","No"],["ZIPPEE <> TATA 1MG BREACH ORDERS","Yes","Yes","Yes"],
+  ["Latitude","19.1894167966443","28.6828","28.6065"],["Longitude","72.8387353346888","77.2843","77.0296"]];
+let STORES=[];
+/* Slot groups from Ideal Delivery End − Marketplace Order Date (minutes): up to 50 → 45 Min order, more than 50 → 60 Min order.
+   Each group is measured against its own SLA: breach after sla minutes, Long Tail after sla × LT_MULT minutes. */
+const SLOTS=[
+  {key:"45 Min",label:"45 Min Orders",max:50,      sla:45},
+  {key:"60 Min",label:"60 Min Orders",max:Infinity,sla:60}
+];
+const slotOf=win=>win==null?null:SLOTS.find(s=>win<=s.max);
+const LT_MULT=2;     // Long Tail = Time Taken more than 2× the SLA (45 Min → 90 min, 60 Min → 120 min)
+const LT="Long Tail",NOT_LT="Not Long Tail";
+const STATUS_ROWS=["RTO","READY","DELIVERY_ATTEMPTED","PICKUP_COMPLETED","OUT_FOR_DELIVERY"];
+const REQUIRED=["Shipment Type","Current Status","Creation Date","Creation Time","Marketplace Order Date","Ideal Delivery End","Reached Delivery At","Delivery Pincode","Delivery Lat","Delivery Lng","Rider User ID"];
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad2=n=>String(n).padStart(2,"0");
+const hhmm=m=>{m=((Math.round(m)%1440)+1440)%1440;return pad2(Math.floor(m/60))+":"+pad2(m%60)};
+function setStatus(id,html,cls){const el=$(id);el.className="status"+(cls?" "+cls:"");el.innerHTML=html;el.hidden=!html;}
+/* Warehouse Name → store: exact match on the sheet's Darkstore name (ignoring spaces and symbols),
+   else a Warehouse Name that contains the store's Rename (e.g. "Tata 1MG - MALAD - MUMBAI" → Malad). Otherwise no store. */
+const normWh=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,"");
+function storeOf(wh){
+  if(!wh) return null;
+  const n=normWh(wh);
+  return STORES.find(s=>s.norm===n) || STORES.find(s=>s.nameNorm.length>3&&n.includes(s.nameNorm)) || null;
+}
+/* Store list sheet (rows from parseCSV) → STORES */
+function storesFromSheet(rows){
+  const lab=r=>String(r[0]||"").trim();
+  const find=re=>rows.find(r=>re.test(lab(r)));
+  const dk=find(/^dark\s*store$/i);
+  if(!dk) throw new Error("the sheet has no Darkstore row");
+  const rn=find(/^rename$/i),la=find(/^lat(itude)?$/i),lo=find(/^(lng|lon|long|longitude)$/i);
+  const repRows=rows.filter(r=>r!==dk&&r!==rn&&r!==la&&r!==lo&&lab(r)).map(r=>({r,rep:REPORTS.find(x=>x.match.test(lab(r)))})).filter(x=>x.rep);
+  const out=[];
+  for(let j=1;j<dk.length;j++){
+    const wh=String(dk[j]||"").trim(); if(!wh) continue;
+    const name=(rn&&String(rn[j]||"").trim())||wh, norm=normWh(wh), ex=STORE_EXTRA[norm]||{};
+    const reports={kpi:true,hourly:true,pin:true,breach:true};        // a report row missing from the sheet counts as Yes
+    repRows.forEach(({r,rep})=>{reports[rep.key]=/^\s*(yes|y|true|1)\s*$/i.test(String(r[j]||""));});
+    const lat=la&&parseFloat(la[j]),lng=lo&&parseFloat(lo[j]);
+    out.push({key:norm.toLowerCase(),wh,norm,name,nameNorm:normWh(name),file:name.replace(/[^A-Za-z0-9]/g,"")||norm,
+      lat:isFinite(lat)?lat:ex.lat,lng:isFinite(lng)?lng:ex.lng,zones:ex.zones||null,reports});
+  }
+  if(!out.length) throw new Error("the Darkstore row has no store names");
+  return out;
+}
+const LS={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}}};
+const sheetUrl=()=>LS.get("tata1mg:sheetUrl")||SHEET_URL_DEFAULT;
+/* Road distance: the Apps Script web app (Deploy → Web app, Execute as Me, Anyone). Paste its /exec link here to give it to everyone who opens this file,
+   or save it from the page (kept in that browser only). ROAD_TOKEN must match TOKEN in the Apps Script. */
+const ROAD_URL_DEFAULT="https://script.google.com/macros/s/AKfycbwmYJajYXqXGpC3aDw44F2WJ8By2-azbiLmFpbJKEbxnbbmsnnf4M338c8wA-TNg2EH/exec";
+const ROAD_TOKEN="tata1mg-road";
+const ROAD_BATCH=40,ROAD_PARALLEL=2,ROAD_CACHE_MAX=30000;
+const roadUrl=()=>LS.get("tata1mg:roadUrl")||ROAD_URL_DEFAULT;
+const repCount=s=>Object.values(s.reports).filter(Boolean).length;
+/* Read the sheet fresh (so a change in the sheet shows up on the next upload). Falls back to the last copy read in this browser, then to the built-in list. */
+async function loadStores(){
+  let rows,from="sheet",why="";
+  try{
+    const u=sheetUrl(),res=await fetch(u+(u.includes("?")?"&":"?")+"_="+Date.now(),{cache:"no-store"});
+    if(!res.ok) throw new Error("the sheet link returned error "+res.status);
+    const text=await res.text();
+    if(/^\s*</.test(text)) throw new Error("the link didn't return CSV. Use the Publish to the web link with Comma-separated values");
+    rows=parseCSV(text);storesFromSheet(rows);LS.set("tata1mg:sheetRows",JSON.stringify(rows));
+  }catch(e){
+    why=e.message||String(e);
+    const saved=LS.get("tata1mg:sheetRows");
+    try{rows=JSON.parse(saved);storesFromSheet(rows);from="saved";}catch(e2){rows=DEFAULT_SHEET;from="default";}
+  }
+  STORES=storesFromSheet(rows);
+  const list=STORES.map(s=>esc(s.name)+" ("+repCount(s)+" report"+(repCount(s)===1?"":"s")+")").join(" | ");
+  $("storeTag").textContent=STORES.map(s=>s.name).join(" & ")+" stores";
+  if(from==="sheet") setStatus("storeStatus","Store list loaded from Google Sheets: "+list,"ok");
+  else setStatus("storeStatus","<b>Couldn't read the store list sheet</b> ("+esc(why)+"). Using "+
+    (from==="saved"?"the last copy read in this browser":"the built-in store list")+": "+list+". Check the link under Store list sheet link.","warn");
+  const noLoc=STORES.filter(s=>!isFinite(s.lat)||!isFinite(s.lng));
+  if(noLoc.length) $("storeStatus").innerHTML+="<br>No store location for <b>"+esc(noLoc.map(s=>s.name).join(", "))+"</b>, so its orders get no distance group. Add Latitude and Longitude rows to the sheet.";
+  return STORES;
+}
+
+/* ---------- parsing ---------- */
+function parseCSV(text){
+  text=text.replace(/^\uFEFF/,"");
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){row.push(f);f="";}
+    else if(c==="\n"){row.push(f);rows.push(row);row=[];f="";}
+    else if(c!=="\r") f+=c;
+  }
+  if(f!==""||row.length){row.push(f);rows.push(row);}
+  return rows.filter(r=>r.some(x=>x.trim()!==""));
+}
+function parseTime(s){
+  s=(s||"").trim(); if(!s) return null;
+  const parts=s.split(/\s+/);
+  const t=parts.length>1&&/\d[\/-]/.test(parts[0])?parts.slice(1).join(" "):s;
+  const m=t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]m)?$/i); if(!m) return null;
+  let h=+m[1]; const ap=(m[4]||"").toLowerCase();
+  if(ap==="pm"&&h<12) h+=12; if(ap==="am"&&h===12) h=0;
+  return h*60+ +m[2]+(m[3]?+m[3]/60:0);
+}
+/* full date-time → minutes since epoch (local time read as UTC, so % 1440 gives the local time of day) */
+function parseDT(s){
+  s=(s||"").trim(); if(!s) return null; let m,y,mo,d,rest;
+  if((m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/))){d=+m[1];mo=+m[2];y=+m[3];rest=m[4];}
+  else if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/))){y=+m[1];mo=+m[2];d=+m[3];rest=m[4];}
+  else return null;
+  const t=parseTime(rest.replace(/^[ T]+/,"").replace(/\.\d+/,"").replace(/Z$/i,""));
+  return Date.UTC(y,mo-1,d)/60000+(t||0);
+}
+/* Reached Delivery At: full date-time, or a bare time placed on the order's day (next day if it would land before the order) */
+function parseReached(s,mk){
+  s=(s||"").trim(); if(!s) return null;
+  if(/^(\d{1,2}[\/-]\d{1,2}[\/-]\d{4}|\d{4}-\d{2}-\d{2})/.test(s)) return parseDT(s);
+  const t=parseTime(s); if(t==null||mk==null) return null;
+  let v=Math.floor(mk/1440)*1440+t;
+  if(v<mk-60) v+=1440;
+  return v;
+}
+function distKm(lat,lng,store){
+  if(!store||!isFinite(lat)||!isFinite(lng)||!isFinite(store.lat)||!isFinite(store.lng)) return null;
+  const r=x=>x*Math.PI/180;
+  let c=Math.cos(r(lat))*Math.cos(r(store.lat))*Math.cos(r(lng)-r(store.lng))+Math.sin(r(lat))*Math.sin(r(store.lat));
+  c=Math.max(-1,Math.min(1,c));
+  return Math.round(6371*Math.acos(c)*100)/100;
+}
+
+/* ---------- calculated columns, per order ---------- */
+function computeOrders(rows){
+  const hdr=rows[0].map(h=>h.replace(/^\uFEFF/,"").trim().toLowerCase());
+  const idx={}; hdr.forEach((h,i)=>{if(!(h in idx)) idx[h]=i;});
+  const missing=REQUIRED.filter(c=>!(c.toLowerCase() in idx));
+  if(missing.length) throw new Error("This file is missing these columns: "+missing.join(", ")+". Upload the Detailed Report CSV.");
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]; const g=c=>{const k=c.toLowerCase();return(k in idx&&r[idx[k]]!=null)?String(r[idx[k]]).trim():"";};
+    const T=parseTime(g("Creation Time"));
+    const mk=parseDT(g("Marketplace Order Date")),end=parseDT(g("Ideal Delivery End"));
+    const win=(mk!=null&&end!=null)?Math.round((end-mk)*1000)/1000:null;
+    const Y=parseTime(g("Actual Delivery Time"));
+    const wh=g("Warehouse Name"),st=storeOf(wh);
+    const o={awb:g("Zippee AWB"),orderNo:g("Order Number"),ship:g("Shipment Type").toUpperCase(),status:g("Current Status").toUpperCase(),
+      date:g("Creation Date"),wh,store:st?st.key:null,storeName:st?st.name:"",T,Y,win,hour:T==null?null:Math.floor(T/60),type:slotOf(win)?slotOf(win).key:null,
+      pin:(g("Delivery Pincode").match(/\d{6}/)||[g("Delivery Pincode")])[0],rider:g("Rider User ID"),riderName:g("Rider Name"),
+      reached:null,tat:null,late:null,sla:null,ltAt:null,breach:null,lt:null};
+    if(mk!=null&&win!=null){
+      const slaMin=slotOf(win).sla;                 // 45 or 60
+      const ltMin=slaMin*LT_MULT;                   // 90 or 120
+      o.sla=mk+slaMin; o.ltAt=mk+ltMin;             // SLA time and Long Tail time
+      o.reached=parseReached(g("Reached Delivery At"),mk);
+      if(o.reached!=null){
+        o.tat=Math.round((o.reached-mk)*100)/100;   // Reached Delivery At − Marketplace Order Date
+        o.late=Math.round((o.tat-slaMin)*100)/100;  // minutes past the SLA (negative = early)
+        o.breach=o.tat<=slaMin?"Not Breach":"Breach";
+        o.lt=o.tat<=ltMin?NOT_LT:LT;
+      }
+    }
+    o.dlat=parseFloat(g("Delivery Lat"));o.dlng=parseFloat(g("Delivery Lng"));
+    o.straight=distKm(o.dlat,o.dlng,st);                       // straight line from the order's own store (fallback)
+    o.dist=o.straight;o.distSrc=o.straight==null?"":"Straight line";   // replaced by road km in addRoadDistances
+    out.push(o);
+  }
+  return out;
+}
+
+/* ---------- road distance through the Apps Script web app ---------- */
+const setDistSlot=o=>{o.slot=o.dist==null?null:(o.dist<3?"<3":o.dist<5?">3<5":">5");};
+/* key = store location + delivery location (5 decimals ≈ 1 m), so a moved store gets fresh distances */
+const roadKey=(s,o)=>s.lat.toFixed(4)+","+s.lng.toFixed(4)+">"+o.dlat.toFixed(5)+","+o.dlng.toFixed(5);
+function roadCache(){try{return JSON.parse(LS.get("tata1mg:roadKm")||"{}")||{};}catch(e){return{};}}
+function saveRoadCache(c){
+  const k=Object.keys(c);
+  if(k.length>ROAD_CACHE_MAX) k.slice(0,k.length-ROAD_CACHE_MAX).forEach(x=>delete c[x]);   // drop the oldest
+  LS.set("tata1mg:roadKm",JSON.stringify(c));
+}
+/* Looks up road km for every order with a store and delivery location. Distances found before come from this browser's memory;
+   new ones are sent to the web app in batches. Orders without a road distance keep the straight-line km. */
+async function addRoadDistances(orders,onProgress){
+  const url=roadUrl(),todo=orders.filter(o=>o.straight!=null);
+  if(!url||!todo.length) return{road:0,failed:0,off:!url,err:""};
+  const cache=roadCache(),need=new Map();
+  todo.forEach(o=>{const s=STORES.find(x=>x.key===o.store);o.rk=roadKey(s,o);
+    if(!(o.rk in cache)&&!need.has(o.rk)) need.set(o.rk,[s.lat,s.lng,o.dlat,o.dlng]);});
+  const keys=[...need.keys()],batches=[];
+  for(let i=0;i<keys.length;i+=ROAD_BATCH) batches.push(keys.slice(i,i+ROAD_BATCH));
+  let next=0,done=0,err="";
+  if(keys.length&&onProgress) onProgress(0,keys.length);
+  async function worker(){
+    while(next<batches.length&&!err){
+      const b=batches[next++];
+      try{
+        const res=await fetch(url,{method:"POST",body:JSON.stringify({token:ROAD_TOKEN,pairs:b.map(k=>need.get(k))})});
+        if(!res.ok) throw new Error("the road distance link returned error "+res.status);
+        let j;try{j=JSON.parse(await res.text());}
+        catch(e){throw new Error("the road distance link didn't return distances. Use the Web app link ending in /exec, with access set to Anyone");}
+        if(Array.isArray(j.km)) b.forEach((k,i)=>{const v=j.km[i];if(typeof v==="number"&&isFinite(v)) cache[k]=v;});
+        if(j.error) throw new Error(j.error);
+      }catch(e){err=e.message||String(e);}
+      done+=b.length;if(onProgress) onProgress(Math.min(done,keys.length),keys.length);
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(ROAD_PARALLEL,batches.length)},worker));
+  if(keys.length) saveRoadCache(cache);
+  let road=0;
+  todo.forEach(o=>{if(o.rk in cache){o.dist=cache[o.rk];o.distSrc="Road";road++;}});
+  return{road,failed:todo.length-road,off:false,err};
+}
+
+/* ---------- report models (screen, PNG and Excel all use these) ---------- */
+const C=(v,o={})=>Object.assign({v,text:v==null?"":(o.fmt==="pct"?(v*100).toFixed(1)+"%":String(v))},o);
+const tag=s=>" | "+s.name.toUpperCase()+" | ";
+function kpiModel(orders,meta,s){
+  const del=orders.filter(o=>o.status==="DELIVERED");
+  const fwd=orders.filter(o=>o.ship==="FORWARD").length;
+  const grp=t=>{const g=del.filter(o=>o.type===t);
+    const br=g.filter(o=>o.breach==="Breach").length;   // every order past the SLA, Long Tail included
+    const lt=g.filter(o=>o.lt===LT).length;              // past 2× the SLA
+    return{n:g.length,nb:g.filter(o=>o.breach==="Not Breach").length,br,lt,
+      brPct:g.length?br/g.length:0,ltPct:g.length?lt/g.length:0};};
+  const tone=(k,v)=>v>0?k:null,rows=[];
+  const add=(no,label,v,o={})=>rows.push({kind:Number.isInteger(+no)?"main":"sub",cells:[C(no),C(label,{cls:"lab"}),C(v,o)]});
+  add("1","Total Orders",fwd);add("2","Delivered",del.length);add("2.1","Delivery %",fwd?del.length/fwd:0,{fmt:"pct"});
+  SLOTS.forEach((sl,i)=>{
+    const n=String(3+i),g=grp(sl.key);
+    add(n,sl.label,g.n);
+    add(n+".1","No breach",g.nb,{tone:tone("good",g.nb)});
+    add(n+".2","Total Breach",g.br,{tone:tone("warn",g.br)});
+    add(n+".3","Breach%",g.brPct,{fmt:"pct",tone:tone("warn",g.brPct)});
+    add(n+".4","Long Tail",g.lt,{tone:tone("bad",g.lt)});
+    add(n+".5","Long Tail %",g.ltPct,{fmt:"pct",tone:tone("bad",g.ltPct)});
+  });
+  const extra=[...new Set(orders.map(o=>o.status))].filter(x=>x&&x!=="DELIVERED"&&!STATUS_ROWS.includes(x)).sort();
+  [...STATUS_ROWS,...extra].forEach((x,i)=>add(String(3+SLOTS.length+i),x,orders.filter(o=>o.status===x).length));
+  return{id:s.key+"-kpi",file:"KPI",label:"KPI",sheet:s.name+" KPI",title:"ZIPPEE <> TATA 1MG REPORT"+tag(s)+meta.dateLabel+" | "+meta.timeLabel,subtitle:s.name+" store",
+    groups:null,head:["S. No","KPI",s.name],align:["c","l","c"],colW:[64,290,120],rows};
+}
+function hourRange(orders,meta){const hs=orders.map(o=>o.hour).filter(h=>h!=null);const end=Math.max(meta.endHour,...hs);return[Math.min(7,end,...hs),end];}
+function hourlyModel(orders,meta,s){
+  const[h0,h1]=hourRange(orders,meta);const first={},last={},byHour={};
+  orders.forEach(o=>{if(o.hour==null||!o.rider) return;
+    first[o.rider]=Math.min(first[o.rider]??99,o.hour);last[o.rider]=Math.max(last[o.rider]??-1,o.hour);
+    (byHour[o.hour]=byHour[o.hour]||new Set()).add(o.rider);});
+  const riders=Object.keys(first),rows=[],tot=[0,0,0,0,0,0,0];
+  for(let h=h0;h<=h1;h++){
+    const hs=orders.filter(o=>o.hour===h),sd=hs.filter(o=>o.status==="DELIVERED");
+    const v=[hs.filter(o=>o.ship==="FORWARD").length,sd.filter(o=>o.breach==="Breach").length,sd.filter(o=>o.breach==="Not Breach").length,
+      hs.filter(o=>o.lt===LT).length,hs.filter(o=>o.slot==="<3").length,hs.filter(o=>o.slot===">3<5").length,hs.filter(o=>o.slot===">5").length];
+    v.forEach((x,i)=>tot[i]+=x);
+    const act=byHour[h]?byHour[h].size:0;
+    const idle=riders.filter(r=>first[r]<=h&&last[r]>=h&&!(byHour[h]&&byHour[h].has(r))).length;
+    rows.push({kind:"row",cells:[C(pad2(h)+":00"),C(v[0]),C(v[1],{tone:v[1]?"warn":null}),C(v[2]),C(v[3],{tone:v[3]?"bad":null}),C(v[4],{tone:v[4]>v[5]?"good":null}),C(v[5],{tone:v[5]>v[4]?"warn":null}),C(v[6]),C(act),C(idle,{tone:idle?"warn":null})]});
+  }
+  rows.push({kind:"total",cells:[C("Total"),...tot.map(x=>C(x)),C(riders.length),C("–")]});
+  return{id:s.key+"-hourly",file:"Hourly",label:"Hourly",sheet:s.name+" Hourly",title:"ZIPPEE <> TATA 1MG HOURLY ORDER WISE REPORT"+tag(s)+meta.dateLabel+" | "+meta.timeLabel,subtitle:"By order creation hour",
+    groups:[{label:"",span:5},{label:"Order Distance (km)",span:3},{label:"Riders",span:2}],
+    head:["Hour","Orders","Breach","Non Breach","Long Tail","<3","3–5",">5","Riders","Idle Riders"],
+    align:["c","c","c","c","c","c","c","c","c","c"],colW:[84,76,76,98,92,64,64,64,72,96],rows};
+}
+function pinModel(orders,meta,s){
+  const[h0,h1]=hourRange(orders,meta);
+  const valid=[...new Set(orders.map(o=>o.pin).filter(p=>/^\d{6}$/.test(p)))].sort();
+  let pins,extra=[],groups;
+  if(s.zones){                                   // Malad: fixed West / East lists, new pincodes go into West automatically
+    const W=s.zones.West,E=s.zones.East;
+    extra=valid.filter(p=>!W.includes(p)&&!E.includes(p));
+    const west=[...W,...extra];pins=[...west,...E];
+    groups=[{label:"",span:1},{label:"West",span:west.length},{label:"East",span:E.length},{label:"",span:1}];
+  } else {                                       // other stores: every pincode the store delivered to in this file
+    pins=valid;
+    groups=[{label:"",span:1},{label:"Delivery Pincode",span:pins.length},{label:"",span:1}];
+  }
+  const br=orders.filter(o=>o.breach==="Breach");
+  let max=0;const grid=[];
+  for(let h=h0;h<=h1;h++){const r=pins.map(p=>br.filter(o=>o.hour===h&&o.pin===p).length);grid.push(r);r.forEach(x=>max=Math.max(max,x));}
+  const heat=x=>x?{heat:max?x/max:0}:{cls:"zero"};
+  const rows=grid.map((r,i)=>({kind:"row",cells:[C(pad2(h0+i)+":00"),...r.map(x=>C(x,heat(x))),C(r.reduce((a,b)=>a+b,0))]}));
+  const colTot=pins.map((p,j)=>grid.reduce((a,r)=>a+r[j],0));
+  rows.push({kind:"total",cells:[C("Total"),...colTot.map(x=>C(x)),C(colTot.reduce((a,b)=>a+b,0))]});
+  return{id:s.key+"-pin",file:"Pincode_Breach",label:"Pincode",sheet:s.name+" Pincode Breach",title:"ZIPPEE <> TATA 1MG HOURLY BREACH PINCODE WISE REPORT"+tag(s)+meta.dateLabel+" | "+meta.timeLabel,
+    subtitle:"Breached orders by creation hour and delivery pincode",newPins:extra,
+    groups,head:["Hour",...pins,"Total"],align:["c"].concat(pins.map(()=>"c"),["c"]),colW:[84,...pins.map(()=>74),70],rows};
+}
+function breachModel(orders,meta,s){
+  const list=orders.filter(o=>o.status==="DELIVERED"&&o.breach==="Breach").sort((a,b)=>(a.T??1e9)-(b.T??1e9));
+  const head=["S. No","Zippee AWB","Slot","Slot (min)","Creation Time","Time Taken (min)","Late By (min)","Delay","Delivery Pincode","Rider Name"];
+  const blank=n=>Array.from({length:n},()=>C(""));
+  const rows=list.map((o,i)=>({kind:"row",cells:[C(String(i+1)),C(o.awb||"–"),C(o.type||""),C(o.win==null?"":Math.round(o.win)),C(o.T==null?"":hhmm(o.T)),
+    C(o.tat==null?"":Math.round(o.tat)),C(o.late==null?"":Math.round(o.late)),C(o.lt===LT?LT:"Breach",{tone:o.lt===LT?"bad":"warn"}),C(o.pin),C(o.riderName||o.rider)]}));
+  if(!rows.length) rows.push({kind:"row",cells:[C("–"),C("No breached orders"),...blank(8)]});
+  rows.push({kind:"total",cells:[C("Total"),C(list.length+" order(s)"),...blank(5),C(list.filter(o=>o.lt===LT).length+" Long Tail"),...blank(2)]});
+  return{id:s.key+"-breach",file:"Breach_Orders",label:"Breach Orders",sheet:s.name+" Breach Orders",title:"ZIPPEE <> TATA 1MG BREACH ORDERS"+tag(s)+meta.dateLabel+" | "+meta.timeLabel,
+    subtitle:"Delivered orders that breached SLA",groups:null,copy:list.length>0,head,align:["c","l","c","c","c","c","c","c","c","l"],colW:[64,190,90,84,104,124,104,110,124,170],rows};
+}
+function ordersModel(orders){
+  const head=["Zippee AWB","Order Number","Store","Current Status","Creation Date","Creation Time","Hour","Slot (min)","Slot Group","SLA Time","Long Tail Time","Reached Delivery At","Time Taken (min)","Late By (min)","Actual Delivery Time","Breach/Met","Long Tail","Distance (km)","Distance Source","Straight Line (km)","D. Slot","Store Lat","Store Lng","Delivery Lat","Delivery Lng","Check Route","Delivery Pincode","Rider User ID","Rider Name"];
+  const ll=v=>isFinite(v)?v:"";
+  const rows=orders.map(o=>{const s=STORES.find(x=>x.key===o.store),ok=s&&isFinite(s.lat)&&isFinite(o.dlat)&&isFinite(o.dlng);
+    const maps=ok?{f:'HYPERLINK("https://www.google.com/maps/dir/'+s.lat+','+s.lng+'/'+o.dlat+','+o.dlng+'/data=!4m2!4m1!3e0","Open in Maps")',text:"Open in Maps"}:"";
+    return{kind:"row",cells:[o.awb,o.orderNo,o.storeName||o.wh,o.status,o.date,o.T==null?"":hhmm(o.T),o.hour,o.win,o.type||"",o.sla==null?"":hhmm(o.sla),o.ltAt==null?"":hhmm(o.ltAt),o.reached==null?"":hhmm(o.reached),o.tat,o.late,o.Y==null?"":hhmm(o.Y),o.breach||"",o.lt||"",o.dist,o.distSrc,o.straight,o.slot||"",s?ll(s.lat):"",s?ll(s.lng):"",ll(o.dlat),ll(o.dlng),maps,o.pin,o.rider,o.riderName].map(v=>C(v))};});
+  return{sheet:"Order Data",title:"Order data with calculated columns",subtitle:"",groups:null,head,rows,colW:head.map((h,i)=>i<2?150:110)};
+}
+/* Reports per store, in this order, each only if the sheet says Yes for that store */
+function storeModels(orders,meta,s){
+  const ms=[],r=s.reports;
+  if(r.kpi) ms.push(kpiModel(orders,meta,s));
+  if(r.hourly) ms.push(hourlyModel(orders,meta,s));
+  if(r.pin) ms.push(pinModel(orders,meta,s));
+  if(r.breach) ms.push(breachModel(orders,meta,s));
+  ms.forEach(m=>{m.store=s;});
+  return ms;
+}
+
+/* ---------- screen tables in the SDD EOD style ---------- */
+function tableHTML(m){
+  const n=m.head.length;
+  const cut=m.title.indexOf(" | "),t1=cut<0?m.title:m.title.slice(0,cut),t2=cut<0?"":m.title.slice(cut+3);
+  let h='<table class="eod-table" id="tbl-'+m.id+'"><tr><th colspan="'+n+'" class="title"><div class="title-in">'+esc(t1)+(t2?'<span class="t2">'+esc(t2)+"</span>":"")+"</div></th></tr>";
+  if(m.groups){
+    let r1="<tr>",r2="<tr>",ci=0;
+    m.groups.forEach(g=>{
+      if(g.label){r1+='<th colspan="'+g.span+'" class="grp">'+esc(g.label)+"</th>";for(let k=0;k<g.span;k++) r2+="<th>"+esc(m.head[ci+k])+"</th>";}
+      else for(let k=0;k<g.span;k++) r1+='<th rowspan="2">'+esc(m.head[ci+k])+"</th>";
+      ci+=g.span;});
+    h+=r1+"</tr>"+r2+"</tr>";
+  } else h+="<tr>"+m.head.map(x=>"<th>"+esc(x)+"</th>").join("")+"</tr>";
+  m.rows.forEach(r=>{
+    h+='<tr class="'+r.kind+'">';
+    r.cells.forEach((c,i)=>{
+      const cls=[m.align[i]==="l"?"first":"",i===0?"key":"",c.cls||"",c.tone?"t-"+c.tone:""].filter(Boolean).join(" ");
+      const st=c.heat!=null?' style="background:rgba(255,90,90,'+(0.25+0.6*c.heat).toFixed(2)+');font-weight:700"':"";
+      h+='<td class="'+cls+'"'+st+">"+esc(c.text)+"</td>";
+    });
+    h+="</tr>";
+  });
+  return h+'<tr><td colspan="'+n+'" class="powered">Powered by SASA Automation | Zippee</td></tr></table>';
+}
+const COPY_ICON='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">'+
+  '<path d="M8 3h7l4 4v11H8z"/><path d="M15 3v4h4"/><path d="M5 7v14h11"/><path d="M11 11h5M11 14h5M11 17h3"/></svg>';
+function blockHTML(m){
+  return '<div class="report-block" id="blk-'+m.id+'"><div class="report-actions">'+
+    '<button class="btn btn-sm" type="button" data-r="'+m.id+'" data-f="png">Download '+esc(m.store.name+" "+m.label)+' PNG</button>'+
+    '<button class="btn btn-sm btn-secondary" type="button" data-r="'+m.id+'" data-f="xlsx">Download '+esc(m.store.name+" "+m.label)+' Excel</button>'+
+    (m.copy?'<button class="btn btn-sm btn-secondary btn-icon" type="button" data-r="'+m.id+'" data-f="copy" title="Copy '+esc(m.store.name+" "+m.label)+' for Excel" aria-label="Copy '+esc(m.store.name+" "+m.label)+' for Excel">'+COPY_ICON+'</button>':"")+'</div>'+
+    '<div class="table-box">'+tableHTML(m)+"</div></div>";
+}
+function renderAll(){
+  let h="";
+  state.sections.forEach(sec=>{
+    h+='<div class="store-head">'+esc(sec.store.name)+" store<span>"+sec.count+" order(s)</span></div>";
+    sec.models.forEach(m=>{h+=blockHTML(m);});
+  });
+  $("reports").innerHTML=h;
+}
+
+/* ---------- ZIP (stored) and XLSX writers ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+function makeZip(files){
+  const enc=new TextEncoder(),parts=[],central=[];let off=0;
+  const d=new Date(),dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(),tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  files.forEach(f=>{
+    const nm=enc.encode(f.name),data=typeof f.data==="string"?enc.encode(f.data):f.data,crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);
+    h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,tm,true);c.setUint16(14,dt,true);
+    c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,nm.length,true);c.setUint16(30,0,true);c.setUint16(32,0,true);
+    c.setUint16(34,0,true);c.setUint16(36,0,true);c.setUint32(38,0,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+data.length;
+  });
+  const cd=central.reduce((s,a)=>s+a.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cd,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(e.buffer)],{type:"application/zip"});
+}
+const xesc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");
+const colName=i=>{let s="";i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+function sheetXML(m){
+  // styles: 0 normal, 1 header, 2 pct, 3 title, 4 bold, 5 bold pct
+  const rows=[],merges=[];let r=0;
+  const cell=(ci,v,s)=>{const ref=colName(ci)+(r+1);const sa=s?' s="'+s+'"':"";
+    if(v==null||v==="") return s?'<c r="'+ref+'"'+sa+"/>":"";
+    if(typeof v==="object"&&v.f) return '<c r="'+ref+'"'+sa+' t="str"><f>'+xesc(v.f)+"</f><v>"+xesc(v.text||"")+"</v></c>";
+    if(typeof v==="number"&&isFinite(v)) return '<c r="'+ref+'"'+sa+"><v>"+v+"</v></c>";
+    return '<c r="'+ref+'"'+sa+' t="inlineStr"><is><t xml:space="preserve">'+xesc(v)+"</t></is></c>";};
+  const push=cells=>{rows.push('<row r="'+(r+1)+'">'+cells.join("")+"</row>");r++;};
+  if(m.title){push([cell(0,m.title,3)]);}
+  if(m.subtitle){push([cell(0,m.subtitle,0)]);}
+  if(m.title) r++;
+  if(m.groups){let ci=0;const cs=[];m.groups.forEach(g=>{if(g.label){cs.push(cell(ci,g.label,1));if(g.span>1)merges.push(colName(ci)+(r+1)+":"+colName(ci+g.span-1)+(r+1));for(let k=1;k<g.span;k++)cs.push(cell(ci+k,"",1));}ci+=g.span;});push(cs);}
+  push(m.head.map((h,i)=>cell(i,h,1)));
+  m.rows.forEach(row=>{const bold=row.kind==="main"||row.kind==="total";
+    push(row.cells.map((c,i)=>{let v=c.v;if(typeof v==="string"&&/^\d+$/.test(v)&&v.length<10&&m.numericText!==false&&i>0&&row.kind!=="sub") v=+v;
+      return cell(i,v,c.fmt==="pct"?(bold?5:2):(bold?4:0));}));});
+  const cols="<cols>"+m.colW.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+Math.max(8,Math.round(w/6.5))+'" customWidth="1"/>').join("")+"</cols>";
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+cols+"<sheetData>"+rows.join("")+"</sheetData>"+
+    (merges.length?'<mergeCells count="'+merges.length+'">'+merges.map(x=>'<mergeCell ref="'+x+'"/>').join("")+"</mergeCells>":"")+"</worksheet>";
+}
+function makeXlsx(models){
+  const n=models.length,files=[];
+  files.push({name:"[Content_Types].xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+    models.map((m,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+"</Types>"});
+  files.push({name:"_rels/.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'});
+  files.push({name:"xl/workbook.xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+    models.map((m,i)=>'<sheet name="'+xesc(m.sheet.slice(0,31))+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")+"</sheets></workbook>"});
+  files.push({name:"xl/_rels/workbook.xml.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    models.map((m,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")+
+    '<Relationship Id="rId'+(n+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'});
+  files.push({name:"xl/styles.xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font><font><b/><sz val="14"/><name val="Arial"/></font></fonts>'+
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEDF0F6"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+    '<cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="10" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/></cellXfs>'+
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'});
+  models.forEach((m,i)=>files.push({name:"xl/worksheets/sheet"+(i+1)+".xml",data:sheetXML(m)}));
+  return makeZip(files);
+}
+
+
+/* ---------- PNG via html2canvas ---------- */
+async function tablePng(id){
+  if(!window.html2canvas) throw new Error("the image library didn't load. Reload the page and try again");
+  const el=$("tbl-"+id);
+  const canvas=await html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true,scrollX:0,scrollY:-window.scrollY,
+    windowWidth:Math.max(document.documentElement.clientWidth,el.scrollWidth+80),
+    onclone:d=>{d.querySelectorAll(".table-box").forEach(b=>{b.style.overflow="visible";b.style.maxWidth="none";});d.querySelectorAll(".eod-table").forEach(t=>{t.style.fontVariantNumeric="normal";});}});
+  return new Promise((res,rej)=>canvas.toBlob(b=>b?b.arrayBuffer().then(a=>res(new Uint8Array(a))):rej(new Error("could not draw the image")),"image/png"));
+}
+let toastT;function toast(s){const t=$("toast");t.textContent=s;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),3400);}
+function save(filename,data){
+  const blob=data instanceof Blob?data:new Blob([data]);
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);toast("Saved "+filename);
+}
+const fname=(storeFile,part,ext)=>"Tata1MG_"+storeFile+"_"+state.meta.fileDate+"_"+part+"."+ext;
+/* Copy a report for pasting into Excel: header row + order rows (no title, total or footer).
+   Plain cells only: no fill, border, font or bold, except the Breach / Long Tail colour in the Delay column.
+   The clipboard contents are written directly, so none of the page's own styles are carried along. */
+function copyTable(m){
+  const data=m.rows.filter(r=>r.kind==="row");
+  const clean=x=>String(x).replace(/[\t\r\n]+/g," ");
+  const tsv=[m.head,...data.map(r=>r.cells.map(c=>c.text))].map(r=>r.map(clean).join("\t")).join("\r\n");
+  const bg={good:"#90EE90",warn:"#FFFF00",bad:"#FF7F7F"};
+  const html='<table>'+
+    "<tr>"+m.head.map(h=>"<td>"+esc(h)+"</td>").join("")+"</tr>"+
+    data.map(r=>"<tr>"+r.cells.map(c=>"<td"+(c.tone?' style="background:'+bg[c.tone]+'"':"")+">"+esc(c.text)+"</td>").join("")+"</tr>").join("")+
+    "</table>";
+  const done=()=>toast("Copied "+data.length+" order(s). Paste into Excel with Ctrl+V");
+  // 1st try: a copy event we fill in ourselves (works without clipboard permission, inside the click)
+  let wrote=false;
+  const onCopy=e=>{e.preventDefault();e.clipboardData.setData("text/html",html);e.clipboardData.setData("text/plain",tsv);wrote=true;};
+  document.addEventListener("copy",onCopy);
+  try{document.execCommand("copy");}catch(e){}
+  document.removeEventListener("copy",onCopy);
+  if(wrote){done();return;}
+  // 2nd try: the async clipboard API
+  if(navigator.clipboard&&window.ClipboardItem)
+    return navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([tsv],{type:"text/plain"})})])
+      .then(done,()=>{throw new Error("the browser blocked the clipboard. Use Download Excel instead");});
+  throw new Error("the browser blocked the clipboard. Use Download Excel instead");
+}
+async function downloadOne(id,fmt){
+  const m=state.models[id];
+  if(fmt==="copy") return copyTable(m);
+  if(fmt==="png") save(fname(m.store.file,m.file,"png"),new Blob([await tablePng(id)],{type:"image/png"}));
+  else save(fname(m.store.file,m.file,"xlsx"),makeXlsx([m]));
+}
+async function downloadAllPng(){
+  // one PNG file per report, all stores, downloaded one after another (no zip)
+  const list=state.sections.flatMap(s=>s.models);
+  for(const m of list){
+    save(fname(m.store.file,m.file,"png"),new Blob([await tablePng(m.id)],{type:"image/png"}));
+    await new Promise(r=>setTimeout(r,600));
+  }
+  toast("Saved all "+list.length+" PNG reports");
+}
+function downloadAllXlsx(){
+  const list=state.sections.flatMap(s=>s.models);
+  save(fname("All_Stores","All_Reports","xlsx"),makeXlsx([...list,ordersModel(state.orders)]));
+}
+async function busy(btn,fn,what){if(btn.disabled)return;const t=btn.innerHTML,icon=btn.classList.contains("btn-icon");btn.disabled=true;if(!icon)btn.textContent="Preparing…";
+  try{await fn();}catch(err){toast("Couldn't "+(what||"build the file")+": "+err.message);}finally{btn.disabled=false;btn.innerHTML=t;}}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-r]");if(b){busy(b,()=>downloadOne(b.dataset.r,b.dataset.f),b.dataset.f==="copy"?"copy the table":"");return;}
+  if(e.target.closest("#allPng")) busy($("allPng"),downloadAllPng);
+  if(e.target.closest("#allXlsx")) busy($("allXlsx"),async()=>downloadAllXlsx());
+});
+
+/* ---------- load data ---------- */
+const state={orders:[],meta:{},models:{},sections:[]};
+function dateInfo(orders){
+  const ds=[...new Set(orders.map(o=>o.date).filter(Boolean))].map(parseDT).filter(x=>x!=null).sort((a,b)=>a-b).map(m=>new Date(m*60000));
+  if(!ds.length) return{label:"Date not found",file:"report"};
+  const f=d=>pad2(d.getUTCDate())+"/"+pad2(d.getUTCMonth()+1)+"/"+d.getUTCFullYear();
+  const fd=d=>d.getUTCFullYear()+pad2(d.getUTCMonth()+1)+pad2(d.getUTCDate());
+  const a=ds[0],b=ds[ds.length-1];
+  return a.getTime()===b.getTime()?{label:f(a),file:fd(a)}:{label:f(a)+" – "+f(b),file:fd(a)+"-"+fd(b)};
+}
+async function load(text,source){
+  lastFile={text,name:source};
+  setStatus("errStatus","");
+  let orders;
+  try{const rows=parseCSV(text);if(rows.length<2) throw new Error("This file has no order rows.");orders=computeOrders(rows);}
+  catch(e){setStatus("errStatus","<b>Couldn't read "+esc(source)+".</b> "+esc(e.message),"err");return;}
+  const rd=await addRoadDistances(orders,(d,n)=>setStatus("dataStatus","Getting road distance from Google Maps&hellip; <b>"+d+"</b> of <b>"+n+"</b> new location(s). The first upload of the day takes the longest."));
+  orders.forEach(setDistSlot);
+  const di=dateInfo(orders);
+  state.orders=orders;
+  const now=new Date(),todayKey=now.getFullYear()+pad2(now.getMonth()+1)+pad2(now.getDate());
+  let h12=now.getHours()%12;if(h12===0)h12=12;
+  const timeLabel=pad2(h12)+":"+pad2(now.getMinutes())+" "+(now.getHours()>=12?"PM":"AM");
+  // today's file: hours run up to the current hour; an older file: the full day up to 22:00
+  const endHour=di.file===todayKey?now.getHours():22;
+  state.meta={source,dateLabel:di.label,fileDate:di.file,timeLabel,endHour};
+
+  // split by store and build that store's reports
+  state.sections=[];state.models={};
+  STORES.forEach(s=>{
+    const so=orders.filter(o=>o.store===s.key);
+    if(!so.length||!repCount(s)) return;
+    const models=storeModels(so,state.meta,s);
+    models.forEach(m=>{state.models[m.id]=m;});
+    state.sections.push({store:s,count:so.length,models});
+  });
+  renderAll();
+  $("allActions").hidden=!state.sections.length;
+
+  let cls="ok";
+  let msg="Loaded <b>"+esc(source)+"</b> | <b>"+orders.length+"</b> orders | Report date <b>"+esc(di.label)+"</b> | "+
+    (state.sections.length?state.sections.map(s=>esc(s.store.name)+" <b>"+s.count+"</b>").join(" | "):"no known store found");
+  const unknown=orders.filter(o=>!o.store);
+  if(unknown.length){
+    const names=[...new Set(unknown.map(o=>o.wh||"blank Warehouse Name"))];
+    msg+="<br><b>"+unknown.length+"</b> order(s) are from a store that isn't in the store list sheet ("+esc(names.join(", "))+"), so they are left out of every report. Add the store to the sheet to include them.";cls="warn";}
+  const noSla=orders.filter(o=>o.store&&o.sla==null).length;
+  if(noSla){msg+="<br><b>"+noSla+"</b> order(s) have no Marketplace Order Date or Ideal Delivery End, so they have no slot and are left out of breach counts.";cls="warn";}
+  const noReach=orders.filter(o=>o.store&&o.status==="DELIVERED"&&o.sla!=null&&o.tat==null).length;
+  if(noReach){msg+="<br><b>"+noReach+"</b> delivered order(s) have no Reached Delivery At, so they are left out of breach counts.";cls="warn";}
+  const noLoc=orders.filter(o=>o.store&&o.dist==null).length;
+  if(noLoc){msg+="<br><b>"+noLoc+"</b> order(s) have no delivery location, so they have no distance group.";cls="warn";}
+  if(rd.off) msg+="<br>No road distance link is saved, so order distance is <b>straight-line</b> km.";
+  else if(rd.failed){msg+="<br><b>"+rd.failed+"</b> order(s) have no road distance"+(rd.err?" ("+esc(rd.err)+")":"")+", so straight-line km is used for them. Upload again later to retry.";cls="warn";}
+  setStatus("dataStatus",msg,cls);
+  const np=state.sections.flatMap(sec=>sec.models.filter(m=>m.newPins&&m.newPins.length).map(m=>"<b>"+esc(sec.store.name)+"</b>: "+esc(m.newPins.join(", "))));
+  setStatus("pinStatus",np.length?"New pincode(s) added to <b>West</b> in the pincode report. "+np.join(" | "):"",np.length?"warn":"");
+}
+async function readFile(file){
+  if(!file) return;
+  if(!/\.csv$/i.test(file.name)&&file.type!=="text/csv"){setStatus("errStatus","<b>"+esc(file.name)+" isn't a CSV file.</b> Export the Detailed Report as CSV and upload that.","err");return;}
+  setStatus("dataStatus","Reading <b>"+esc(file.name)+"</b> and the store list&hellip;");
+  const text=await file.text();
+  await loadStores();
+  await load(text,file.name);
+}
+let lastFile=null;
+async function reloadStores(){
+  setStatus("storeStatus","Loading the store list from Google Sheets&hellip;");
+  await loadStores();
+  if(lastFile) await load(lastFile.text,lastFile.name);       // rebuild the reports already on screen
+}
+$("sheetUrl").value=sheetUrl();
+$("sheetSave").addEventListener("click",()=>{
+  const v=$("sheetUrl").value.trim();
+  if(v&&!/^https:\/\//i.test(v)){setStatus("storeStatus","<b>That isn't a web link.</b> Paste the full https:// link from Publish to the web.","err");return;}
+  if(v) LS.set("tata1mg:sheetUrl",v); else {try{localStorage.removeItem("tata1mg:sheetUrl");}catch(e){} $("sheetUrl").value=SHEET_URL_DEFAULT;}
+  reloadStores();
+});
+$("sheetReload").addEventListener("click",reloadStores);
+$("roadUrl").value=roadUrl();
+$("roadSave").addEventListener("click",()=>{
+  const v=$("roadUrl").value.trim();
+  if(v&&!/^https:\/\/script\.google\.com\/.+\/exec\/?$/i.test(v)){toast("Paste the Apps Script Web app link: https://script.google.com/macros/s/…/exec");return;}
+  if(v) LS.set("tata1mg:roadUrl",v); else {try{localStorage.removeItem("tata1mg:roadUrl");}catch(e){} $("roadUrl").value=ROAD_URL_DEFAULT;}
+  toast(v?"Road distance link saved":"Road distance link removed");
+  if(lastFile) load(lastFile.text,lastFile.name);
+});
+loadStores();
+const fi=$("fileInput");
+fi.addEventListener("click",e=>{e.target.value="";});
+fi.addEventListener("change",e=>readFile(e.target.files[0]));
+["dragenter","dragover"].forEach(t=>fi.addEventListener(t,()=>fi.classList.add("over")));
+["dragleave","drop"].forEach(t=>fi.addEventListener(t,()=>fi.classList.remove("over")));
+
+})();
+</script>
+
+</body>
+</html>
