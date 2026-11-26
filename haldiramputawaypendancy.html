@@ -1,0 +1,724 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zippee <> Haldiram Putaway Pendancy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;
+ --accent:#0059b3;--accent-soft:#E3EEFA;--color-bg:#F3F6FA;--color-panel:#FFFFFF;--color-fg:#14253A;--color-fg-muted:#56657A;--color-border-line:#D6DFEA;
+ --s1:#003f8c;--s2:#4ea6d8;--s3:#E0A100;--s4:#3E9D5C;--s5:#8C4F9E;--s6:#D9534F;--s7:#8A96A3;--grid:#E6ECF3;
+ --glass:rgba(255,255,255,.86);--glass-line:rgba(255,255,255,.6);--kv:#003f8c;
+ --font:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--fs-cap:12.5px;--fs-body:14.5px;--radius:8px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
+ --accent:#4ea6d8;--accent-soft:#1D3150;--color-bg:#101A28;--color-panel:#16233A;--color-fg:#E6EDF6;--color-fg-muted:#9FB0C4;--color-border-line:#2A3A52;
+ --s1:#6EA8F0;--s2:#7CC4EC;--s3:#F0B93A;--s4:#6CC08A;--s5:#B98AD0;--s6:#EE7A76;--s7:#8794A3;--grid:#21304A;
+ --glass:rgba(14,22,36,.86);--glass-line:rgba(255,255,255,.12);--kv:#7CC4EC}}
+:root[data-theme="dark"]{color-scheme:dark;
+ --accent:#4ea6d8;--accent-soft:#1D3150;--color-bg:#101A28;--color-panel:#16233A;--color-fg:#E6EDF6;--color-fg-muted:#9FB0C4;--color-border-line:#2A3A52;
+ --s1:#6EA8F0;--s2:#7CC4EC;--s3:#F0B93A;--s4:#6CC08A;--s5:#B98AD0;--s6:#EE7A76;--s7:#8794A3;--grid:#21304A;
+ --glass:rgba(14,22,36,.86);--glass-line:rgba(255,255,255,.12);--kv:#7CC4EC}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0}
+body{min-height:100vh;font-family:var(--font);font-size:var(--fs-body);line-height:1.45;color:var(--color-fg);
+ background:#2b5876 linear-gradient(135deg,#2b5876 0%,#4e4376 50%,#3a7bd5 100%) fixed}
+body::before{content:"";position:fixed;inset:0;background:rgba(255,255,255,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:-1;pointer-events:none}
+.wrap{max-width:1500px;margin:0 auto;padding:20px clamp(10px,2.5vw,28px) 48px}
+[hidden]{display:none!important}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;background:linear-gradient(90deg,#003f8c,#0059b3);color:#fff;border-radius:14px;padding:16px 24px;box-shadow:0 8px 24px rgba(0,30,80,.3);margin-bottom:18px}
+.brand{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0;flex:1 1 auto}
+.brand small{display:block;font-size:var(--fs-cap);font-weight:400;color:rgba(255,255,255,.82)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#file-status{width:100%;font-size:var(--fs-cap);color:rgba(255,255,255,.85);margin:0}
+@media (max-width:767px){.bar{flex-direction:column;text-align:center}.actions{justify-content:center}}
+.btn-up,.po-btn{position:relative;display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;font-size:var(--fs-cap);border:none;border-radius:var(--radius);padding:9px 14px;cursor:pointer;background:linear-gradient(90deg,#003f8c,#0059b3);color:#fff;box-shadow:0 2px 8px rgba(0,40,100,.25)}
+.bar .btn-up,.bar .po-btn{background:#fff;color:#003f8c}
+.btn-up:hover,.po-btn:hover{filter:brightness(1.1)}
+.po-btn:disabled{opacity:.6;cursor:wait}
+.btn-up input{position:absolute;width:1px;height:1px;opacity:0}
+.btn-up:focus-within,.po-btn:focus-visible,.sel:focus-visible,.inp:focus-visible,.kpi:focus-visible{outline:3px solid #4ea6d8;outline-offset:2px}
+
+.drop{background:var(--glass);border:2px dashed #0059b3;border-radius:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 12px 40px rgba(0,20,60,.25);padding:clamp(28px,7vw,64px) clamp(16px,5vw,56px);display:grid;gap:14px;justify-items:start;max-width:760px;margin:24px auto}
+.drop h2{font-size:clamp(24px,4vw,32px);line-height:1.15;margin:0;font-weight:600;letter-spacing:-.02em;max-width:22ch}
+.drop p{margin:0;max-width:60ch;color:var(--color-fg-muted)}
+.drop details{font-size:var(--fs-cap);color:var(--color-fg-muted);max-width:62ch}
+.drop summary{cursor:pointer;color:var(--color-fg)}
+body.dragging .drop{background:rgba(78,166,216,.18);border-style:solid;border-color:#4ea6d8}
+body.dragging #app{outline:3px solid #4ea6d8;outline-offset:4px}
+.load-error{background:#fde8e8;border-left:5px solid #d64545;color:#1b2a36;border-radius:10px;padding:12px 16px;margin:0 auto 16px;max-width:760px}
+.load-error .msg{font-weight:600;margin:0 0 4px}.load-error .found{margin:0;font-size:var(--fs-cap);color:#4a5563;word-break:break-word}
+
+#app{background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:18px;padding:clamp(12px,2vw,24px);box-shadow:0 12px 40px rgba(0,20,60,.25)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:4px;flex:1 1 170px;min-width:0}
+.fl{font-size:var(--fs-cap);color:var(--color-fg-muted)}
+.sel,.inp{font:inherit;font-size:var(--fs-cap);padding:8px 10px;border-radius:var(--radius);border:1px solid var(--color-border-line);background:var(--color-panel);color:var(--color-fg);width:100%;min-width:0}
+.active{margin:8px 0 14px;font-size:var(--fs-cap);color:var(--color-fg-muted)}
+
+/* Report canvas */
+#report{background:var(--color-bg);border-radius:12px;overflow:hidden;border:1px solid var(--color-border-line)}
+.rpt-head{background:#2f3d48;color:#fff;text-align:center;padding:18px 16px 14px}
+.rpt-head h2{margin:0;font-size:clamp(20px,3vw,28px);font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.rpt-sub{margin:6px 0 0;font-size:clamp(12px,1.6vw,14.5px);color:rgba(255,255,255,.9)}
+.rpt-body{padding:clamp(10px,1.8vw,18px);display:grid;gap:12px}
+.rpt-foot{text-align:center;font-weight:700;font-size:13.5px;padding:2px 16px 16px;color:var(--color-fg)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--color-panel);border:1px solid var(--color-border-line);border-left:4px solid var(--s1);border-radius:var(--radius);padding:12px 14px;min-width:0;box-shadow:0 1px 3px rgba(0,30,80,.08)}
+.kpi.warn{border-left-color:var(--s3)}.kpi.good{border-left-color:var(--s4)}.kpi.bad{border-left-color:var(--s6)}
+.kl{font-size:var(--fs-cap);color:var(--color-fg-muted)}
+.kv{font-weight:700;font-size:clamp(20px,2.2vw,26px);color:var(--kv);font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin-top:2px;line-height:1.2}
+.ks{font-size:12px;color:var(--color-fg-muted);margin-top:2px}
+
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+.card{grid-column:span 4;background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--radius);padding:12px 14px;min-width:0;box-shadow:0 1px 3px rgba(0,30,80,.08)}
+.card.w6{grid-column:span 6}.card.w8{grid-column:span 8}.card.w12{grid-column:span 12}
+@media (max-width:1100px){.card,.card.w8{grid-column:span 6}}
+@media (max-width:760px){.card,.card.w6,.card.w8{grid-column:span 12}}
+.card h3{margin:0;font-size:14.5px;font-weight:600}
+.card .sub{margin:2px 0 8px;font-size:12px;color:var(--color-fg-muted)}
+.chart{position:relative;min-height:180px}
+.chart svg{display:block;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--color-fg-muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px;cursor:default}
+.legend span[data-click]{cursor:pointer}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.tip{position:absolute;pointer-events:none;background:var(--color-panel);color:var(--color-fg);border:1px solid var(--color-border-line);box-shadow:0 6px 20px rgba(0,40,90,.18);border-radius:6px;padding:6px 8px;font-size:12px;white-space:pre-line;max-width:260px;z-index:5}
+.empty{color:var(--color-fg-muted);font-size:var(--fs-cap);padding:16px 0}
+
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.checks li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline;padding:8px 10px;border-radius:6px;background:var(--color-bg);border:1px solid var(--color-border-line)}
+.checks b{font-size:18px;color:var(--s6);font-variant-numeric:tabular-nums;grid-row:span 2}
+.checks b.ok{color:var(--s4)}
+.checks span{font-size:13px;font-weight:600}
+.checks small{font-size:12px;color:var(--color-fg-muted)}
+
+.tw{overflow:auto;max-height:520px;border:1px solid var(--color-border-line);border-radius:6px}
+.tbl{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums;background:var(--color-panel);color:var(--color-fg)}
+.tbl th,.tbl td{border-bottom:1px solid var(--color-border-line);padding:7px 10px;text-align:left;vertical-align:top}
+.tbl th{position:sticky;top:0;background:#0a3048;color:#fff;font-weight:600;white-space:nowrap;cursor:pointer;z-index:1}
+.tbl th.n,.tbl td.n{text-align:right}
+.tbl tbody tr:hover td{background:var(--accent-soft)}
+.bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.bar-cell i{display:block;height:8px;border-radius:4px;background:var(--s3);min-width:2px}
+.tbl-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--color-fg-muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#003f8c;color:#fff;padding:8px 14px;border-radius:8px;font-size:var(--fs-cap);box-shadow:0 6px 20px rgba(0,30,80,.3);z-index:20}
+/* Export layout: fixed width, two cards per row, full table */
+#report.exporting{width:1000px;max-width:none}
+#report.exporting .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#report.exporting .card{grid-column:span 6}
+#report.exporting .card.w12{grid-column:span 12}
+#report.exporting .tw{max-height:none;overflow:visible}
+#report.exporting .tbl th{position:static}
+#report.exporting #b-more{visibility:hidden}
+/* Hover logic dialog */
+.logic-pop{position:fixed;z-index:60;max-width:min(440px,calc(100vw - 16px));background:#fff;color:#14253A;border:1px solid #c9d8ec;border-left:5px solid #003f8c;border-radius:10px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,30,80,.28);pointer-events:none;font-size:13px;line-height:1.45}
+.logic-h{font-weight:700;color:#003f8c;margin-bottom:4px}
+.logic-p{margin:0 0 6px}
+.logic-lab{font-size:11px;font-weight:700;color:#56657A;margin:6px 0 3px}
+.logic-f{margin:0;font-family:Consolas,"Courier New",monospace;font-size:12.5px;background:#F3F6FA;border:1px solid #D6DFEA;border-radius:6px;padding:6px 8px;line-height:1.7}
+.logic-cols{display:flex;flex-wrap:wrap;gap:4px}
+.logic-col{display:inline-block;background:#E3EEFA;color:#003f8c;border:1px solid #b9d0ee;border-radius:4px;padding:0 5px;font-weight:600;font-family:var(--font);font-size:12px;white-space:nowrap}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logic-pop{background:#1B2A44;color:#E6EDF6;border-color:#34466A;border-left-color:#4ea6d8}:root:not([data-theme="light"]) .logic-h{color:#7CC4EC}:root:not([data-theme="light"]) .logic-lab{color:#9FB0C4}:root:not([data-theme="light"]) .logic-f{background:#12203A;border-color:#34466A}:root:not([data-theme="light"]) .logic-col{background:#1D3150;color:#9ED2F2;border-color:#34466A}}
+@media (prefers-reduced-motion:no-preference){.logic-pop{animation:lp .12s ease-out}@keyframes lp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}}
+@media print{.logic-pop{display:none!important}}
+@media print{body{background:#fff}body::before{display:none}.bar,.toolbar,.drop,.active,.tbl-foot button{display:none!important}#app{backdrop-filter:none;box-shadow:none;background:#fff;border:none;padding:0}.tw{max-height:none;overflow:visible}.card{break-inside:avoid}}
+</style></head><body><div class="wrap">
+
+<div class="bar"><h1 class="brand">Putaway Pendancy Dashboard<small>Upload the Odoo stock quant export to see what is still waiting to be put away.</small></h1>
+<div class="actions"><label class="btn-up">Upload Excel or CSV<input class="file-input" type="file" accept=".xlsx,.xls,.xlsm,.csv"></label>
+<button class="po-btn" id="b-wa" type="button" hidden title="Page-sized images that stay sharp on WhatsApp">Save for WhatsApp</button><button class="po-btn" id="b-pdf" type="button" hidden title="Multi-page PDF; send on WhatsApp as a Document for full quality">Save as PDF</button><button class="po-btn" id="b-png" type="button" hidden>Save as PNG</button><button class="po-btn" id="b-print" type="button" hidden>Print</button></div>
+<p id="file-status" role="status">No file loaded yet.</p></div>
+
+<div class="load-error" id="load-error" hidden role="alert"><p class="msg"></p><p class="found"></p></div>
+
+<section class="drop" id="drop"><h2>Drop your stock quant export anywhere on this page</h2>
+<p>Works with the Odoo “Quants (stock.quant)” export in .xlsx or .csv. The file stays in your browser; nothing is uploaded to a server.</p>
+<label class="btn-up">Choose a file<input class="file-input" type="file" accept=".xlsx,.xls,.xlsm,.csv"></label>
+<details><summary>How the dashboard reads the file</summary><p>It needs Location, Product and Inventoried Quantity; Unit, Reserved Quantity and Lot/Serial Number are used when present. Stock sitting directly at the main location (WH/Stock) counts as pending putaway; stock in its sub-locations (the rack bins) counts as already put away. Subtotal rows like “WH/Stock (168)” are skipped.</p></details></section>
+
+<main id="app" hidden>
+ <div class="toolbar">
+  <label class="fld"><span class="fl">Pending location</span><select class="sel" id="f-root"></select></label>
+  <label class="fld"><span class="fl">Category</span><select class="sel" id="f-cat"></select></label>
+  <label class="fld" id="fld-unit"><span class="fl">Unit</span><select class="sel" id="f-unit"></select></label>
+  <label class="fld"><span class="fl">Search product</span><input class="inp" id="f-q" type="search" placeholder="Code or name…"></label>
+  <button class="po-btn" id="b-reset" type="button">Reset filters</button>
+ </div>
+ <p class="active" id="active"></p>
+
+ <section id="report">
+  <div class="rpt-head"><h2>Zippee &lt;&gt; Haldiram Putaway Pendancy</h2><p class="rpt-sub" id="rpt-sub"></p></div>
+  <div class="rpt-body">
+   <div class="kpis">
+    <div class="kpi warn" id="k1"><div class="kl">Pending putaway quantity</div><div class="kv" id="kv-pq">—</div><div class="ks" id="ks-pq"></div></div>
+    <div class="kpi warn" id="k2"><div class="kl">Pending SKUs</div><div class="kv" id="kv-ps">—</div><div class="ks" id="ks-ps"></div></div>
+    <div class="kpi good" id="k3"><div class="kl">Already in bins</div><div class="kv" id="kv-bq">—</div><div class="ks" id="ks-bq"></div></div>
+    <div class="kpi good" id="k4"><div class="kl">Putaway completion</div><div class="kv" id="kv-pc">—</div><div class="ks">Share of quantity already in bins</div></div>
+    <div class="kpi" id="k5"><div class="kl">Bins in use</div><div class="kv" id="kv-bins">—</div><div class="ks" id="ks-bins"></div></div>
+    <div class="kpi" id="k6"><div class="kl">Reserved while pending</div><div class="kv" id="kv-res">—</div><div class="ks">Reserved quantity at the pending location</div></div>
+    <div class="kpi bad" id="k7"><div class="kl">Data checks to fix</div><div class="kv" id="kv-dq">—</div><div class="ks">See the list below</div></div>
+   </div>
+   <div class="grid">
+    <div class="card" id="c-cat"><h3>Pending quantity by category</h3><p class="sub">Click a slice to filter the dashboard.</p><div class="chart" id="ch-cat"></div></div>
+    <div class="card w8" id="c-top"><h3>Top 10 pending SKUs</h3><p class="sub">Largest quantities waiting at the pending location.</p><div class="chart" id="ch-top"></div></div>
+    <div class="card w6" id="c-status"><h3>Putaway status by category</h3><p class="sub">Share of each category’s quantity still pending vs already in bins.</p><div class="chart" id="ch-status"></div></div>
+    <div class="card w6" id="c-skus"><h3>Pending SKUs by category</h3><p class="sub">Count of distinct products waiting.</p><div class="chart" id="ch-skus"></div></div>
+    <div class="card w8" id="c-aisle"><h3>Stock already in bins, by aisle</h3><p class="sub">Quantity put away in each aisle; bin count in the tooltip.</p><div class="chart" id="ch-aisle"></div></div>
+    <div class="card" id="c-unit"><h3>Pending quantity by unit</h3><p class="sub">Units differ, so compare quantities within a unit.</p><div class="chart" id="ch-unit"></div></div>
+    <div class="card w6" id="c-band"><h3>Pending lines by size</h3><p class="sub">How many pending lines fall in each quantity band.</p><div class="chart" id="ch-band"></div></div>
+    <div class="card w6" id="c-checks"><h3>Data checks</h3><p class="sub">Records that make the stock figures unreliable.</p><ul class="checks" id="checks"></ul></div>
+   </div>
+  </div>
+  <p class="rpt-foot">Powered by SASA Automation | Zippee</p>
+ </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const norm = (s) => String(s == null ? '' : s).replace(/\u00a0/g, ' ').trim().toLowerCase().replace(/\s+/g, ' ');
+  const clean = (s) => String(s == null ? '' : s).replace(/\u00a0/g, ' ').trim();
+  const coll = new Intl.Collator('en', { sensitivity: 'base' });
+  const CAT = { '1': 'Food raw material', '2': 'Packaging', '4': 'Beverages', '7': 'Housekeeping & stationery', 'F': 'Finished goods', 'S': 'Premix & spices' };
+  const COLS = { loc: ['location'], prod: ['product'], qty: ['inventoried quantity', 'quantity on hand', 'on hand quantity', 'quantity'],
+    unit: ['unit', 'uom', 'unit of measure'], res: ['reserved quantity', 'reserved'], lot: ['lot/serial number', 'lot', 'serial number'] };
+  const S = { rows: [], root: 'WH/Stock', cat: '', unit: '', q: '', sort: { k: 'qty', dir: -1 }, all: false, file: '' };
+
+  const fq = (v) => (+v).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const fc = (v) => { const a = Math.abs(v); return a >= 1e7 ? (v / 1e7).toFixed(2) + ' Cr' : a >= 1e5 ? (v / 1e5).toFixed(2) + ' L' : a >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : fq(v); };
+  const fp = (v) => (v * 100).toFixed(1) + '%';
+  const cut = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const PAL = () => ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7'].map(tok);
+
+  function toNum(v) {
+    if (typeof v === 'number') return v;
+    let s = String(v == null ? '' : v).replace(/[,\s\u00a0]/g, '');
+    if (!s) return 0; let neg = false; if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
+    const n = parseFloat(s); return isNaN(n) ? 0 : (neg ? -n : n);
+  }
+
+  /* ---------- reading the file ---------- */
+  function readSheet(ws) {
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+    for (let h = 0; h < Math.min(15, aoa.length); h++) {
+      const head = aoa[h].map(norm), idx = {};
+      Object.entries(COLS).forEach(([k, names]) => { const i = head.findIndex((x) => names.includes(x)); if (i >= 0) idx[k] = i; });
+      if (idx.loc == null || idx.prod == null || idx.qty == null) continue;
+      const out = []; let skipped = 0;
+      aoa.slice(h + 1).forEach((r) => {
+        const prod = clean(r[idx.prod]), loc = clean(r[idx.loc]);
+        if (!prod || !loc) { skipped++; return; }
+        const m = prod.match(/^\[([^\]]+)\]\s*(.*)$/);
+        const code = m ? m[1] : '';
+        out.push({ loc, prod, code, qty: toNum(r[idx.qty]),
+          unit: idx.unit != null ? clean(r[idx.unit]) : '', res: idx.res != null ? toNum(r[idx.res]) : 0,
+          lot: idx.lot != null ? clean(r[idx.lot]) : '',
+          cat: code ? (CAT[code[0].toUpperCase()] || 'Other') : 'No product code' });
+      });
+      return { rows: out, skipped, hasUnit: idx.unit != null };
+    }
+    return { error: true, found: (aoa[0] || []).filter(Boolean).map(String) };
+  }
+
+  function readFile(f) {
+    if (!f) return;
+    $('#file-status').textContent = 'Reading ' + f.name + '…';
+    f.arrayBuffer().then((buf) => {
+      const wb = XLSX.read(buf, { type: 'array' });
+      let best = null, found = [];
+      wb.SheetNames.forEach((sn) => {
+        const res = readSheet(wb.Sheets[sn]);
+        if (res.error) { found = found.concat(res.found); return; }
+        if (!best || res.rows.length > best.rows.length) best = Object.assign(res, { sheet: sn });
+      });
+      if (!best || !best.rows.length) { showError('No sheet has the columns Location, Product and Inventoried Quantity with data under them.', found); return; }
+      $('#load-error').hidden = true;
+      Object.assign(S, { rows: best.rows, cat: '', unit: '', q: '', all: false, file: f.name });
+      $('#f-q').value = '';
+      $('#file-status').textContent = `${f.name} — sheet “${best.sheet}”, ${best.rows.length.toLocaleString('en-IN')} stock lines (${best.skipped} subtotal or blank rows skipped)`;
+      $('#fld-unit').hidden = !best.hasUnit;
+      setupRoot();
+      $('#drop').hidden = true; $('#app').hidden = false;
+      $('#b-print').hidden = false; if (downloads) showSaves();
+      render();
+    }).catch((e) => showError('This file could not be read as Excel or CSV (' + e.message + ').'));
+  }
+  function showError(msg, found) {
+    const el = $('#load-error'); el.hidden = false;
+    el.querySelector('.msg').textContent = msg;
+    el.querySelector('.found').textContent = found && found.length ? 'Columns found: ' + Array.from(new Set(found)).join(', ') : '';
+    $('#file-status').textContent = 'No file loaded.';
+  }
+  function setupRoot() {
+    const locs = Array.from(new Set(S.rows.map((r) => r.loc)));
+    let roots = locs.filter((l) => locs.some((x) => x.startsWith(l + '/')));
+    if (!roots.length) roots = locs;
+    roots.sort(coll.compare);
+    $('#f-root').replaceChildren(...roots.map((r) => new Option(r, r)));
+    S.root = roots.includes('WH/Stock') ? 'WH/Stock' : roots[0];
+    $('#f-root').value = S.root;
+  }
+
+  /* ---------- filtering ---------- */
+  function view() {
+    const root = S.root, q = S.q.toLowerCase();
+    const tree = S.rows.filter((r) => r.loc === root || r.loc.startsWith(root + '/'));
+    const base = tree.filter((r) => (!S.cat || r.cat === S.cat) && (!S.unit || r.unit === S.unit) && (!q || r.prod.toLowerCase().includes(q)));
+    return { tree, base, P: base.filter((r) => r.loc === root && r.qty !== 0), B: base.filter((r) => r.loc !== root && r.qty !== 0) };
+  }
+  const sum = (a, f) => a.reduce((s, r) => s + f(r), 0);
+  const roll = (a, k, v) => Array.from(d3.rollup(a, (g) => sum(g, v || ((r) => r.qty)), k), ([key, val]) => ({ k: key, v: val })).sort((x, y) => y.v - x.v);
+
+  function setFilter(o) { Object.assign(S, o, { all: false }); if ('q' in o) $('#f-q').value = o.q; render(); }
+
+  function fillSelect(sel, label, values, cur) {
+    sel.replaceChildren(new Option(label, ''), ...values.map((v) => new Option(v, v)));
+    sel.value = values.includes(cur) ? cur : '';
+  }
+
+  /* ---------- drawing helpers ---------- */
+  function svgIn(el, w, h) {
+    return d3.select(el).append('svg').attr('width', w).attr('height', h).attr('role', 'img')
+      .attr('aria-label', (el.closest('.card') && el.closest('.card').querySelector('h3').textContent) || 'Chart')
+      .style('font-family', 'Instrument Sans, system-ui, sans-serif').style('font-size', '12px');
+  }
+  function tipper(el) {
+    const t = document.createElement('div'); t.className = 'tip'; t.hidden = true; el.appendChild(t);
+    return {
+      show(ev, txt) {
+        t.textContent = txt; t.hidden = false;
+        const b = el.getBoundingClientRect();
+        let x = ev.clientX - b.left + 12; const y = ev.clientY - b.top - t.offsetHeight - 8;
+        if (x + t.offsetWidth > el.clientWidth) x = ev.clientX - b.left - t.offsetWidth - 12;
+        t.style.left = Math.max(0, x) + 'px'; t.style.top = Math.max(-10, y) + 'px';
+      },
+      hide() { t.hidden = true; }
+    };
+  }
+  function measure(svg, labels) {
+    const t = svg.append('text'); let m = 0;
+    labels.forEach((l) => { t.text(l); m = Math.max(m, t.node().getComputedTextLength()); });
+    t.remove(); return m;
+  }
+  function empty(el, msg) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = msg || 'Nothing matches these filters.'; el.appendChild(p); }
+  function legend(el, items) {
+    const d = document.createElement('div'); d.className = 'legend';
+    items.forEach((it) => {
+      const s = document.createElement('span'); const i = document.createElement('i'); i.style.background = it.c;
+      s.append(i, document.createTextNode(it.t));
+      if (it.click) { s.dataset.click = '1'; s.addEventListener('click', it.click); }
+      d.appendChild(s);
+    });
+    el.appendChild(d);
+  }
+
+  function hbar(el, data, o = {}) {
+    el.replaceChildren(); if (!data.length) return empty(el);
+    const C = PAL(), fg = tok('--color-fg'), mu = tok('--color-fg-muted');
+    const w = Math.max(240, el.clientWidth), rh = 26, h = data.length * rh + 6;
+    const svg = svgIn(el, w, h), tp = tipper(el), fmt = o.fmt || fq;
+    const labels = data.map((d) => cut(String(d.k), o.cut || 36));
+    const lw = Math.min(measure(svg, labels) + 12, w * 0.5), vw = measure(svg, data.map((d) => fmt(d.v))) + 12;
+    const x = d3.scaleLinear([0, d3.max(data, (d) => d.v) || 1], [lw, w - vw]);
+    data.forEach((d, i) => {
+      const y = 3 + i * rh;
+      svg.append('text').attr('x', lw - 8).attr('y', y + rh / 2).attr('dy', '.35em').attr('text-anchor', 'end').attr('fill', fg).text(labels[i]);
+      const r = svg.append('rect').attr('x', lw).attr('y', y + 5).attr('height', rh - 10).attr('rx', 3)
+        .attr('width', Math.max(2, x(Math.max(0, d.v)) - lw)).attr('fill', d.c || C[o.color || 0]);
+      svg.append('text').attr('x', x(Math.max(0, d.v)) + 6).attr('y', y + rh / 2).attr('dy', '.35em').attr('fill', mu).text(fmt(d.v));
+      r.on('mousemove', (ev) => tp.show(ev, `${d.k}\n${o.tfmt ? o.tfmt(d.v) : fmt(d.v)}${d.t ? '\n' + d.t : ''}`)).on('mouseleave', tp.hide);
+      if (o.click) r.style('cursor', 'pointer').on('click', () => o.click(d));
+    });
+  }
+
+  function vbar(el, data, o = {}) {
+    el.replaceChildren(); if (!data.length || !d3.max(data, (d) => d.v)) return empty(el);
+    const C = PAL(), fg = tok('--color-fg'), mu = tok('--color-fg-muted'), gr = tok('--grid');
+    const w = Math.max(240, el.clientWidth), h = 220, fmt = o.fmt || fc;
+    const svg = svgIn(el, w, h), tp = tipper(el);
+    const left = measure(svg, [fmt(d3.max(data, (d) => d.v))]) + 14, bottom = 26;
+    const x = d3.scaleBand(data.map((d) => d.k), [left, w - 6]).padding(0.22);
+    const y = d3.scaleLinear([0, d3.max(data, (d) => d.v)], [h - bottom, 16]).nice();
+    y.ticks(4).forEach((t) => {
+      svg.append('line').attr('x1', left).attr('x2', w - 6).attr('y1', y(t)).attr('y2', y(t)).attr('stroke', gr);
+      svg.append('text').attr('x', left - 6).attr('y', y(t)).attr('dy', '.35em').attr('text-anchor', 'end').attr('fill', mu).text(fmt(t));
+    });
+    const step = Math.ceil(data.length / Math.max(1, Math.floor((w - left) / (measure(svg, data.map((d) => String(d.k))) + 10))));
+    data.forEach((d, i) => {
+      const r = svg.append('rect').attr('x', x(d.k)).attr('width', x.bandwidth()).attr('y', y(d.v)).attr('height', Math.max(1, y(0) - y(d.v))).attr('rx', 3).attr('fill', C[o.color || 0]);
+      r.on('mousemove', (ev) => tp.show(ev, `${d.k}\n${o.tfmt ? o.tfmt(d.v) : fq(d.v)}${d.t ? '\n' + d.t : ''}`)).on('mouseleave', tp.hide);
+      if (i % step === 0) svg.append('text').attr('x', x(d.k) + x.bandwidth() / 2).attr('y', h - 8).attr('text-anchor', 'middle').attr('fill', fg).text(d.k);
+      if (data.length <= 14 && x.bandwidth() > 30) svg.append('text').attr('x', x(d.k) + x.bandwidth() / 2).attr('y', y(d.v) - 5).attr('text-anchor', 'middle').attr('fill', mu).style('font-size', '11px').text(fmt(d.v));
+    });
+  }
+
+  function donut(el, data, o = {}) {
+    el.replaceChildren(); data = data.filter((d) => d.v > 0); if (!data.length) return empty(el);
+    const C = PAL(), fg = tok('--color-fg'), mu = tok('--color-fg-muted'), panel = tok('--color-panel');
+    const w = Math.max(200, el.clientWidth), h = 200, r = Math.min(h, w) / 2 - 6, tot = d3.sum(data, (d) => d.v);
+    const svg = svgIn(el, w, h), tp = tipper(el);
+    const g = svg.append('g').attr('transform', `translate(${w / 2},${h / 2})`);
+    const arc = d3.arc().innerRadius(r * 0.6).outerRadius(r);
+    d3.pie().sort(null).value((d) => d.v)(data).forEach((a, i) => {
+      const p = g.append('path').attr('d', arc(a)).attr('fill', C[i % C.length]).attr('stroke', panel).attr('stroke-width', 2);
+      p.on('mousemove', (ev) => tp.show(ev, `${a.data.k}\n${fq(a.data.v)} · ${fp(a.data.v / tot)}`)).on('mouseleave', tp.hide);
+      if (o.click) p.style('cursor', 'pointer').on('click', () => o.click(a.data));
+    });
+    g.append('text').attr('text-anchor', 'middle').attr('dy', '-.1em').attr('fill', fg).style('font-size', '17px').style('font-weight', 700).text(fc(tot));
+    g.append('text').attr('text-anchor', 'middle').attr('dy', '1.3em').attr('fill', mu).text(o.center || 'total');
+    legend(el, data.map((d, i) => ({ c: C[i % C.length], t: `${d.k} ${fp(d.v / tot)}`, click: o.click ? () => o.click(d) : null })));
+  }
+
+  function stack100(el, rows) {
+    el.replaceChildren(); if (!rows.length) return empty(el);
+    const C = PAL(), fg = tok('--color-fg'), pend = C[2], done = C[3];
+    const w = Math.max(240, el.clientWidth), rh = 28, h = rows.length * rh + 6;
+    const svg = svgIn(el, w, h), tp = tipper(el);
+    const labels = rows.map((d) => cut(d.k, 28));
+    const lw = Math.min(measure(svg, labels) + 12, w * 0.45);
+    const x = d3.scaleLinear([0, 1], [lw, w - 4]);
+    rows.forEach((d, i) => {
+      const y = 3 + i * rh, tot = d.p + d.b || 1, ps = d.p / tot;
+      svg.append('text').attr('x', lw - 8).attr('y', y + rh / 2).attr('dy', '.35em').attr('text-anchor', 'end').attr('fill', fg).text(labels[i]);
+      [[0, ps, pend, 'Pending', d.p], [ps, 1, done, 'In bins', d.b]].forEach(([a, b, c, n, v]) => {
+        if (b - a <= 0) return;
+        svg.append('rect').attr('x', x(a)).attr('width', Math.max(1, x(b) - x(a))).attr('y', y + 5).attr('height', rh - 10).attr('fill', c)
+          .on('mousemove', (ev) => tp.show(ev, `${d.k} · ${n}\n${fq(v)} (${fp(v / tot)})`)).on('mouseleave', tp.hide);
+        if (x(b) - x(a) > 38) svg.append('text').attr('x', x(a) + 5).attr('y', y + rh / 2).attr('dy', '.35em').attr('fill', '#fff').style('font-size', '11px').style('font-weight', 600).style('pointer-events', 'none').text(fp(b - a));
+      });
+    });
+    legend(el, [{ c: pend, t: 'Pending putaway' }, { c: done, t: 'Already in bins' }]);
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    const { tree, base, P, B } = view();
+    // filter dropdowns reflect the location tree
+    fillSelect($('#f-cat'), 'All categories', Array.from(new Set(tree.map((r) => r.cat))).sort(coll.compare), S.cat);
+    fillSelect($('#f-unit'), 'All units', Array.from(new Set(tree.map((r) => r.unit).filter(Boolean))).sort(coll.compare), S.unit);
+
+    const pq = sum(P, (r) => r.qty), bq = sum(B, (r) => r.qty);
+    const pSkus = new Set(P.map((r) => r.prod)), bins = new Set(B.map((r) => r.loc));
+    const binSkus = new Set(B.map((r) => r.prod));
+    const both = Array.from(pSkus).filter((p) => binSkus.has(p)).length;
+
+    // data checks
+    const fracUnits = P.filter((r) => /^units?$/i.test(r.unit) && Math.abs(r.qty % 1) > 1e-9);
+    const noCode = Array.from(new Set(base.filter((r) => !r.code).map((r) => r.prod)));
+    const staleRes = base.filter((r) => r.loc === S.root && r.qty === 0 && r.res > 0);
+    const lotMap = d3.group(base, (r) => r.prod);
+    const lotGaps = Array.from(lotMap).filter(([, g]) => g.some((r) => r.lot) && g.some((r) => !r.lot)).map(([k]) => k);
+    const zeroLines = base.filter((r) => r.loc === S.root && r.qty === 0);
+    const checks = [
+      { n: fracUnits.length, t: 'Pending lines with decimal quantities in “Units”', s: 'Likely weighed items (kg) set up with the wrong unit.', ex: fracUnits.slice(0, 2).map((r) => r.prod) },
+      { n: noCode.length, t: 'Products without a product code', s: 'Possibly a duplicate or manually created product.', ex: noCode.slice(0, 2) },
+      { n: lotGaps.length, t: 'Lot-tracked products with lines missing a lot', s: 'Some stock of the product has a lot, some has none.', ex: lotGaps.slice(0, 2) },
+      { n: staleRes.length, t: 'Zero-stock lines still holding a reservation', s: 'Stale reservations at the pending location.', ex: staleRes.slice(0, 2).map((r) => r.prod) },
+      { n: zeroLines.length, t: 'Zero-quantity lines at the pending location', s: 'Hidden from the figures above; can be cleaned up.', ex: [] }
+    ];
+    const issues = checks.slice(0, 4).reduce((s, c) => s + c.n, 0);
+
+    // header + KPIs
+    const now = new Date();
+    const stamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    $('#rpt-sub').textContent = `${stamp}  |  Location: ${S.root}  |  Pending quantity: ${fq(pq)}`;
+    $('#kv-pq').textContent = fq(pq); $('#ks-pq').textContent = `${P.length.toLocaleString('en-IN')} stock lines`;
+    $('#kv-ps').textContent = pSkus.size.toLocaleString('en-IN'); $('#ks-ps').textContent = `${both} of them also have stock in bins`;
+    $('#kv-bq').textContent = fc(bq); $('#ks-bq').textContent = `${binSkus.size.toLocaleString('en-IN')} SKUs across ${B.length.toLocaleString('en-IN')} lines`;
+    $('#kv-pc').textContent = pq + bq > 0 ? fp(bq / (pq + bq)) : '—';
+    $('#kv-bins').textContent = bins.size.toLocaleString('en-IN');
+    const aisles = new Set(B.map((r) => aisleOf(r.loc)));
+    $('#ks-bins').textContent = `Across ${aisles.size} aisles`;
+    $('#kv-res').textContent = fq(sum(base.filter((r) => r.loc === S.root), (r) => r.res));
+    $('#kv-dq').textContent = issues.toLocaleString('en-IN');
+
+    const on = [S.cat && 'Category = ' + S.cat, S.unit && 'Unit = ' + S.unit, S.q && `Search “${S.q}”`].filter(Boolean);
+    $('#active').textContent = (on.length ? on.join('; ') + '. ' : 'No filters on. ') + `Pending = stock at exactly ${S.root}; in bins = stock in its sub-locations. Quantities mix units, as in the Odoo export.`;
+
+    // charts
+    const catClick = (d) => setFilter({ cat: S.cat === d.k ? '' : d.k });
+    donut($('#ch-cat'), roll(P, (r) => r.cat), { click: catClick, center: 'pending qty' });
+    const binBy = d3.rollup(B, (g) => sum(g, (r) => r.qty), (r) => r.prod);
+    hbar($('#ch-top'), roll(P, (r) => r.prod).slice(0, 10).map((d) => ({ ...d, t: 'Already in bins: ' + fq(binBy.get(d.k) || 0) })),
+      { color: 2, cut: 40, click: (d) => setFilter({ q: d.k.match(/^\[([^\]]+)\]/) ? d.k.match(/^\[([^\]]+)\]/)[1] : d.k }) });
+    const cats = Array.from(new Set(P.concat(B).map((r) => r.cat)));
+    const pc = d3.rollup(P, (g) => sum(g, (r) => r.qty), (r) => r.cat), bc = d3.rollup(B, (g) => sum(g, (r) => r.qty), (r) => r.cat);
+    stack100($('#ch-status'), cats.map((k) => ({ k, p: pc.get(k) || 0, b: bc.get(k) || 0 })).sort((a, b) => (b.p / (b.p + b.b || 1)) - (a.p / (a.p + a.b || 1))));
+    hbar($('#ch-skus'), Array.from(d3.rollup(P, (g) => new Set(g.map((r) => r.prod)).size, (r) => r.cat), ([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v),
+      { color: 0, fmt: (v) => v.toLocaleString('en-IN'), click: catClick });
+    const ai = d3.rollups(B, (g) => ({ q: sum(g, (r) => r.qty), b: new Set(g.map((r) => r.loc)).size }), (r) => aisleOf(r.loc))
+      .map(([k, v]) => ({ k, v: v.q, t: `${v.b} bins` })).sort((a, b) => coll.compare(a.k, b.k) || 0)
+      .sort((a, b) => (parseInt(a.k.replace(/\D/g, ''), 10) || 0) - (parseInt(b.k.replace(/\D/g, ''), 10) || 0));
+    vbar($('#ch-aisle'), ai, { color: 3 });
+    $('#c-unit').hidden = !P.some((r) => r.unit);
+    if (!$('#c-unit').hidden) donut($('#ch-unit'), roll(P, (r) => r.unit || '(blank)'), { center: 'pending qty', click: (d) => setFilter({ unit: S.unit === d.k ? '' : d.k }) });
+    const edges = [[0, 10, '≤ 10'], [10, 100, '11–100'], [100, 1000, '101–1K'], [1000, 10000, '1K–10K'], [10000, Infinity, '10K+']];
+    vbar($('#ch-band'), edges.map(([a, b, k]) => ({ k, v: P.filter((r) => Math.abs(r.qty) > a && Math.abs(r.qty) <= b).length + (a === 0 ? P.filter((r) => Math.abs(r.qty) === 0).length : 0) })),
+      { color: 1, fmt: (v) => v.toLocaleString('en-IN'), tfmt: (v) => v + ' lines' });
+
+    // checks list
+    const ul = $('#checks'); ul.replaceChildren();
+    checks.forEach((c) => {
+      const li = document.createElement('li'); const b = document.createElement('b'); b.textContent = c.n; if (!c.n) b.className = 'ok';
+      const t = document.createElement('span'); t.textContent = c.t;
+      const s = document.createElement('small'); s.textContent = c.s + (c.ex.length ? ' e.g. ' + c.ex.join('; ') : '');
+      li.append(b, t, s); ul.appendChild(li);
+    });
+
+    // detail table (removed from the page; skipped when absent)
+    if (!$('#tb')) return;
+    const g = d3.rollups(P, (x) => ({ qty: sum(x, (r) => r.qty), lines: x.length, unit: Array.from(new Set(x.map((r) => r.unit).filter(Boolean))).join(', '), cat: x[0].cat }), (r) => r.prod)
+      .map(([prod, v]) => ({ prod, ...v, share: pq ? v.qty / pq : 0, bin: binBy.get(prod) || 0 }));
+    const { k, dir } = S.sort;
+    g.sort((a, b) => dir * (typeof a[k] === 'string' ? coll.compare(a[k], b[k]) : a[k] - b[k]));
+    const maxQ = d3.max(g, (d) => d.qty) || 1;
+    const shown = S.all ? g : g.slice(0, 25);
+    const tb = $('#tb'); tb.replaceChildren();
+    if (!shown.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 7; td.textContent = 'No pending products match these filters.'; tr.appendChild(td); tb.appendChild(tr); }
+    shown.forEach((d) => {
+      const tr = document.createElement('tr');
+      const cell = (t, n) => { const td = document.createElement('td'); if (n) td.className = 'n'; td.textContent = t; tr.appendChild(td); return td; };
+      cell(d.prod); cell(d.cat); cell(d.unit || '—'); cell(d.lines, 1);
+      const q = cell('', 1); const wrap = document.createElement('div'); wrap.className = 'bar-cell';
+      const i = document.createElement('i'); i.style.width = Math.round(60 * Math.max(0, d.qty) / maxQ) + 'px';
+      wrap.append(i, document.createTextNode(fq(d.qty))); q.appendChild(wrap);
+      cell(fp(d.share), 1); cell(fq(d.bin), 1);
+      tb.appendChild(tr);
+    });
+    document.querySelectorAll('.tbl th').forEach((th) => { th.textContent = th.textContent.replace(/ [▲▼]$/, '') + (th.dataset.k === k ? (dir > 0 ? ' ▲' : ' ▼') : ''); });
+    $('#tbl-count').textContent = `Showing ${shown.length} of ${g.length} pending SKUs`;
+    $('#b-more').hidden = g.length <= 25; $('#b-more').textContent = S.all ? 'Show top 25' : `Show all ${g.length}`;
+  }
+  function aisleOf(loc) {
+    const rest = loc.slice(S.root.length + 1);
+    const seg = rest.split('/')[0];
+    const m = seg.match(/^([A-Za-z]+\d+)/);
+    return m ? m[1].toUpperCase() : seg.split('-')[0] || seg;
+  }
+
+  /* ---------- events ---------- */
+  $('#f-root').addEventListener('change', (e) => setFilter({ root: e.target.value }));
+  $('#f-cat').addEventListener('change', (e) => setFilter({ cat: e.target.value }));
+  $('#f-unit').addEventListener('change', (e) => setFilter({ unit: e.target.value }));
+  let qt; $('#f-q').addEventListener('input', (e) => { clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value.trim(); S.all = false; render(); }, 200); });
+  $('#b-reset').addEventListener('click', () => setFilter({ cat: '', unit: '', q: '' }));
+  if ($('#b-more')) $('#b-more').addEventListener('click', () => { S.all = !S.all; render(); });
+  document.querySelectorAll('.tbl th').forEach((th) => th.addEventListener('click', () => {
+    const k = th.dataset.k; S.sort = { k, dir: S.sort.k === k ? -S.sort.dir : (['prod', 'cat', 'unit'].includes(k) ? 1 : -1) }; render();
+  }));
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (S.rows.length) render(); }, 150); });
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.rows.length) render(); });
+
+  document.querySelectorAll('.file-input').forEach((i) => i.addEventListener('change', () => { readFile(i.files[0]); i.value = ''; }));
+  ['dragover', 'dragenter'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); document.body.classList.add('dragging'); }));
+  ['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) document.body.classList.remove('dragging'); }));
+  document.addEventListener('drop', (e) => readFile(e.dataTransfer.files[0]));
+  $('#b-print').addEventListener('click', () => window.print());
+
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 2400); }
+
+  /* ---------- Save as PNG ---------- */
+  let downloads = null;
+  if (window.claude && window.claude.use) {
+    window.claude.use('downloads').then((d) => { downloads = d; if (d && S.rows.length) showSaves(); }).catch(() => {});
+  } else {
+    // Opened as a standalone file: save through a normal browser download
+    downloads = { save: ({ filename, data }) => new Promise((res) => {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(data); a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => { URL.revokeObjectURL(a.href); res({ status: 'saved' }); }, 400);
+    }) };
+  }
+  function showSaves() { ['#b-png', '#b-wa', '#b-pdf'].forEach((id) => { $(id).hidden = false; }); }
+  const tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const stampName = () => {
+    const d = new Date();
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') + '_' +
+      d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).replace(/[: ]/g, '');
+  };
+  const SCALE = 2;           // 1000 css px wide -> 2000 px images
+  const PAGE_MAX = 1250;     // css px of content per page (about 4:5 portrait, WhatsApp-friendly)
+
+  // Lays the report out at a fixed width, captures it once, and records where it can be cut cleanly
+  async function snapshot() {
+    const rep = $('#report');
+    rep.classList.add('exporting'); render(); await tick();
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    try {
+      const rr = rep.getBoundingClientRect();
+      const top = (el) => el.getBoundingClientRect().top - rr.top;
+      const head = rep.querySelector('.rpt-head'), foot = rep.querySelector('.rpt-foot');
+      const thead = rep.querySelector('.tbl thead'), tbody = rep.querySelector('.tbl tbody');
+      const geo = {
+        width: rep.offsetWidth, total: rep.offsetHeight, headH: head.offsetHeight, footTop: top(foot),
+        theadTop: thead ? top(thead) : 0, theadBot: thead ? top(thead) + thead.offsetHeight : 0, tableBot: tbody ? top(tbody) + tbody.offsetHeight : 0,
+        breaks: []
+      };
+      geo.breaks.push(top(rep.querySelector('.kpis')));
+      rep.querySelectorAll('.card').forEach((c) => { if (!c.hidden) geo.breaks.push(top(c) - 6); });
+      if (tbody) tbody.querySelectorAll('tr').forEach((tr) => geo.breaks.push(top(tr)));
+      geo.breaks.push(geo.footTop);
+      geo.breaks = Array.from(new Set(geo.breaks.map(Math.round))).sort((a, b) => a - b);
+      const canvas = await html2canvas(rep, { scale: SCALE, backgroundColor: getComputedStyle(rep).backgroundColor, useCORS: true });
+      return { canvas, geo };
+    } finally { rep.classList.remove('exporting'); render(); }
+  }
+
+  // Cuts the capture into pages at card or table-row edges; every page repeats the header, the table heading and the footer
+  function paginate({ canvas, geo }) {
+    const pages = []; let start = geo.headH;
+    while (start < geo.footTop - 2) {
+      const inTable = start > geo.theadBot - 2 && start < geo.tableBot - 2;
+      const room = PAGE_MAX - (inTable ? geo.theadBot - geo.theadTop : 0);
+      const fits = geo.breaks.filter((b) => b > start + 40 && b - start <= room);
+      const end = fits.length ? fits[fits.length - 1] : Math.min(start + room, geo.footTop);
+      pages.push({ start, end, thead: inTable });
+      start = end;
+    }
+    const footH = geo.total - geo.footTop;
+    return pages.map((pg, i) => {
+      const parts = [[0, geo.headH]];
+      if (pg.thead) parts.push([geo.theadTop, geo.theadBot]);
+      parts.push([pg.start, pg.end], [geo.footTop, geo.total]);
+      const h = parts.reduce((s, [a, b]) => s + (b - a), 0);
+      const c = document.createElement('canvas'); c.width = canvas.width; c.height = Math.round(h * SCALE);
+      const ctx = c.getContext('2d'); let y = 0;
+      parts.forEach(([a, b]) => { const sh = Math.round((b - a) * SCALE); ctx.drawImage(canvas, 0, Math.round(a * SCALE), canvas.width, sh, 0, y, canvas.width, sh); y += sh; });
+      if (pages.length > 1) {
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `600 ${12 * SCALE}px "Instrument Sans", sans-serif`; ctx.textAlign = 'right';
+        ctx.fillText(`Page ${i + 1} of ${pages.length}`, c.width - 14 * SCALE, 22 * SCALE);
+      }
+      return { canvas: c, w: geo.width, h };
+    });
+  }
+  const toBlob = (c) => new Promise((res) => c.toBlob(res, 'image/png'));
+
+  async function runSave(btn, label, job) {
+    if (!downloads || !window.html2canvas) { toast('Saving files is not available here'); return; }
+    const all = ['#b-png', '#b-wa', '#b-pdf'].map((id) => $(id));
+    all.forEach((b) => { b.disabled = true; }); btn.textContent = 'Preparing…';
+    try { await job(); }
+    catch (e) {
+      const code = e && e.code;
+      toast(code === 'declined' ? 'Save cancelled' : code === 'rate_limited' ? 'A save is already open; try again in a moment' : 'The file could not be saved');
+    } finally { all.forEach((b) => { b.disabled = false; }); btn.textContent = label; }
+  }
+
+  $('#b-png').addEventListener('click', () => runSave($('#b-png'), 'Save as PNG', async () => {
+    const { canvas } = await snapshot();
+    await downloads.save({ filename: `Haldiram_Putaway_Pendancy_Dashboard_${stampName()}.png`, data: await toBlob(canvas) });
+    toast('PNG saved');
+  }));
+
+  $('#b-wa').addEventListener('click', () => runSave($('#b-wa'), 'Save for WhatsApp', async () => {
+    const pages = paginate(await snapshot()), name = stampName();
+    toast(`Saving ${pages.length} images…`);
+    for (let i = 0; i < pages.length; i++) {
+      await downloads.save({ filename: `Haldiram_Putaway_Pendancy_${name}_${i + 1}of${pages.length}.png`, data: await toBlob(pages[i].canvas) });
+    }
+    toast(`${pages.length} images saved — send them in order`);
+  }));
+
+  $('#b-pdf').addEventListener('click', () => runSave($('#b-pdf'), 'Save as PDF', async () => {
+    if (!window.jspdf) { toast('The PDF tool did not load; check the internet connection'); return; }
+    const pages = paginate(await snapshot());
+    const pt = (v) => v * 0.75;
+    const first = pages[0];
+    const doc = new window.jspdf.jsPDF({ unit: 'pt', format: [pt(first.w), pt(first.h)], orientation: first.w > first.h ? 'l' : 'p', compress: true });
+    pages.forEach((pg, i) => {
+      if (i) doc.addPage([pt(pg.w), pt(pg.h)], pg.w > pg.h ? 'l' : 'p');
+      doc.addImage(pg.canvas.toDataURL('image/png'), 'PNG', 0, 0, pt(pg.w), pt(pg.h), undefined, 'FAST');
+    });
+    await downloads.save({ filename: `Haldiram_Putaway_Pendancy_${stampName()}.pdf`, data: doc.output('blob') });
+    toast('PDF saved');
+  }));
+})();
+</script>
+<script>
+/* Hover / focus dialog: column names from the export and the logic behind every card, chart and filter */
+(function () {
+  const LOC = '[Location]', PRD = '[Product]', QTY = '[Inventoried Quantity]', UNIT = '[Unit]', RES = '[Reserved Quantity]', LOT = '[Lot/Serial Number]';
+  const ROOT = () => (document.getElementById('f-root') || {}).value || 'WH/Stock';
+  const PEND = () => `${LOC} = ${ROOT()} exactly and ${QTY} ≠ 0`;
+  const BIN = () => `${LOC} starts with "${ROOT()}/" and ${QTY} ≠ 0`;
+  const CAT = `Category = first character of the code in ${PRD} [ ]: 1 Food raw material, 2 Packaging, 4 Beverages, 7 Housekeeping & stationery, F Finished goods, S Premix & spices; no code = No product code.`;
+  const AISLE = `Aisle = part of ${LOC} after the pending location, up to the first "-" (e.g. A5 from WH/Stock/A5-R3-L1-P2).`;
+  const L = {
+    k1: () => ['Total quantity still waiting at the pending location, not yet in any bin.', `SUM(${QTY}) where ${PEND()}`],
+    k2: () => ['Distinct products waiting. The line below counts those that also have some stock in bins.', `COUNT DISTINCT(${PRD}) where ${PEND()}`],
+    k3: () => ['Quantity already put away in the rack bins under the pending location.', `SUM(${QTY}) where ${BIN()}`],
+    k4: () => ['Share of total quantity that is already in bins.', `SUM(${QTY} in bins) ÷ (SUM(${QTY} pending) + SUM(${QTY} in bins)) × 100`],
+    k5: () => ['Distinct bin locations holding stock. ' + AISLE, `COUNT DISTINCT(${LOC}) where ${BIN()}`],
+    k6: () => ['Quantity reserved for orders while still sitting at the pending location.', `SUM(${RES}) where ${LOC} = ${ROOT()}`],
+    k7: () => ['Sum of the first four checks in the Data checks card (zero-quantity lines are listed but not counted).', `decimal "Units" lines + products without code + lot gaps + zero-stock reservations`],
+    'c-cat': () => [CAT + ' Click a slice to filter.', `SUM(${QTY}) where ${PEND()}, by category of ${PRD}`],
+    'c-top': () => ['The 10 products with the largest pending quantity. Tooltip adds the same product already in bins.', `SUM(${QTY}) where ${PEND()}, by ${PRD}; top 10`],
+    'c-status': () => [CAT, `Pending % = SUM(${QTY} pending) ÷ (SUM(${QTY} pending) + SUM(${QTY} in bins)), by category; In bins % = the rest`],
+    'c-skus': () => [CAT, `COUNT DISTINCT(${PRD}) where ${PEND()}, by category`],
+    'c-aisle': () => [AISLE + ' Tooltip shows the number of bins.', `SUM(${QTY}) where ${BIN()}, by aisle of ${LOC}; bins = COUNT DISTINCT(${LOC})`],
+    'c-unit': () => ['Pending quantity split by unit of measure. Units differ, so compare within one unit.', `SUM(${QTY}) where ${PEND()}, by ${UNIT}`],
+    'c-band': () => ['Bands: ≤ 10, 11–100, 101–1K, 1K–10K, 10K+.', `COUNT(lines) where ${PEND()}, by band of ${QTY}`],
+    'c-checks': () => ['Each line is a rule run on the uploaded rows.', `1) pending lines where ${UNIT} = Units and ${QTY} has decimals\n2) ${PRD} with no [code]\n3) ${PRD} where some lines have ${LOT} and some don't\n4) ${LOC} = ${ROOT()}, ${QTY} = 0 and ${RES} > 0\n5) ${LOC} = ${ROOT()} and ${QTY} = 0`],
+    'c-table': () => ['One row per pending product. Click a heading to sort.', `Lines = COUNT(rows); Pending qty = SUM(${QTY}) where ${PEND()}; Share = Pending qty ÷ total pending; In bins = SUM(${QTY}) where ${BIN()}; Unit = distinct ${UNIT}; by ${PRD}`],
+    'f-root': () => ['Stock at exactly this location counts as pending; its sub-locations count as in bins.', `filter on ${LOC}`],
+    'f-cat': () => [CAT, `filter on first character of ${PRD} code`],
+    'f-unit': () => ['Keeps only lines with this unit.', `filter on ${UNIT}`],
+    'f-q': () => ['Keeps products whose code or name contains the text.', `${PRD} contains search text`]
+  };
+  const box = document.createElement('div'); box.className = 'logic-pop'; box.setAttribute('role', 'tooltip'); box.hidden = true;
+  const h = document.createElement('div'); h.className = 'logic-h';
+  const p = document.createElement('p'); p.className = 'logic-p';
+  const fl = document.createElement('div'); fl.className = 'logic-lab'; fl.textContent = 'Logic';
+  const f = document.createElement('p'); f.className = 'logic-f';
+  const cl = document.createElement('div'); cl.className = 'logic-lab'; cl.textContent = 'Column headers used from the file';
+  const c = document.createElement('div'); c.className = 'logic-cols';
+  box.append(h, p, fl, f, cl, c); document.body.appendChild(box);
+  function rich(el, text) {
+    el.replaceChildren();
+    text.split('\n').forEach((ln, i) => {
+      if (i) el.appendChild(document.createElement('br'));
+      ln.split(/(\[[A-Za-z\/ ]+\])/).forEach((part) => {
+        if (/^\[[A-Za-z\/ ]+\]$/.test(part)) { const s = document.createElement('span'); s.className = 'logic-col'; s.textContent = part.slice(1, -1); el.appendChild(s); }
+        else if (part) el.appendChild(document.createTextNode(part));
+      });
+    });
+  }
+  const keyOf = (el) => el.classList.contains('fld') ? (el.querySelector('select,input') || {}).id : el.id;
+  const titleOf = (el) => { const t = el.querySelector('h3, .kl, .fl'); return t ? t.textContent.trim() : ''; };
+  let timer = null, cur = null;
+  function place(el) {
+    const r = el.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight, m = 8;
+    let top = r.top - bh - m; if (top < m) top = r.bottom + m;
+    if (top + bh > innerHeight - m) top = Math.max(m, innerHeight - bh - m);
+    box.style.top = top + 'px'; box.style.left = Math.min(Math.max(m, r.left), innerWidth - bw - m) + 'px';
+  }
+  function show(el) {
+    const fn = L[keyOf(el)]; if (!fn) return;
+    const [desc, logic] = fn();
+    cur = el; h.textContent = titleOf(el); rich(p, desc); rich(f, logic);
+    const cols = Array.from(new Set((desc + ' ' + logic).match(/\[[A-Za-z\/ ]+\]/g) || [])).map((x) => x.slice(1, -1));
+    c.replaceChildren(...cols.map((n) => { const s = document.createElement('span'); s.className = 'logic-col'; s.textContent = n; return s; }));
+    box.hidden = false; place(el);
+  }
+  function hide() { clearTimeout(timer); box.hidden = true; cur = null; }
+  document.querySelectorAll('.kpi, .card, .fld').forEach((el) => {
+    if (!el.classList.contains('fld')) el.setAttribute('tabindex', '0');
+    el.addEventListener('mouseenter', () => { clearTimeout(timer); timer = setTimeout(() => show(el), 350); });
+    el.addEventListener('mouseleave', hide);
+    el.addEventListener('focusin', () => show(el));
+    el.addEventListener('focusout', hide);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  window.addEventListener('scroll', () => { if (cur) place(cur); }, { passive: true });
+})();
+</script>
+</body></html>
