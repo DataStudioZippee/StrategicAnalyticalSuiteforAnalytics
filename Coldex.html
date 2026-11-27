@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zippee &lt;&gt; Coldex Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --zippee-primary: #00305E; --zippee-secondary: #0078D4;
+    --ink: #1d2a38; --muted: #4b5b6c; --paper: transparent; --panel: rgba(255,255,255,.80); --line: rgba(0,48,94,.14);
+    --card-bg: rgba(255,255,255,.15); --tip-bg: #ffffff;
+    --kraft: #b5753a; --kraft-soft: #e9d3bb; --ice: #0078D4; --ice-soft: #cfe4f2; --ice-mid: #7fb8e6;
+    --steel: #5f7488; --rev: #8a5a83; --rev-soft: #e6d3e3; --alert: #c2410c; --good: #2f7d4f; --grid: rgba(0,48,94,.08);
+    --f-body: "Segoe UI", system-ui, sans-serif;
+    --f-num: "Segoe UI", system-ui, sans-serif;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --r: 12px;
+  }
+  :root.dark {
+    color-scheme: dark;
+    --zippee-primary: #dce9ff;
+    --ink: #f5f5f5; --muted: #b6c3d1; --panel: rgba(8,18,32,.72); --line: rgba(255,255,255,.12);
+    --card-bg: rgba(0,0,0,.35); --tip-bg: #13202f;
+    --kraft: #d69456; --kraft-soft: #4a3522; --ice: #4aa8ef; --ice-soft: #1d3a4d; --ice-mid: #2f6f97;
+    --steel: #8fa3b6; --rev: #c48fbd; --rev-soft: #43293f; --alert: #f07a42; --good: #5cbf85; --grid: rgba(255,255,255,.07);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: 80px; }
+  body { margin: 0; background: url('Zippee_bg.png') no-repeat center/cover fixed, linear-gradient(135deg, #c9dcef, #eef4fa); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+  .wrap { max-width: 1240px; width: 92%; margin: 96px auto 60px; padding: 30px 22px; border-radius: 18px; background: var(--card-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 8px 30px rgba(0,0,0,.2); display: flex; flex-direction: column; gap: var(--s5); }
+  header h1 { font-family: var(--f-num); font-weight: 600; font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.01em; margin: 0 0 var(--s2); }
+  .summary { margin: 0; max-width: 72ch; font-size: 17px; }
+  .summary b { font-family: var(--f-num); font-weight: 800; color: var(--zippee-secondary); font-variant-numeric: tabular-nums; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); font-size: 14px; color: var(--muted); }
+  .bar label { display: flex; align-items: center; gap: var(--s2); }
+  select, input[type=text], input[type=number] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; }
+  button { font: inherit; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 14px; cursor: pointer; }
+  button:hover { border-color: var(--steel); }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--ice); outline-offset: 2px; }
+  .status { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .status.err { color: var(--alert); }
+
+  /* The dock: dry and cold side by side */
+  .dock { display: grid; grid-template-columns: 2fr 1fr; gap: var(--s4); }
+  @media (max-width: 860px) { .dock { grid-template-columns: 1fr; } }
+  .zone { border-radius: var(--r); padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-top: 6px solid var(--kraft); }
+  .zone.cold { border-top-color: var(--ice); }
+  .zone h2 { margin: 0 0 var(--s3); font-size: 15px; font-weight: 600; color: var(--kraft); }
+  .zone.cold h2 { color: var(--ice); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s4) var(--s5); }
+  .tile .k { font-size: 13px; color: var(--muted); }
+  .tile .v { font-family: var(--f-num); font-weight: 600; font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile .v.alert { color: var(--alert); }
+  .tile .s { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: var(--s4); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s4) var(--s4) var(--s3); min-width: 0; }
+  .panel h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .note { margin: 2px 0 var(--s3); font-size: 13px; color: var(--muted); }
+  .chart { position: relative; min-height: 200px; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart .tick text, .chart .lbl { fill: var(--muted); font-size: 12px; font-family: var(--f-body); }
+  .chart .val { fill: var(--ink); font-size: 12px; font-family: var(--f-num); font-weight: 500; }
+  .chart .domain { stroke: var(--line); }
+  .chart .tick line { stroke: var(--grid); }
+  .msg { color: var(--muted); font-size: 14px; padding: var(--s4) 0; }
+  .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.14); border-radius: var(--r);
+    padding: 6px 10px; font-size: 13px; white-space: nowrap; z-index: 5; }
+  .tip .t { font-weight: 600; }
+  .tip span { color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: var(--s4); margin: 0 0 var(--s2); padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 8px; white-space: nowrap; }
+  td { border-bottom: 1px solid var(--grid); padding: 6px 8px; white-space: nowrap; }
+  .num { text-align: right; }
+  .flag { color: var(--alert); font-weight: 600; }
+  .ok { color: var(--good); }
+
+  details.setup { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s3) var(--s4); }
+  details.setup summary { cursor: pointer; font-weight: 600; }
+  .setup .rows { display: grid; gap: var(--s3); margin-top: var(--s3); }
+  .setup .row { display: grid; grid-template-columns: 150px 1fr; gap: var(--s3); align-items: center; }
+  @media (max-width: 600px) { .setup .row { grid-template-columns: 1fr; gap: 4px; } }
+  .setup input { width: 100%; }
+  .setup p { margin: var(--s2) 0 0; font-size: 13px; color: var(--muted); max-width: 80ch; }
+  .tabstate { font-size: 12px; }
+  .views { display: flex; gap: var(--s2); border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .views button { border: none; border-bottom: 4px solid transparent; border-radius: 0; background: none; padding: 10px 18px 8px; font-size: 17px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .views button:hover { color: var(--ink); }
+  .views button[aria-selected="true"] { color: var(--ink); }
+  .views button[data-view="dry"][aria-selected="true"] { border-bottom-color: var(--kraft); }
+  .views button[data-view="cold"][aria-selected="true"] { border-bottom-color: var(--ice); }
+  .views button[data-view="reversed"][aria-selected="true"] { border-bottom-color: var(--rev); }
+  .view { display: flex; flex-direction: column; gap: var(--s4); }
+  .view[hidden] { display: none; }
+  .zone.rev { border-top-color: var(--rev); }
+  .zone.rev h2 { color: var(--rev); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+  @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+  .bar label[hidden] { display: none; }
+  .panelhead { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+  .tablewrap.tall { max-height: 420px; overflow-y: auto; }
+  @media print { .views, .bar, details.setup { display: none; } .view[hidden] { display: flex !important; } .view { break-before: page; } }
+
+  /* City summary report card (fixed light colours so the PNG always looks the same) */
+  .report-wrap { display: flex; flex-direction: column; gap: var(--s2); }
+  .report-actions { display: flex; justify-content: flex-end; }
+  .report-card { background: #ffffff; color: #111; border-radius: 6px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.18); font-family: "Segoe UI", system-ui, sans-serif; }
+  .rc-head { background: #2E3D48; color: #fff; text-align: center; padding: 16px 12px 14px; }
+  .rc-title { font-size: 26px; font-weight: 800; letter-spacing: .01em; }
+  .rc-sub { font-size: 14px; opacity: .9; margin-top: 4px; }
+  .rc-body { padding: 22px 22px 10px; }
+  .rc-table { border-collapse: separate; border-spacing: 3px; background: #c5ccd3; width: 100%; font-size: 16px; }
+  .rc-table th { background: #0B3150; color: #fff; font-weight: 700; text-align: center; padding: 10px 12px; border: none; white-space: nowrap; }
+  .rc-table th.rc-grp { font-size: 17px; }
+  .rc-table th.rc-dry { background: #0a5ea8; }
+  .rc-table th.rc-cold { background: #0a5ea8; }
+  .rc-table td { background: #fff; color: #111; text-align: center; padding: 11px 12px; border: none; font-size: 16px; }
+  .rc-table td:first-child { font-weight: 700; }
+  .rc-table tr.mx-total td { background: #dde1e6; font-weight: 800; }
+  .rc-foot { text-align: center; font-weight: 700; font-size: 14px; color: #111; padding: 10px 12px 18px; }
+  .rc-note { margin: 0; text-align: center; }
+  /* ===== SASA layout ===== */
+  :root.dark body { background: #0b1320; }
+  body::before { content: ""; position: fixed; inset: 0; background: rgba(255,255,255,.25); z-index: -1; }
+  :root.dark body::before { background: rgba(0,0,0,.25); }
+  .header-main { background: rgba(0,48,94,.85); color: #fff; position: fixed; top: 0; left: 0; width: 100%; padding: calc(10px + env(safe-area-inset-top, 0px)) 8px 10px;
+    display: flex; justify-content: center; align-items: center; gap: 10px; z-index: 20; }
+  .header-logo { height: 36px; }
+  .header-main h1 { margin: 0; font-size: 22px; font-weight: 600; color: #fff; text-align: center; }
+  .toggle-dark { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 15px; background: #fff; color: #1d2a38; border: none; border-radius: 50px;
+    padding: 6px 12px; cursor: pointer; font-size: 14px; z-index: 50; }
+  .summary { text-align: center; font-weight: 600; background: var(--tip-bg); padding: 10px 16px; border-radius: 12px; width: fit-content; max-width: 100%;
+    margin: 0 auto; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+  .bar { justify-content: center; }
+  .bar label { color: var(--ink); font-weight: 600; }
+  .status { margin-left: 0; width: 100%; text-align: center; font-weight: 600; }
+  .tool-button { background: linear-gradient(135deg, #0A66C2, #0078FF); color: #fff; border: none; outline: none; border-radius: 10px; font-weight: 700;
+    padding: 9px 18px; display: inline-flex; gap: 8px; align-items: center; justify-content: center; transition: transform .25s; }
+  .tool-button:hover { transform: translateY(-3px) scale(1.01); border: none; }
+  .views { justify-content: center; border-bottom: none; gap: 14px; flex-wrap: wrap; overflow: visible; }
+  .views button { border: none; border-radius: 10px; padding: 10px 22px; font-weight: 700; font-size: 15px; color: var(--zippee-primary);
+    background: rgba(255,255,255,.55); box-shadow: 0 6px 16px rgba(0,0,0,.15); transition: transform .25s; min-width: 150px; }
+  :root.dark .views button { background: rgba(0,0,0,.45); }
+  .views button:hover { transform: translateY(-3px) scale(1.01); color: var(--zippee-primary); }
+  .views button[aria-selected="true"], .views button[data-view][aria-selected="true"] { background: linear-gradient(135deg, #0A66C2, #0078FF); color: #fff; border: none; }
+  .zone, .panel, details.setup { border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.18); border: 1px solid var(--line); }
+  .zone { border-top-width: 6px; }
+  .panel h3, details.setup summary { color: var(--zippee-primary); }
+  .tip { background: var(--tip-bg); border-radius: 10px; }
+  select, input[type=text], input[type=number] { background: var(--tip-bg); border-radius: 8px; }
+  table th { color: var(--zippee-primary); }
+  @media (max-width: 600px) {
+    .header-main { justify-content: flex-start; padding-right: 110px; }
+    .header-main h1 { font-size: 16px; text-align: left; }
+    .header-logo { height: 28px; }
+    .wrap { width: 96%; padding: 20px 12px; margin-top: 80px; }
+  }
+  .header-logo { background: #fff; border-radius: 8px; padding: 3px; }
+  @media print { .header-main, .toggle-dark { display: none; } .wrap { margin-top: 0; box-shadow: none; } }
+</style>
+</head>
+<body>
+<button type="button" class="toggle-dark" id="toggle-dark" aria-label="Switch light or dark mode">🌙 / ☀️</button>
+<div class="header-main">
+  <img src="ZippeeSocial-Image.webp" class="header-logo" alt="Zippee" onerror="this.remove()">
+  <h1>Zippee &lt;&gt; Coldex Report</h1>
+</div>
+<div class="wrap">
+  <section class="report-wrap" id="matrix-panel">
+    <div class="report-actions"><button type="button" class="tool-button" id="dl-matrix">Download PNG</button></div>
+    <div class="report-card" id="report-card">
+      <div class="rc-head">
+        <div class="rc-title">Zippee &lt;&gt; Coldex Report</div>
+        <div class="rc-sub"><span id="rc-when">—</span> &nbsp;|&nbsp; Day: <span id="matrix-day">All days</span> &nbsp;|&nbsp; Box counts by city</div>
+      </div>
+      <div class="rc-body"><div class="tablewrap"><table class="rc-table">
+        <thead>
+          <tr><th rowspan="2" class="rc-city">City</th><th colspan="3" class="rc-grp rc-dry">Dry</th><th colspan="2" class="rc-grp rc-cold">Cold</th></tr>
+          <tr><th>Inward</th><th>Outward</th><th>Reverse</th><th>Inward</th><th>Outward</th></tr>
+        </thead>
+        <tbody id="t-matrix"></tbody>
+      </table></div></div>
+      <div class="rc-foot">Powered by SASA Automation | Zippee</div>
+    </div>
+    <p class="note rc-note">Follows the Day filter. <span id="matrix-note"></span></p>
+  </section>
+  <header>
+    <p class="summary" id="summary">Loading the sheet…</p>
+  </header>
+
+  <div class="bar">
+    <label>Day <select id="day" aria-label="Day"><option value="">All days</option></select></label>
+    <label id="city-wrap">City <select id="city" aria-label="City"><option value="">All cities</option></select></label>
+    <button type="button" class="tool-button" id="reload">Reload now</button>
+    <label><input type="checkbox" id="auto" checked> Auto-reload every <input type="number" id="mins" min="1" max="60" value="5" style="width:64px"> min</label>
+    <span class="status" id="status" aria-live="polite"></span>
+  </div>
+
+  <nav class="views" role="tablist" aria-label="Category">
+    <button type="button" role="tab" data-view="dry" aria-selected="true">Dry</button>
+    <button type="button" role="tab" data-view="cold" aria-selected="false">Cold</button>
+    <button type="button" role="tab" data-view="reversed" aria-selected="false">Reversed DRY</button>
+  </nav>
+
+  <!-- ================= DRY ================= -->
+  <section class="view" id="view-dry" role="tabpanel" aria-label="Dry">
+    <div class="split">
+      <div class="zone">
+        <h2>Inward Dry</h2>
+        <div class="tiles">
+          <div class="tile"><div class="k">Boxes</div><div class="v" id="k-in">—</div><div class="s"><span id="k-in-kg">—</span> kg</div></div>
+          <div class="tile"><div class="k">Dispatched</div><div class="v" id="k-disp">—</div><div class="s"><span id="k-disp-pct">—</span>% of inward</div></div>
+          <div class="tile"><div class="k">Not dispatched</div><div class="v alert" id="k-pend">—</div><div class="s"><span id="k-pend-pct">—</span>% of inward</div></div>
+        </div>
+      </div>
+      <div class="zone">
+        <h2>Outward Dry</h2>
+        <div class="tiles">
+          <div class="tile"><div class="k">Boxes</div><div class="v" id="k-out">—</div><div class="s">dispatched</div></div>
+          <div class="tile"><div class="k">Trips</div><div class="v" id="k-trips">—</div><div class="s">avg <span id="k-trip-avg">—</span> boxes per trip</div></div>
+          <div class="tile"><div class="k">Rows missing Trip ID</div><div class="v alert" id="k-notrip">—</div><div class="s">need fixing in the sheet</div></div>
+        </div>
+      </div>
+    </div>
+    <section class="panel">
+      <h3>Inward vs outward boxes per day</h3>
+      <p class="note">All days in the sheet. Outward rows without a date are left out of this chart.</p>
+      <ul class="legend" data-legend="dry"></ul>
+      <div class="chart" id="c-dry-daily"></div>
+    </section>
+    <div class="grid2">
+      <section class="panel"><h3>Dispatch status by city</h3><p class="note">An inward box counts as dispatched when its Tracking ID appears in Outward “Received box ids”.</p><ul class="legend" data-legend="status"></ul><div class="chart" id="c-status"></div></section>
+      <section class="panel"><h3>Inward box weights</h3><p class="note">Boxes in each weight band.</p><div class="chart" id="c-bands"></div></section>
+    </div>
+    <section class="panel">
+      <div class="panelhead"><h3>Not dispatched boxes</h3><button type="button" class="tool-button" id="dl-pending">Download CSV</button></div>
+      <p class="note">Inward boxes whose Tracking ID has no match in Outward “Received box ids”. <span id="pend-count"></span></p>
+      <div class="tablewrap tall"><table>
+        <thead><tr><th>Tracking ID</th><th>City</th><th>Inward date</th><th class="num">Weight (kg)</th><th class="num">Days waiting</th></tr></thead>
+        <tbody id="t-pending"></tbody>
+      </table></div>
+    </section>
+    <section class="panel"><h3>Outward boxes by trip</h3><p class="note">Rows with no Trip ID are shown as “No trip ID”.</p><div class="chart" id="c-trips"></div></section>
+    <section class="panel">
+      <h3>Dry data checks</h3>
+      <p class="note">Across all days. Anything above zero is worth a look.</p>
+      <div class="tablewrap"><table><thead><tr><th>Check</th><th class="num">Rows</th></tr></thead><tbody id="t-dry-checks"></tbody></table></div>
+    </section>
+  </section>
+
+  <!-- ================= COLD ================= -->
+  <section class="view" id="view-cold" role="tabpanel" aria-label="Cold" hidden>
+    <div class="split">
+      <div class="zone cold">
+        <h2>Cold Inward</h2>
+        <div class="tiles">
+          <div class="tile"><div class="k">Boxes</div><div class="v" id="k-cin">—</div><div class="s"><span id="k-cin-kg">—</span> kg</div></div>
+          <div class="tile"><div class="k">Sourcing hubs</div><div class="v" id="k-hubs">—</div><div class="s">avg <span id="k-cin-avg">—</span> kg per box</div></div>
+        </div>
+      </div>
+      <div class="zone cold">
+        <h2>Cold Outward</h2>
+        <div class="tiles">
+          <div class="tile"><div class="k">Boxes</div><div class="v" id="k-cout">—</div><div class="s"><span id="k-cout-kg">—</span> kg</div></div>
+          <div class="tile"><div class="k">Units</div><div class="v" id="k-units">—</div><div class="s">to <span id="k-stores">—</span> stores</div></div>
+          <div class="tile"><div class="k">Consignments</div><div class="v" id="k-cons">—</div><div class="s">on <span id="k-ctrips">—</span> trips</div></div>
+        </div>
+      </div>
+    </div>
+    <section class="panel">
+      <h3>Cold inward vs outward boxes per day</h3>
+      <p class="note">All days in the sheet.</p>
+      <ul class="legend" data-legend="cold"></ul>
+      <div class="chart" id="c-cold-daily"></div>
+    </section>
+    <div class="grid2">
+      <section class="panel"><h3>Cold Outward units by store</h3><p class="note">Hover a bar for boxes and weight.</p><div class="chart" id="c-cold"></div></section>
+      <section class="panel"><h3>Cold Inward boxes by sourcing hub</h3><p class="note">Hover a bar for weight.</p><div class="chart" id="c-hubs"></div></section>
+    </div>
+    <section class="panel">
+      <h3>Cold Outward consignments</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Consignment</th><th>Date</th><th>Trip ID</th><th>Store</th><th class="num">Boxes</th><th class="num">Units</th><th class="num">Weight (kg)</th></tr></thead>
+        <tbody id="t-cons"></tbody>
+      </table></div>
+    </section>
+  </section>
+
+  <!-- ================= REVERSED DRY ================= -->
+  <section class="view" id="view-reversed" role="tabpanel" aria-label="Reversed DRY" hidden>
+    <div class="zone rev">
+      <h2>Reversed DRY</h2>
+      <div class="tiles">
+        <div class="tile"><div class="k">Boxes</div><div class="v" id="k-rev">—</div><div class="s"><span id="k-rev-kg">—</span> kg</div></div>
+        <div class="tile"><div class="k">Destinations</div><div class="v" id="k-rev-dest">—</div><div class="s">avg <span id="k-rev-avg">—</span> kg per box</div></div>
+        <div class="tile"><div class="k">Days with returns</div><div class="v" id="k-rev-days">—</div><div class="s">busiest: <span id="k-rev-top">—</span></div></div>
+      </div>
+    </div>
+    <section class="panel">
+      <h3>Reversed boxes per day</h3>
+      <p class="note">All days in the sheet.</p>
+      <div class="chart" id="c-rev-daily"></div>
+    </section>
+    <div class="grid2">
+      <section class="panel"><h3>Reversed boxes by destination</h3><p class="note">Hover a bar for weight.</p><div class="chart" id="c-rev-dest"></div></section>
+      <section class="panel"><h3>Reversed box weights</h3><p class="note">Boxes in each weight band.</p><div class="chart" id="c-rev-bands"></div></section>
+    </div>
+    <section class="panel">
+      <h3>Reversed boxes</h3>
+      <div class="tablewrap tall"><table>
+        <thead><tr><th>Tracking ID</th><th>Date</th><th>Destination</th><th class="num">Weight (kg)</th></tr></thead>
+        <tbody id="t-rev"></tbody>
+      </table></div>
+    </section>
+  </section>
+
+  <details class="setup" id="setup">
+    <summary>Sheet connection</summary>
+    <p>This page reads the sheet through Google Sheets <b>File → Share → Publish to web</b> (CSV). Paste your published link below, then give each tab its <b>gid</b>: open the tab in the sheet and copy the number after <code>gid=</code> in the address bar. You can also paste a full published CSV link for a tab instead of a gid.</p>
+    <div class="rows">
+      <div class="row"><label for="pub">Published link</label><input type="text" id="pub" spellcheck="false"></div>
+      <div class="row"><label for="g-inward">Inward DRY</label><input type="text" id="g-inward" spellcheck="false"></div>
+      <div class="row"><label for="g-outward">Outward DRY</label><input type="text" id="g-outward" spellcheck="false"></div>
+      <div class="row"><label for="g-reverse">Reversed DRY</label><input type="text" id="g-reverse" spellcheck="false"></div>
+      <div class="row"><label for="g-coldin">Cold Inward</label><input type="text" id="g-coldin" spellcheck="false"></div>
+      <div class="row"><label for="g-coldout">Cold Outward</label><input type="text" id="g-coldout" spellcheck="false"></div>
+    </div>
+    <p id="tabstate" class="tabstate"></p>
+    <p><button type="button" class="tool-button" id="save">Save and load</button></p>
+    <p>Google refreshes published data about every 5 minutes, so a new row can take a few minutes to show here.</p>
+  </details>
+</div>
+
+<script>
+/* ---------- Defaults: edit these to hard-code your links ---------- */
+const DEFAULTS = {
+  pub: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRb9YmDjNYA42Fp_qx4dieDx7D5bH3I7Fi85MosBG8jZm3fKCXOsKmt2GzyWFI5A1KB7do_z-dICVfj/pub?output=csv',
+  tabs: { inward: '0', outward: '1851260843', reverse: '1164839682', coldin: '1236546635', coldout: '898151272' },
+};
+// Reversed DRY has no city column, and some Cold Outward boxes can't be traced back to an inward box.
+// Those rows are counted under this hub city in the City summary.
+const HUB_CITY = 'Siliguri XD Hyperlocal';
+const TABS = [
+  { key: 'inward', flow: 'Inward Dry', name: 'Inward DRY' },
+  { key: 'outward', flow: 'Outward Dry', name: 'Outward DRY' },
+  { key: 'reverse', flow: 'Reverse Dry', name: 'Reversed DRY' },
+  { key: 'coldin', flow: 'Cold Inward', name: 'Cold Inward' },
+  { key: 'coldout', flow: 'Cold Outward', name: 'Cold Outward' },
+];
+const FLOWS = TABS.map((t) => t.flow);
+const COLORS = () => {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (n) => cs.getPropertyValue(n).trim();
+  return [v('--kraft'), v('--steel'), v('--kraft-soft'), v('--ice'), v('--ice-soft')];
+};
+
+/* ---------- Settings ---------- */
+function loadCfg() {
+  const c = JSON.parse(JSON.stringify(DEFAULTS));
+  try {
+    const s = JSON.parse(localStorage.getItem('dryColdCfg') || 'null');
+    if (s) {
+      if (s.pub) c.pub = s.pub;
+      // A saved value wins only if it was filled in; blanks fall back to the built-in gids.
+      Object.keys(c.tabs).forEach((k) => { if (s.tabs && String(s.tabs[k] || '').trim()) c.tabs[k] = s.tabs[k]; });
+    }
+  } catch (e) {}
+  return c;
+}
+function saveCfg(c) { try { localStorage.setItem('dryColdCfg', JSON.stringify(c)); } catch (e) {} }
+let cfg = loadCfg();
+const $ = (id) => document.getElementById(id);
+function fillSetup() {
+  $('pub').value = cfg.pub || '';
+  TABS.forEach((t) => { $('g-' + t.key).value = (cfg.tabs && cfg.tabs[t.key]) || ''; });
+}
+function tabUrl(key) {
+  const v = String((cfg.tabs && cfg.tabs[key]) || '').trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (!/^\d+$/.test(v)) return null;
+  const m = /\/spreadsheets\/d\/e\/([^/]+)\//.exec(cfg.pub || '');
+  if (!m) return null;
+  return `https://docs.google.com/spreadsheets/d/e/${m[1]}/pub?gid=${v}&single=true&output=csv`;
+}
+
+/* ---------- Parsing ---------- */
+const FIELDS = { 'destination': 'destination', 'date': 'date', 'tracking id': 'tracking_id', 'weight/vol. wt.': 'weight', 'trip id': 'trip_id',
+  'received box ids': 'received_id', 'dispatch box ids': 'dispatch_id', 'city': 'city', 'consignment no': 'consignment_no', 'qty': 'qty', 'sourcing hub': 'sourcing_hub' };
+const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const pad = (n) => String(n).padStart(2, '0');
+function isoDate(v, flow, yearHint) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return null;
+  let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) return m[0];
+  m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/.exec(s);
+  if (m) {
+    let d = +m[1], mo = +m[2];
+    if ((mo > 12 && d <= 12) || (flow === 'Outward Dry' && d <= 12 && mo <= 12)) { d = +m[2]; mo = +m[1]; }
+    return `${m[3]}-${pad(mo)}-${pad(d)}`;
+  }
+  m = /^(\d{1,2})[\s\-]([A-Za-z]+)(?:[\s\-,]+(\d{4}))?$/.exec(s);
+  if (m) {
+    const mi = MONTHS.findIndex((x) => x.startsWith(m[2].toLowerCase().slice(0, 3)));
+    if (mi >= 0) return `${m[3] || yearHint}-${pad(mi + 1)}-${pad(+m[1])}`;
+  }
+  return null;
+}
+const txt = (v) => { const s = v == null ? '' : String(v).trim(); return s || null; };
+function toRows(csvText, flow) {
+  const grid = d3.csvParseRows(csvText.replace(/^\uFEFF/, ''));
+  if (!grid.length) return [];
+  const head = grid[0].map((h) => FIELDS[String(h).trim().toLowerCase()]);
+  const out = [];
+  for (const cells of grid.slice(1)) {
+    const o = {};
+    head.forEach((f, i) => { if (f) o[f] = cells[i]; });
+    const row = {
+      flow, rawDate: o.date,
+      destination: txt(o.destination), tracking_id: txt(o.tracking_id),
+      weight_kg: txt(o.weight) ? (parseFloat(String(o.weight).replace(/,/g, '')) || null) : null,
+      trip_id: txt(o.trip_id), received_id: txt(o.received_id), dispatch_id: txt(o.dispatch_id),
+      city: txt(o.city), consignment_no: txt(o.consignment_no), sourcing_hub: txt(o.sourcing_hub),
+      qty: txt(o.qty) ? Number(String(o.qty).replace(/,/g, '')) || 0 : null,
+    };
+    if (!row.tracking_id && !row.received_id && !row.dispatch_id) continue;
+    out.push(row);
+  }
+  return out;
+}
+
+/* ---------- Loading ---------- */
+let ALL = [];
+let tabInfo = {};
+let loading = false;
+let LAST_LOADED = null;
+async function loadAll() {
+  if (loading) return;
+  loading = true;
+  setStatus('Loading…');
+  const results = await Promise.all(TABS.map(async (t) => {
+    const url = tabUrl(t.key);
+    if (!url) return { t, rows: [], state: 'not set up' };
+    try {
+      const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const body = await res.text();
+      if (/^\s*<(!doctype|html)/i.test(body)) throw new Error('not published as CSV');
+      return { t, rows: toRows(body, t.flow), state: 'ok' };
+    } catch (e) {
+      return { t, rows: [], state: 'failed (' + e.message + ')' };
+    }
+  }));
+  const rows = results.flatMap((r) => r.rows);
+  // Year hint for dates written without a year (e.g. "23-November")
+  const years = rows.map((r) => /(\d{4})/.exec(String(r.rawDate || ''))).filter(Boolean).map((m) => +m[1]);
+  const yearHint = years.length ? d3.max(years) : new Date().getFullYear();
+  rows.forEach((r) => { r.date = isoDate(r.rawDate, r.flow, yearHint); });
+  tabInfo = {};
+  results.forEach((r) => { tabInfo[r.t.key] = { state: r.state, n: r.rows.length }; });
+  const okCount = results.filter((r) => r.state === 'ok').length;
+  ALL = rows;
+  LAST_LOADED = new Date();
+  loading = false;
+  renderTabState();
+  if (!okCount) {
+    setStatus('Couldn’t read any tab. Check the sheet connection below.', true);
+    $('setup').open = true;
+  } else {
+    const missing = results.filter((r) => r.state !== 'ok').map((r) => r.t.name);
+    setStatus('Updated ' + d3.timeFormat('%H:%M:%S')(new Date()) + (missing.length ? ' · not loaded: ' + missing.join(', ') : ''), missing.length > 0);
+  }
+  renderAll();
+}
+function renderTabState() {
+  const el = $('tabstate');
+  el.textContent = TABS.map((t) => `${t.name}: ${tabInfo[t.key] ? (tabInfo[t.key].state === 'ok' ? d3.format(',')(tabInfo[t.key].n) + ' rows' : tabInfo[t.key].state) : '—'}`).join('   |   ');
+}
+function setStatus(s, err) { const el = $('status'); el.textContent = s; el.classList.toggle('err', !!err); }
+
+/* ---------- Calculations ---------- */
+const fmt = d3.format(',');
+const dFmt = (iso) => (iso ? d3.utcFormat('%d %b %Y')(new Date(iso + 'T00:00:00Z')) : '—');
+const dShort = (iso) => (iso ? d3.utcFormat('%d %b')(new Date(iso + 'T00:00:00Z')) : '—');
+const sum = (rows, k) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+function pick(flow, day) { return ALL.filter((r) => r.flow === flow && (!day || r.date === day)); }
+function groupBy(rows, keyFn, init, add) {
+  const g = new Map();
+  for (const r of rows) { const k = keyFn(r); const e = g.get(k) || init(k); add(e, r); g.set(k, e); }
+  return Array.from(g.values());
+}
+
+/* ---------- Drawing ---------- */
+function makeTip(el) {
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.append(tip);
+  return {
+    show(ev, title, lines) {
+      tip.replaceChildren();
+      const t = document.createElement('div'); t.className = 't'; t.textContent = title; tip.append(t);
+      lines.forEach(([k, v]) => { const d = document.createElement('div'); const s = document.createElement('span'); s.textContent = k + ' '; d.append(s, document.createTextNode(v)); tip.append(d); });
+      tip.hidden = false;
+      const b = el.getBoundingClientRect();
+      tip.style.left = Math.max(0, Math.min(b.width - tip.offsetWidth, ev.clientX - b.left + 12)) + 'px';
+      tip.style.top = Math.max(0, ev.clientY - b.top - tip.offsetHeight - 8) + 'px';
+    },
+    hide() { tip.hidden = true; },
+  };
+}
+function message(el, text) { el.replaceChildren(); const m = document.createElement('div'); m.className = 'msg'; m.textContent = text; el.append(m); }
+function hbars(el, rows, o) {
+  if (!rows.length) return message(el, o.empty || 'No rows for this selection.');
+  el.replaceChildren();
+  const W = Math.max(260, el.clientWidth);
+  const svg = d3.select(el).append('svg').attr('role', 'img').attr('aria-label', o.aria);
+  const probe = svg.append('g');
+  let labW = 0, valW = 0;
+  rows.forEach((r) => {
+    labW = Math.max(labW, probe.append('text').attr('class', 'lbl').text(r[o.label]).node().getComputedTextLength());
+    valW = Math.max(valW, probe.append('text').attr('class', 'val').text(fmt(r[o.value])).node().getComputedTextLength());
+  });
+  probe.remove();
+  labW = Math.min(labW, W * 0.45);
+  const m = { l: labW + 10, r: valW + 10, t: 2, b: 2 }, H = m.t + m.b + rows.length * 28;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+  const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => r[o.value]) || 1]).range([m.l, W - m.r]);
+  const y = d3.scaleBand().domain(rows.map((r) => r[o.label])).range([m.t, H - m.b]).padding(0.25);
+  const tip = makeTip(el);
+  const g = svg.selectAll('g.r').data(rows).join('g').attr('class', 'r');
+  g.append('text').attr('class', 'lbl').attr('x', m.l - 8).attr('y', (r) => y(r[o.label]) + y.bandwidth() / 2).attr('dy', '0.35em').attr('text-anchor', 'end')
+    .text((r) => r[o.label]).each(function () { let s = this.textContent; while (this.getComputedTextLength() > labW && s.length > 3) { s = s.slice(0, -2); this.textContent = s + '…'; } });
+  g.append('rect').attr('x', m.l).attr('y', (r) => y(r[o.label])).attr('height', y.bandwidth()).attr('rx', 2)
+    .attr('width', (r) => Math.max(1, x(r[o.value]) - m.l)).attr('fill', (r) => o.color(r))
+    .on('pointermove', (ev, r) => tip.show(ev, r[o.label], o.tip(r))).on('pointerleave', () => tip.hide());
+  g.append('text').attr('class', 'val').attr('x', (r) => x(r[o.value]) + 6).attr('y', (r) => y(r[o.label]) + y.bandwidth() / 2).attr('dy', '0.35em').text((r) => fmt(r[o.value]));
+}
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+// Grouped bars per day for the given flows.
+function dailyChart(el, flows, colors, aria, keep) {
+  const src = keep ? ALL.filter(keep) : ALL;
+  const dates = Array.from(new Set(src.filter((r) => flows.includes(r.flow)).map((r) => r.date).filter(Boolean))).sort();
+  if (!dates.length) return message(el, 'No dated rows yet.');
+  const rows = [];
+  for (const date of dates) for (const flow of flows) rows.push({ date, flow, boxes: src.filter((r) => r.date === date && r.flow === flow).length });
+  el.replaceChildren();
+  const W = Math.max(280, el.clientWidth), H = 280, m = { l: 44, r: 8, t: 18, b: 26 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img').attr('aria-label', aria);
+  const x0 = d3.scaleBand().domain(dates).range([m.l, W - m.r]).paddingInner(0.25).paddingOuter(0.05);
+  const x1 = d3.scaleBand().domain(flows).range([0, x0.bandwidth()]).padding(0.08);
+  const y = d3.scaleLinear().domain([0, d3.max(rows, (r) => r.boxes) || 1]).nice().range([H - m.b, m.t]);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format('~s'))).call((g) => g.select('.domain').remove());
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x0).tickFormat(dShort).tickSizeOuter(0));
+  const tip = makeTip(el);
+  const g = svg.append('g').selectAll('g').data(rows.filter((r) => r.boxes > 0)).join('g');
+  const bw = Math.min(x1.bandwidth(), 90), off = (x1.bandwidth() - bw) / 2;
+  g.append('rect').attr('x', (r) => x0(r.date) + x1(r.flow) + off).attr('width', bw).attr('y', (r) => y(r.boxes)).attr('height', (r) => y(0) - y(r.boxes)).attr('rx', 2)
+    .attr('fill', (r) => colors[flows.indexOf(r.flow)])
+    .on('pointermove', (ev, r) => tip.show(ev, r.flow, [['Date', dFmt(r.date)], ['Boxes', fmt(r.boxes)]])).on('pointerleave', () => tip.hide());
+  if (x1.bandwidth() >= 22) g.append('text').attr('class', 'val').attr('text-anchor', 'middle').attr('x', (r) => x0(r.date) + x1(r.flow) + x1.bandwidth() / 2).attr('y', (r) => y(r.boxes) - 4).text((r) => fmt(r.boxes));
+}
+function stackBars(el, rows, colors, names, aria) {
+  if (!rows.length) return message(el, 'No rows for this selection.');
+  el.replaceChildren();
+  const W = Math.max(260, el.clientWidth);
+  const svg = d3.select(el).append('svg').attr('role', 'img').attr('aria-label', aria);
+  const probe = svg.append('g'); let labW = 0, valW = 0;
+  rows.forEach((r) => {
+    labW = Math.max(labW, probe.append('text').attr('class', 'lbl').text(r.name).node().getComputedTextLength());
+    valW = Math.max(valW, probe.append('text').attr('class', 'val').text(fmt(r.a + r.b) + ' (' + fmt(r.b) + ' pending)').node().getComputedTextLength());
+  });
+  probe.remove(); labW = Math.min(labW, W * 0.4);
+  const m = { l: labW + 10, r: valW + 10, t: 2, b: 2 }, H = m.t + m.b + rows.length * 34;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+  const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => r.a + r.b) || 1]).range([m.l, W - m.r]);
+  const y = d3.scaleBand().domain(rows.map((r) => r.name)).range([m.t, H - m.b]).padding(0.25);
+  const tip = makeTip(el);
+  const g = svg.selectAll('g.r').data(rows).join('g').attr('class', 'r');
+  const show = (ev, r) => tip.show(ev, r.name, [[names[0], fmt(r.a) + ' (' + Math.round((r.a / (r.a + r.b || 1)) * 100) + '%)'], [names[1], fmt(r.b) + ' (' + Math.round((r.b / (r.a + r.b || 1)) * 100) + '%)'], ['Total', fmt(r.a + r.b)]]);
+  g.append('text').attr('class', 'lbl').attr('x', m.l - 8).attr('y', (r) => y(r.name) + y.bandwidth() / 2).attr('dy', '0.35em').attr('text-anchor', 'end').text((r) => r.name)
+    .each(function () { let s = this.textContent; while (this.getComputedTextLength() > labW && s.length > 3) { s = s.slice(0, -2); this.textContent = s + '…'; } });
+  g.append('rect').attr('x', m.l).attr('y', (r) => y(r.name)).attr('height', y.bandwidth()).attr('width', (r) => Math.max(0, x(r.a) - m.l)).attr('fill', colors[0])
+    .on('pointermove', show).on('pointerleave', () => tip.hide());
+  g.append('rect').attr('x', (r) => x(r.a)).attr('y', (r) => y(r.name)).attr('height', y.bandwidth()).attr('width', (r) => Math.max(0, x(r.a + r.b) - x(r.a))).attr('fill', colors[1])
+    .on('pointermove', show).on('pointerleave', () => tip.hide());
+  g.append('text').attr('class', 'val').attr('x', (r) => x(r.a + r.b) + 6).attr('y', (r) => y(r.name) + y.bandwidth() / 2).attr('dy', '0.35em')
+    .text((r) => fmt(r.a + r.b) + ' (' + fmt(r.b) + ' pending)');
+}
+function legend(key, names, colors) {
+  document.querySelectorAll(`[data-legend="${key}"]`).forEach((ul) => {
+    ul.replaceChildren(...names.map((f, i) => { const li = document.createElement('li'); const s = document.createElement('span'); s.className = 'sw'; s.style.background = colors[i]; li.append(s, document.createTextNode(f)); return li; }));
+  });
+}
+const BANDS = [['Under 5 kg', 0, 5], ['5–10 kg', 5, 10], ['10–20 kg', 10, 20], ['20–50 kg', 20, 50], ['50 kg and over', 50, Infinity]];
+function bandChart(el, rows, color, aria) {
+  const w = rows.filter((r) => r.weight_kg != null);
+  const data = w.length ? BANDS.map(([name, lo, hi]) => ({ name, boxes: w.filter((r) => r.weight_kg >= lo && r.weight_kg < hi).length })) : [];
+  hbars(el, data, { label: 'name', value: 'boxes', aria, color: () => color, tip: (r) => [['Boxes', fmt(r.boxes)], ['Share', Math.round((r.boxes / w.length) * 100) + '%']] });
+}
+function byKey(rows, keyName, fallback) {
+  return groupBy(rows, (r) => r[keyName] || fallback, (k) => ({ name: k, boxes: 0, kg: 0, units: 0 }), (e, r) => { e.boxes++; e.kg += r.weight_kg || 0; e.units += r.qty || 0; });
+}
+const isOk = (key) => !!(tabInfo[key] && tabInfo[key].state === 'ok');
+const avg = (kg, n) => (n ? d3.format(',.1f')(kg / n) : '—');
+function fillTable(tb, rows, cols, empty) {
+  tb.replaceChildren();
+  if (!rows.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = cols.length; td.className = 'msg'; td.textContent = empty; tr.append(td); tb.append(tr); return; }
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    cols.forEach(([fn, cls]) => { const td = document.createElement('td'); td.textContent = fn(r); if (cls) td.className = typeof cls === 'function' ? cls(r) : cls; tr.append(td); });
+    tb.append(tr);
+  }
+}
+
+/* ---------- Render ---------- */
+let VIEW = 'dry';
+const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+function renderAll() {
+  const sel = $('day'), prev = sel.value;
+  const days = Array.from(new Set(ALL.map((r) => r.date).filter(Boolean))).sort();
+  sel.replaceChildren(new Option('All days', ''), ...days.map((d) => new Option(dFmt(d), d)));
+  sel.value = days.includes(prev) ? prev : '';
+  const csel = $('city'), cprev = csel.value;
+  const cities = Array.from(new Set(ALL.filter((r) => r.flow === 'Inward Dry').map((r) => r.destination).filter(Boolean))).sort();
+  csel.replaceChildren(new Option('All cities', ''), ...cities.map((c) => new Option(c, c)));
+  csel.value = cities.includes(cprev) ? cprev : '';
+  $('city-wrap').hidden = VIEW !== 'dry';
+  renderMatrix();
+  renderSummary();
+  if (VIEW === 'dry') renderDry();
+  if (VIEW === 'cold') renderCold();
+  if (VIEW === 'reversed') renderReversed();
+}
+const shortCity = (c) => String(c).replace(/\s+XD\s+Hyperlocal$/i, '');
+function renderMatrix() {
+  const D = $('day').value;
+  const allIn = pick('Inward Dry', ''), allOut = pick('Outward Dry', '');
+  const inById = new Map(); allIn.forEach((r) => { if (r.tracking_id && !inById.has(r.tracking_id)) inById.set(r.tracking_id, r); });
+  const outByDispatch = new Map(); allOut.forEach((r) => { if (r.dispatch_id && !outByDispatch.has(r.dispatch_id)) outByDispatch.set(r.dispatch_id, r); });
+  const outCity = (r) => { const m = r.received_id && inById.get(r.received_id); return (m && m.destination) || (r.city && r.city.toLowerCase() !== 'not found' ? r.city : 'Unknown'); };
+  let hubUsed = 0;
+  const hub = () => { hubUsed++; return HUB_CITY; };
+  const cityOf = {
+    'Inward Dry': (r) => r.destination || 'Unknown',
+    'Outward Dry': outCity,
+    'Reverse Dry': (r) => { const m = r.tracking_id && inById.get(r.tracking_id); return (m && m.destination) || hub(); },
+    'Cold Inward': (r) => r.destination || hub(),
+    'Cold Outward': (r) => { const o = r.tracking_id && outByDispatch.get(r.tracking_id); const c = o ? outCity(o) : 'Unknown'; return c !== 'Unknown' ? c : hub(); },
+  };
+  const cols = ['Inward Dry', 'Outward Dry', 'Reverse Dry', 'Cold Inward', 'Cold Outward'];
+  const table = new Map();
+  for (const r of ALL) {
+    if (!cityOf[r.flow] || (D && r.date !== D)) continue;
+    const c = cityOf[r.flow](r);
+    if (!table.has(c)) table.set(c, Object.fromEntries(cols.map((k) => [k, 0])));
+    table.get(c)[r.flow]++;
+  }
+  // Cities from Inward first (in sheet order of size), then any others, Unknown last.
+  const total = (o) => cols.reduce((s, k) => s + o[k], 0);
+  const rows = Array.from(table, ([city, v]) => ({ city, ...v }))
+    .sort((a, z) => (a.city === 'Unknown') - (z.city === 'Unknown') || z['Inward Dry'] - a['Inward Dry'] || total(z) - total(a));
+  const tb = $('t-matrix'); tb.replaceChildren();
+  if (!rows.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 6; td.className = 'msg'; td.textContent = ALL.length ? 'No rows for this day.' : 'Loading…'; tr.append(td); tb.append(tr); }
+  const loaded = { 'Inward Dry': isOk('inward'), 'Outward Dry': isOk('outward'), 'Reverse Dry': isOk('reverse'), 'Cold Inward': isOk('coldin'), 'Cold Outward': isOk('coldout') };
+  const addRow = (name, v, cls, title) => {
+    const tr = document.createElement('tr'); if (cls) tr.className = cls;
+    const td0 = document.createElement('td'); td0.textContent = name; if (title) td0.title = title; tr.append(td0);
+    cols.forEach((k) => { const td = document.createElement('td'); td.className = 'num'; td.textContent = loaded[k] ? fmt(v[k]) : '—'; tr.append(td); });
+    tb.append(tr);
+  };
+  rows.forEach((r) => addRow(shortCity(r.city), r, '', r.city));
+  if (rows.length > 1) addRow('Total', Object.fromEntries(cols.map((k) => [k, d3.sum(rows, (r) => r[k])])), 'mx-total');
+  set('matrix-day', D ? dFmt(D) : 'All days');
+  set('rc-when', LAST_LOADED ? d3.timeFormat('%d %b %Y, %I:%M %p')(LAST_LOADED) : '—');
+  set('matrix-note', hubUsed ? `Reverse boxes, and Cold boxes that can’t be traced to a city, are counted under ${shortCity(HUB_CITY)} (the hub).` : '');
+}
+function renderSummary() {
+  const D = $('day').value, sm = $('summary');
+  sm.replaceChildren();
+  const b = (t) => { const e = document.createElement('b'); e.textContent = t; return e; };
+  const T = (t) => document.createTextNode(t);
+  if (!ALL.length) return sm.append(T('No rows loaded yet.'));
+  const when = D ? dFmt(D) : 'all days in the sheet';
+  if (VIEW === 'dry') {
+    const M = dryModel();
+    const where = M.CITY ? ' in ' + M.CITY : '';
+    sm.append(T('For '), b(when), T(where + ', '), b(fmt(M.inward.length)), T(' dry boxes came in and '), b(fmt(M.outward.length)), T(' went out on '), b(fmt(new Set(M.outward.map((r) => r.trip_id).filter(Boolean)).size)), T(new Set(M.outward.map((r) => r.trip_id).filter(Boolean)).size === 1 ? ' trip.' : ' trips.'));
+    if (isOk('outward')) sm.append(T(' '), b(fmt(M.inward.filter((r) => !M.isDisp(r)).length)), T(' inward boxes are not dispatched yet (no matching received ID).'));
+  } else if (VIEW === 'cold') {
+    const ci = pick('Cold Inward', D), co = pick('Cold Outward', D);
+    sm.append(T('For '), b(when), T(', '), b(fmt(ci.length)), T(' cold boxes came in and '), b(fmt(co.length)), T(' went out, carrying '), b(fmt(sum(co, 'qty'))), T(' units to '), b(fmt(new Set(co.map((r) => r.destination).filter(Boolean)).size)), T(' stores.'));
+  } else {
+    const rv = pick('Reverse Dry', D);
+    sm.append(T('For '), b(when), T(', '), b(fmt(rv.length)), T(' boxes were reversed, weighing '), b(fmt(Math.round(sum(rv, 'weight_kg')))), T(' kg in total.'));
+  }
+}
+
+// Links inward and outward: Tracking ID (inward) = Received box id (outward).
+function dryModel() {
+  const D = $('day').value, CITY = $('city').value;
+  const allIn = pick('Inward Dry', ''), allOut = pick('Outward Dry', '');
+  const inById = new Map();
+  allIn.forEach((r) => { if (r.tracking_id && !inById.has(r.tracking_id)) inById.set(r.tracking_id, r); });
+  const received = new Set(allOut.map((r) => r.received_id).filter(Boolean));
+  // An outward box's city is the Destination of its matching inward box, else its own City column.
+  const outCity = (r) => { const m = r.received_id && inById.get(r.received_id); return (m && m.destination) || (r.city && r.city.toLowerCase() !== 'not found' ? r.city : 'Unknown'); };
+  const inward = allIn.filter((r) => (!D || r.date === D) && (!CITY || r.destination === CITY));
+  const outward = allOut.filter((r) => (!D || r.date === D) && (!CITY || outCity(r) === CITY));
+  const isDisp = (r) => received.has(r.tracking_id);
+  return { D, CITY, allIn, allOut, inById, received, outCity, inward, outward, isDisp };
+}
+function renderDry() {
+  const M = dryModel(), { inward, outward, allIn, allOut, received } = M;
+  const okOut = isOk('outward');
+  const disp = inward.filter(M.isDisp), pendRows = inward.filter((r) => !M.isDisp(r));
+  const trips = new Set(outward.map((r) => r.trip_id).filter(Boolean)).size;
+  const inKg = sum(inward, 'weight_kg');
+  const pct = (n) => (inward.length ? Math.round((n / inward.length) * 100) : 0);
+  set('k-in', fmt(inward.length)); set('k-in-kg', fmt(Math.round(inKg)));
+  set('k-disp', okOut ? fmt(disp.length) : '—'); set('k-disp-pct', okOut ? pct(disp.length) : '—');
+  set('k-pend', okOut ? fmt(pendRows.length) : '—'); set('k-pend-pct', okOut ? pct(pendRows.length) : '—');
+  set('k-out', okOut ? fmt(outward.length) : '—'); set('k-trips', okOut ? fmt(trips) : '—');
+  set('k-trip-avg', trips ? d3.format(',.0f')(outward.filter((r) => r.trip_id).length / trips) : '—');
+  set('k-notrip', okOut ? fmt(outward.filter((r) => !r.trip_id).length) : '—');
+
+  const C = [cssVar('--kraft'), cssVar('--steel')];
+  legend('dry', ['Inward Dry', 'Outward Dry'], C);
+  dailyChart($('c-dry-daily'), ['Inward Dry', 'Outward Dry'], C, 'Dry inward and outward boxes per day',
+    M.CITY ? (r) => (r.flow === 'Inward Dry' ? r.destination === M.CITY : r.flow === 'Outward Dry' ? M.outCity(r) === M.CITY : false) : null);
+  const S = [cssVar('--good'), cssVar('--alert')];
+  legend('status', ['Dispatched', 'Not dispatched'], S);
+  const byCity = groupBy(inward, (r) => r.destination || 'No city', (k) => ({ name: k, a: 0, b: 0 }), (e, r) => { if (M.isDisp(r)) e.a++; else e.b++; })
+    .sort((x, z) => (z.a + z.b) - (x.a + x.b));
+  if (!okOut) message($('c-status'), 'Outward DRY tab isn’t connected yet, so dispatch can’t be matched.');
+  else stackBars($('c-status'), byCity, S, ['Dispatched', 'Not dispatched'], 'Inward boxes per city, dispatched and not dispatched');
+
+  const today = d3.utcDay.floor(new Date());
+  const pendSorted = pendRows.slice().sort((x, z) => String(x.date).localeCompare(String(z.date)) || String(x.destination).localeCompare(String(z.destination)));
+  const waiting = (r) => (r.date ? Math.max(0, Math.round((today - new Date(r.date + 'T00:00:00Z')) / 864e5)) : null);
+  set('pend-count', okOut ? fmt(pendRows.length) + ' boxes.' : '');
+  fillTable($('t-pending'), okOut ? pendSorted : [], [[(r) => r.tracking_id], [(r) => r.destination || '—'], [(r) => dFmt(r.date)],
+    [(r) => (r.weight_kg == null ? '—' : d3.format(',.2f')(r.weight_kg)), 'num'], [(r) => { const w = waiting(r); return w == null ? '—' : fmt(w); }, 'num']],
+    okOut ? 'Every inward box for this selection has been dispatched.' : 'Outward DRY tab isn’t connected yet.');
+  window.__pendingRows = okOut ? pendSorted.map((r) => ({ 'Tracking ID': r.tracking_id, City: r.destination || '', 'Inward date': r.date || '', 'Weight (kg)': r.weight_kg == null ? '' : r.weight_kg, 'Days waiting': waiting(r) == null ? '' : waiting(r) })) : [];
+  bandChart($('c-bands'), inward, C[0], 'Inward Dry boxes per weight band');
+  hbars($('c-trips'), byKey(outward, 'trip_id', 'No trip ID').sort((a, z) => z.boxes - a.boxes), { label: 'name', value: 'boxes', aria: 'Outward Dry boxes per trip',
+    empty: isOk('outward') ? undefined : 'Outward DRY tab isn’t connected yet. Add its gid under Sheet connection.',
+    color: (r) => (r.name === 'No trip ID' ? cssVar('--alert') : C[1]), tip: (r) => [['Boxes', fmt(r.boxes)]] });
+
+  const inIds = new Set(allIn.map((r) => r.tracking_id).filter(Boolean));
+  const seen = new Set(); let dup = 0;
+  allIn.forEach((r) => { if (!r.tracking_id) return; if (seen.has(r.tracking_id)) dup++; else seen.add(r.tracking_id); });
+  const o = isOk('outward');
+  const checks = [
+    ['Inward boxes not dispatched (Tracking ID not in Outward received IDs)', o ? allIn.filter((r) => !received.has(r.tracking_id)).length : null],
+    ['Outward rows with no Trip ID', o ? allOut.filter((r) => !r.trip_id).length : null],
+    ['Outward rows with no date', o ? allOut.filter((r) => !r.date).length : null],
+    ['Outward rows with City blank or “Not Found”', o ? allOut.filter((r) => !r.city || r.city.toLowerCase() === 'not found').length : null],
+    ['Outward received IDs with no matching Inward Tracking ID', o ? allOut.filter((r) => r.received_id && !inIds.has(r.received_id)).length : null],
+    ['Outward boxes relabelled (received ID ≠ dispatch ID)', o ? allOut.filter((r) => r.received_id && r.dispatch_id && r.received_id !== r.dispatch_id).length : null],
+    ['Duplicate tracking IDs in Inward', dup],
+  ].map(([name, n]) => ({ name, n }));
+  fillTable($('t-dry-checks'), checks, [[(r) => r.name], [(r) => (r.n == null ? 'needs Outward DRY tab' : fmt(r.n)), (r) => 'num ' + (r.n == null ? '' : r.n > 0 ? 'flag' : 'ok')]], '');
+}
+
+function renderCold() {
+  const D = $('day').value;
+  const ci = pick('Cold Inward', D), co = pick('Cold Outward', D);
+  const ciKg = sum(ci, 'weight_kg');
+  set('k-cin', isOk('coldin') ? fmt(ci.length) : '—'); set('k-cin-kg', isOk('coldin') ? fmt(Math.round(ciKg)) : '—');
+  set('k-hubs', isOk('coldin') ? fmt(new Set(ci.map((r) => r.sourcing_hub).filter(Boolean)).size) : '—'); set('k-cin-avg', avg(ciKg, ci.length));
+  const okOut = isOk('coldout');
+  set('k-cout', okOut ? fmt(co.length) : '—'); set('k-cout-kg', okOut ? fmt(Math.round(sum(co, 'weight_kg'))) : '—');
+  set('k-units', okOut ? fmt(sum(co, 'qty')) : '—'); set('k-stores', okOut ? fmt(new Set(co.map((r) => r.destination).filter(Boolean)).size) : '—');
+  set('k-cons', okOut ? fmt(new Set(co.map((r) => r.consignment_no).filter(Boolean)).size) : '—'); set('k-ctrips', okOut ? fmt(new Set(co.map((r) => r.trip_id).filter(Boolean)).size) : '—');
+
+  const C = [cssVar('--ice-mid'), cssVar('--ice')];
+  legend('cold', ['Cold Inward', 'Cold Outward'], C);
+  dailyChart($('c-cold-daily'), ['Cold Inward', 'Cold Outward'], C, 'Cold inward and outward boxes per day');
+  hbars($('c-cold'), byKey(co, 'destination', 'No destination').sort((a, z) => z.units - a.units), { label: 'name', value: 'units', aria: 'Cold Outward units per store',
+    empty: okOut ? undefined : 'Cold Outward tab isn’t connected yet. Add its gid under Sheet connection.',
+    color: () => C[1], tip: (r) => [['Units', fmt(r.units)], ['Boxes', fmt(r.boxes)], ['Weight', fmt(Math.round(r.kg)) + ' kg']] });
+  hbars($('c-hubs'), byKey(ci, 'sourcing_hub', 'No sourcing hub').sort((a, z) => z.boxes - a.boxes), { label: 'name', value: 'boxes', aria: 'Cold Inward boxes per sourcing hub',
+    empty: isOk('coldin') ? undefined : 'Cold Inward tab isn’t connected yet. Add its gid under Sheet connection.',
+    color: () => C[1], tip: (r) => [['Boxes', fmt(r.boxes)], ['Weight', fmt(Math.round(r.kg)) + ' kg']] });
+  const cons = groupBy(co, (r) => r.consignment_no || 'None', (k) => ({ id: k, date: null, trip: null, store: null, boxes: 0, units: 0, kg: 0 }),
+    (e, r) => { e.date = e.date || r.date; e.trip = e.trip || r.trip_id; e.store = e.store || r.destination; e.boxes++; e.units += r.qty || 0; e.kg += r.weight_kg || 0; })
+    .sort((a, z) => String(a.date).localeCompare(String(z.date)) || z.units - a.units);
+  fillTable($('t-cons'), cons, [[(r) => r.id], [(r) => dFmt(r.date)], [(r) => r.trip || '—'], [(r) => r.store || '—'], [(r) => fmt(r.boxes), 'num'], [(r) => fmt(r.units), 'num'], [(r) => d3.format(',.1f')(r.kg), 'num']],
+    okOut ? 'No Cold Outward consignments for this day.' : 'Cold Outward tab isn’t connected yet.');
+}
+
+function renderReversed() {
+  const D = $('day').value, ok = isOk('reverse');
+  const rv = pick('Reverse Dry', D), all = pick('Reverse Dry', '');
+  const kg = sum(rv, 'weight_kg');
+  set('k-rev', ok ? fmt(rv.length) : '—'); set('k-rev-kg', ok ? fmt(Math.round(kg)) : '—');
+  set('k-rev-dest', ok ? fmt(new Set(rv.map((r) => r.destination).filter(Boolean)).size) : '—'); set('k-rev-avg', avg(kg, rv.length));
+  const perDay = d3.rollups(all.filter((r) => r.date), (v) => v.length, (r) => r.date).sort((a, z) => z[1] - a[1]);
+  set('k-rev-days', ok ? fmt(perDay.length) : '—'); set('k-rev-top', perDay.length ? `${dShort(perDay[0][0])} (${fmt(perDay[0][1])})` : '—');
+  const C = cssVar('--rev');
+  if (!ok) { ['c-rev-daily', 'c-rev-dest', 'c-rev-bands'].forEach((id) => message($(id), 'Reversed DRY tab isn’t connected yet. Add its gid under Sheet connection.')); }
+  else {
+    dailyChart($('c-rev-daily'), ['Reverse Dry'], [C], 'Reversed boxes per day');
+    hbars($('c-rev-dest'), byKey(rv, 'destination', 'No destination').sort((a, z) => z.boxes - a.boxes), { label: 'name', value: 'boxes', aria: 'Reversed boxes per destination',
+      color: () => C, tip: (r) => [['Boxes', fmt(r.boxes)], ['Weight', fmt(Math.round(r.kg)) + ' kg']] });
+    bandChart($('c-rev-bands'), rv, C, 'Reversed boxes per weight band');
+  }
+  const list = rv.slice().sort((a, z) => String(a.date).localeCompare(String(z.date)));
+  fillTable($('t-rev'), list, [[(r) => r.tracking_id || '—'], [(r) => dFmt(r.date)], [(r) => r.destination || '—'], [(r) => (r.weight_kg == null ? '—' : d3.format(',.2f')(r.weight_kg)), 'num']],
+    ok ? 'No reversed boxes for this day.' : 'Reversed DRY tab isn’t connected yet.');
+}
+
+function showView(v) {
+  if (!['dry', 'cold', 'reversed'].includes(v)) v = 'dry';
+  VIEW = v;
+  document.querySelectorAll('.views button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === v)));
+  document.querySelectorAll('.view').forEach((s) => { s.hidden = s.id !== 'view-' + v; });
+  if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+  renderAll();
+}
+window.addEventListener('beforeprint', () => { ['dry', 'cold', 'reversed'].forEach((v) => { const keep = VIEW; VIEW = v; document.getElementById('view-' + v).hidden = false; renderAll(); VIEW = keep; }); });
+window.addEventListener('afterprint', () => showView(VIEW));
+
+/* ---------- Wiring ---------- */
+let timer = null;
+function schedule() {
+  clearInterval(timer);
+  if ($('auto').checked) timer = setInterval(loadAll, Math.max(1, Number($('mins').value) || 5) * 60000);
+}
+$('reload').addEventListener('click', loadAll);
+$('auto').addEventListener('change', schedule);
+$('mins').addEventListener('change', schedule);
+$('day').addEventListener('change', renderAll);
+$('city').addEventListener('change', renderAll);
+$('dl-pending').addEventListener('click', () => {
+  const rows = window.__pendingRows || [];
+  if (!rows.length) return;
+  const cols = Object.keys(rows[0]);
+  const esc = (v) => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csv = [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv' }));
+  a.download = 'not-dispatched-' + ($('city').value || 'all-cities').replace(/[^A-Za-z0-9]+/g, '-') + '-' + ($('day').value || 'all-days') + '.csv';
+  document.body.append(a); a.click(); a.remove();
+});
+$('dl-matrix').addEventListener('click', async () => {
+  const btn = $('dl-matrix');
+  if (typeof html2canvas !== 'function') { btn.textContent = 'PNG tool didn’t load'; return; }
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Preparing…';
+  try {
+    const canvas = await html2canvas($('report-card'), {
+      scale: 2, backgroundColor: '#ffffff', useCORS: true,
+      // Lay the card out at a fixed width so the image is the same on any screen.
+      onclone: (doc) => { const c = doc.getElementById('report-card'); c.style.width = '1100px'; c.style.boxShadow = 'none'; c.style.borderRadius = '0'; },
+      windowWidth: 1300,
+    });
+    const day = $('day').value || 'all-days';
+    const a = document.createElement('a');
+    a.download = 'Zippee-Coldex-Report-' + day + '.png';
+    a.href = canvas.toDataURL('image/png');
+    document.body.append(a); a.click(); a.remove();
+  } catch (e) { alert('Couldn’t make the PNG: ' + e.message); }
+  btn.disabled = false; btn.textContent = label;
+});
+$('save').addEventListener('click', () => {
+  cfg = { pub: $('pub').value.trim(), tabs: {} };
+  TABS.forEach((t) => { cfg.tabs[t.key] = $('g-' + t.key).value.trim(); });
+  saveCfg(cfg);
+  loadAll();
+});
+let lastW = 0;
+new ResizeObserver(() => { const w = document.body.clientWidth; if (Math.abs(w - lastW) > 20 && ALL.length) { lastW = w; renderAll(); } }).observe(document.body);
+try { if (localStorage.getItem('dryColdDark') === '1') document.documentElement.classList.add('dark'); } catch (e) {}
+$('toggle-dark').addEventListener('click', () => {
+  const on = document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('dryColdDark', on ? '1' : '0'); } catch (e) {}
+  if (ALL.length) renderAll();
+});
+
+document.querySelectorAll('.views button').forEach((b) => b.addEventListener('click', () => showView(b.dataset.view)));
+window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
+VIEW = ['dry', 'cold', 'reversed'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dry';
+document.querySelectorAll('.views button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === VIEW)));
+document.querySelectorAll('.view').forEach((s) => { s.hidden = s.id !== 'view-' + VIEW; });
+fillSetup();
+loadAll();
+schedule();
+</script>
+</body>
+</html>
